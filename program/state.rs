@@ -1,13 +1,11 @@
 pub enum AccountFlag {
     Initialized = 1u64 << 0,
     Market = 1u64 << 1,
-    OpenOrders = 1u64 << 2,
-    EventQueue = 1u64 << 3,
-    Bids = 1u64 << 4,
-    Asks = 1u64 << 5,
-    Disabled = 1u64 << 6,
-    Closed = 1u64 << 7,
-    Permissioned = 1u64 << 8,
+    EventQueue = 1u64 << 2,
+    Bids = 1u64 << 3,
+    Asks = 1u64 << 4,
+    Disabled = 1u64 << 5,
+    Permissioned = 1u64 << 6,
 }
 
 pub struct MarketState {
@@ -17,10 +15,7 @@ pub struct MarketState {
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
-    pub open_orders_authority: Pubkey,
-    pub prune_authority: Pubkey,
-    // Unused bytes for future upgrades.
-    padding: [u8; 1024],
+    pub market_authority: Pubkey, // The authority for disabling the market
 }
 
 enum EventFlag {
@@ -34,15 +29,8 @@ enum EventFlag {
 pub struct Event {
     event_flags: u8,
     owner_slot: u8,
-
-    _padding: [u8; 5],
-
     native_qty_released: u64,
     native_qty_paid: u64,
-
-    order_id: u128,
-    pub owner: Pubkey,
-    client_order_id: u64,
 }
 
 ////////////////////////////////////////////////////
@@ -73,3 +61,14 @@ pub struct EventQueueHeader {
 }
 
 pub type EventQueue<'a> = Queue<'a, EventQueueHeader>;
+
+////////////////////////////////////////////////////
+// Critbit (mostly remains untouched, the Asks and Bids slabs should contain a header
+// that references the market as its no longer via the OpenOrders Account which is removed.)
+
+pub struct LeafNode {
+    tag: u32,
+    key: u128,
+    owner: Pubkey,
+    quantity: u64,
+}
