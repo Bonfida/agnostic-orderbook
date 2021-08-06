@@ -26,8 +26,9 @@ pub enum AgnosticOrderbookInstruction {
     /// 4. `[writable]` asks
     MatchOrders(u16),
     /// ... `[writable]` OpenOrders
-    /// accounts.len() - 2 `[writable]` market
-    /// accounts.len() - 1 `[writable]` event queue
+    /// accounts.len() - 3 `[writable]` market
+    /// accounts.len() - 2 `[writable]` event queue
+    /// accounts.len() - 1 `[writable]` the program making the cpi call
     ConsumeEvents(u16),
     /// 0. `[]` market
     /// 1. `[writable]` OpenOrders
