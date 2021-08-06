@@ -13,7 +13,7 @@ pub enum AccountFlag {
 pub struct MarketState {
     pub account_flags: u64, // Initialized, Market
     pub own_address: Pubkey,
-    pub caller_program_adr: Pubkey, // The program that consumes the event queue
+    pub caller_authority: Pubkey, // The program that consumes the event queue via CPIs
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
@@ -21,17 +21,6 @@ pub struct MarketState {
     pub prune_authority: Pubkey,
     // Unused bytes for future upgrades.
     padding: [u8; 1024],
-}
-
-pub struct OpenOrders {
-    pub account_flags: u64, // Initialized, OpenOrders
-    pub market: Pubkey,
-    pub owner: Pubkey,
-    pub free_slot_bits: u128,
-    pub is_bid_bits: u128,
-    pub orders: [u128; 128],
-    // Using Option<NonZeroU64> in a pod type requires nightly
-    pub client_order_ids: [u64; 128],
 }
 
 enum EventFlag {

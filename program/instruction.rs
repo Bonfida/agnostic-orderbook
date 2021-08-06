@@ -28,7 +28,7 @@ pub enum AgnosticOrderbookInstruction {
     /// ... `[writable]` OpenOrders
     /// accounts.len() - 3 `[writable]` market
     /// accounts.len() - 2 `[writable]` event queue
-    /// accounts.len() - 1 `[writable]` the program making the cpi call
+    /// accounts.len() - 1 `[writable]` the caller authority
     ConsumeEvents(u16),
     /// 0. `[]` market
     /// 1. `[writable]` OpenOrders
@@ -45,11 +45,6 @@ pub enum AgnosticOrderbookInstruction {
     /// 0. `[writable]` market
     /// 1. `[signer]` disable authority
     DisableMarket,
-    /// 0. `[writable]` market
-    /// 1. `[writable]` bids
-    /// 2. `[writable]` asks
-    /// 3. `[writable]` OpenOrders
-    SendTake(SendTakeInstruction),
     /// 0. `[writable]` OpenOrders
     /// 1. `[signer]` the OpenOrders owner
     /// 2. `[writable]` the destination account to send rent exemption SOL to
