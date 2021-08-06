@@ -1,0 +1,9 @@
+node_modules/
+dist/
+target/
+
+wallet.json
+hosts.yaml
+.env
+docs/
+testAccount.json
