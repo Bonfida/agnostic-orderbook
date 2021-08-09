@@ -1,3 +1,8 @@
+use std::cell::RefMut;
+
+use bytemuck::Pod;
+use solana_program::pubkey::Pubkey;
+
 pub enum AccountFlag {
     Initialized,
     Market,
@@ -61,14 +66,3 @@ pub struct EventQueueHeader {
 }
 
 pub type EventQueue<'a> = Queue<'a, EventQueueHeader>;
-
-////////////////////////////////////////////////////
-// Critbit (mostly remains untouched, the Asks and Bids slabs should contain a header
-// that references the market as its no longer via the OpenOrders Account which is removed.)
-
-pub struct LeafNode {
-    tag: u32,
-    key: u128,
-    owner: Pubkey,
-    quantity: u64,
-}
