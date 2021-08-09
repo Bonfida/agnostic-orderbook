@@ -1,11 +1,11 @@
 pub enum AccountFlag {
-    Initialized = 1u64 << 0,
-    Market = 1u64 << 1,
-    EventQueue = 1u64 << 2,
-    Bids = 1u64 << 3,
-    Asks = 1u64 << 4,
-    Disabled = 1u64 << 5,
-    Permissioned = 1u64 << 6,
+    Initialized,
+    Market,
+    EventQueue,
+    Bids,
+    Asks,
+    Disabled,
+    Permissioned,
 }
 
 pub struct MarketState {
@@ -19,11 +19,11 @@ pub struct MarketState {
 }
 
 enum EventFlag {
-    Fill = 0x1,
-    Out = 0x2,
-    Bid = 0x4,
-    Maker = 0x8,
-    ReleaseFunds = 0x10,
+    Fill,
+    Out,
+    Bid,
+    Maker,
+    ReleaseFunds,
 }
 
 pub struct Event {
