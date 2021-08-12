@@ -82,7 +82,9 @@ pub fn new_order(
     asks: Pubkey,
     new_order_params: NewOrderParams,
 ) -> Instruction {
-    let data = new_order_params.try_to_vec().unwrap();
+    let data = AgnosticOrderbookInstruction::NewOrder(new_order_params.clone())
+        .try_to_vec()
+        .unwrap();
     let accounts = vec![
         AccountMeta::new(market_account, false),
         AccountMeta::new(event_queue, false),

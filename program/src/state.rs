@@ -19,7 +19,7 @@ pub enum Side {
     Ask,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub enum SelfTradeBehavior {
     DecrementTake,
     CancelProvide,

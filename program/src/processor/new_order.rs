@@ -14,7 +14,7 @@ use crate::{
     state::{MarketState, SelfTradeBehavior, Side},
 };
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub struct NewOrderParams {
     pub max_base_qty: u64,
     pub max_quote_qty_locked: u64,
