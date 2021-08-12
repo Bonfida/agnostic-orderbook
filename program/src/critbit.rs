@@ -179,7 +179,7 @@ struct SlabHeader {
 
 const SLAB_HEADER_LEN: usize = size_of::<SlabHeader>();
 
-pub struct Slab<'a>(Rc<RefCell<&'a mut [u8]>>);
+pub struct Slab<'a>(pub Rc<RefCell<&'a mut [u8]>>);
 
 // Data access methods
 impl<'a> Slab<'a> {

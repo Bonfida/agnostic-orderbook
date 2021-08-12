@@ -1,3 +1,8 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::processor::new_order::NewOrderParams;
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub enum AgnosticOrderbookInstruction {
     /// 0. `[writable]` The market account
     /// 1. `[writable]` A zeroed out event queue account
@@ -12,12 +17,7 @@ pub enum AgnosticOrderbookInstruction {
     /// 3. `[writable]` The asks account
     /// 4. `[]` The owner of the order
     /// 5. `[]` The rent sysvar system program
-    NewOrder,
-    /// 0. `[writable]` The market account
-    /// 1. `[writable]` The event queue account
-    /// 2. `[writable]` The bids account
-    /// 3. `[writable]` The asks account
-    MatchOrders,
+    NewOrder(NewOrderParams),
     /// 0. `[writable]` The market account
     /// 1. `[writable]` The event queue account
     /// 2. `[signer]` The caller authority

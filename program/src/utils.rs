@@ -12,8 +12,3 @@ unsafe fn invariant(check: bool) {
         std::hint::unreachable_unchecked();
     }
 }
-
-const fn _const_max(a: usize, b: usize) -> usize {
-    let gt = (a > b) as usize;
-    gt * a + (1 - gt) * b
-}
