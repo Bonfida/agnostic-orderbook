@@ -28,7 +28,7 @@ pub enum SelfTradeBehavior {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct MarketState {
-    pub account_flags: u64, // Initialized, Market
+    pub account_flags: u64,
     pub own_address: Pubkey,
     pub caller_authority: Pubkey, // The program that consumes the event queue via CPIs
     pub event_queue: Pubkey,

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{cell::RefMut, rc::Rc};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -18,23 +18,23 @@ use crate::{
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NewOrderParams {
-    max_base_qty: u64,
-    max_quote_qty_locked: u64,
-    limit_price: u64,
-    owner: u64,
-    post_only: bool,
-    post_allowed: u64,
-    self_trade_behavior: SelfTradeBehavior,
+    pub max_base_qty: u64,
+    pub max_quote_qty_locked: u64,
+    pub limit_price: u64,
+    pub owner: Pubkey,
+    pub post_only: bool,
+    pub post_allowed: u64,
+    pub self_trade_behavior: SelfTradeBehavior,
 }
 
 //TODO reintroduce lot sizes?
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
-    admin: &'a AccountInfo<'b>,
+    // admin: &'a AccountInfo<'b>,
     asks: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
-    event_queue: &'a AccountInfo<'b>,
+    // event_queue: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -44,18 +44,18 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
         let market = next_account_info(accounts_iter)?;
-        let admin = next_account_info(accounts_iter)?;
+        // let admin = next_account_info(accounts_iter)?;
         let asks = next_account_info(accounts_iter)?;
         let bids = next_account_info(accounts_iter)?;
-        let event_queue = next_account_info(accounts_iter)?;
+        // let event_queue = next_account_info(accounts_iter)?;
         // check_account_owner(market, program_id)?;
         // check_signer(admin)?;
         Ok(Self {
             market,
-            admin,
+            // admin,
             asks,
             bids,
-            event_queue,
+            // event_queue,
         })
     }
 }
@@ -77,15 +77,6 @@ pub fn process_new_order(
         self_trade_behavior,
     } = params;
 
-    // let pc_lot_size = order_book.market_state.pc_lot_size;
-    // let coin_lot_size = order_book.market_state.coin_lot_size;
-
-    // let max_pc_qty = fee_tier.remove_taker_fee(native_pc_qty_locked.get()) / pc_lot_size;
-
-    // let mut coin_qty_remaining = max_coin_qty.get();
-    // let mut pc_qty_remaining = max_pc_qty;
-    // let mut accum_maker_rebates = 0;
-
     let mut market_data: &[u8] = &accounts.market.data.borrow();
     let mut market_state = MarketState::deserialize(&mut market_data).unwrap();
     let order_book = OrderBookState {
@@ -94,7 +85,7 @@ pub fn process_new_order(
         market_state,
     };
 
-    let event_queue = accounts.event_queue.data.borrow();
+    // let event_queue = accounts.event_queue.data.borrow();
 
     // New bid
     // let crossed;

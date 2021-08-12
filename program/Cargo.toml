@@ -10,16 +10,22 @@ no-entrypoint = []
 test-bpf = []
 
 [dependencies]
+num-derive = "0.3.3"
 solana-program = "1.7.9"
 bytemuck = { version = "1.4.0" }
 num_enum = "0.5.0"
 borsh = "0.9.1"
+thiserror = "1.0.24"
+num-traits = "0.2"
 enumflags2 = "0.6.4"
 
 [dev-dependencies]
 hexdump = "0.1.0"
-rand = "0.7.3"
+solana-sdk = "1.7.9"
+rand = "0.8.4"
 arrayref = "0.3.6"
+solana-program-test = "1.7.9"
+tokio = {version="1.6", features = ["macros"]}
 
 
 
