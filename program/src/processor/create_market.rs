@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -9,7 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::state::{AccountFlag, Event, EventView, MarketState, SelfTradeBehavior, Side};
+use crate::state::{AccountFlag, MarketState};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct CreateMarketParams {
