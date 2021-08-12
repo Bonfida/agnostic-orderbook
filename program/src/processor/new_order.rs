@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::cell::RefMut;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -53,9 +53,10 @@ pub fn process_new_order(
 
     let mut market_data: &[u8] = &accounts.market.data.borrow();
     let market_state = MarketState::deserialize(&mut market_data).unwrap();
+    // let bids: RefMut<&[u8]> = accounts.bids.data.try_borrow_mut().unwrap();
     let order_book = OrderBookState {
-        bids: Slab(Rc::clone(&accounts.bids.data)),
-        asks: Slab(Rc::clone(&accounts.asks.data)),
+        bids: &RefMut::map(accounts.bids.data.try_borrow_mut().unwrap(), Slab::new),
+        asks: &RefMut::map(accounts.asks.data.borrow_mut(), Slab::new),
         market_state,
     };
 

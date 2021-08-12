@@ -3,10 +3,10 @@ use thiserror::Error;
 
 use solana_program::{decode_error::DecodeError, program_error::ProgramError};
 
-pub type AOResult<T = ()> = Result<T, AOError>;
+pub type DexResult<T = ()> = Result<T, DexErrorCode>;
 
 #[derive(Clone, Debug, Error, FromPrimitive)]
-pub enum AOError {
+pub enum DexErrorCode {
     #[error("TODO Place-holder.")]
     InvalidMarketFlags,
     #[error("TODO Place-holder.")]
@@ -79,13 +79,13 @@ pub enum AOError {
     SlabOutOfSpace,
 }
 
-impl From<AOError> for ProgramError {
-    fn from(e: AOError) -> Self {
+impl From<DexErrorCode> for ProgramError {
+    fn from(e: DexErrorCode) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
 
-impl<T> DecodeError<T> for AOError {
+impl<T> DecodeError<T> for DexErrorCode {
     fn type_of() -> &'static str {
         "AOError"
     }

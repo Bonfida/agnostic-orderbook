@@ -5,13 +5,13 @@ use crate::{
 
 pub struct OrderBookState<'a> {
     // first byte of a key is 0xaa or 0xbb, disambiguating bids and asks
-    pub bids: Slab<'a>,
-    pub asks: Slab<'a>,
+    pub bids: &'a Slab,
+    pub asks: &'a Slab,
     pub market_state: MarketState,
 }
 
 impl<'ob> OrderBookState<'ob> {
-    pub(crate) fn orders_mut(&mut self, side: Side) -> &Slab<'ob> {
+    pub(crate) fn orders_mut(&mut self, side: Side) -> &Slab {
         match side {
             Side::Bid => &self.bids,
             Side::Ask => &self.asks,

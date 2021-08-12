@@ -39,6 +39,7 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "static_assertions",
  "thiserror",
  "tokio 1.9.0",
 ]
