@@ -1,16 +1,11 @@
-use std::str::FromStr;
-
 use agnostic_orderbook::instruction::{create_market, new_order};
 use agnostic_orderbook::processor::new_order::NewOrderParams;
 use agnostic_orderbook::state::SelfTradeBehavior;
 use solana_program::pubkey::Pubkey;
-use solana_program::{
-    entrypoint::ProgramResult, program_error::ProgramError, program_pack::Pack,
-    system_instruction::create_account,
-};
-use solana_program_test::{processor, ProgramTest, ProgramTestContext};
+use solana_program::system_instruction::create_account;
+use solana_program_test::{processor, ProgramTest};
 use solana_sdk::signature::Keypair;
-use solana_sdk::{signature::Signer, transport::TransportError};
+use solana_sdk::signature::Signer;
 // use spl_token::{
 //     instruction::mint_to,
 //     state::{Account, AccountState},
@@ -23,10 +18,9 @@ use crate::common::utils::sign_send_instructions;
 #[tokio::test]
 async fn test_agnostic_orderbook() {
     // Create program and test environment
-    let agnostic_orderbook_program_id =
-        Pubkey::from_str("AOddfesXCWuBvfkegQfZyiNwAJb9Ss623VQ5DA111111").unwrap();
+    let agnostic_orderbook_program_id = Pubkey::new_unique();
 
-    let mut program_test = ProgramTest::new(
+    let program_test = ProgramTest::new(
         "agnostic_orderbook",
         agnostic_orderbook_program_id,
         processor!(agnostic_orderbook::entrypoint::process_instruction),
@@ -122,7 +116,7 @@ async fn test_agnostic_orderbook() {
     let new_order_instruction = new_order(
         agnostic_orderbook_program_id,
         market_account.pubkey(),
-        Pubkey::new_unique(),
+        caller_authority.pubkey(),
         event_queue_account.pubkey(),
         bids_account.pubkey(),
         asks_account.pubkey(),
