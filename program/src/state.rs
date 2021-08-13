@@ -1,8 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::Pod;
 use enumflags2::BitFlags;
 use solana_program::pubkey::Pubkey;
-use std::cell::RefMut;
+use std::{cell::RefCell, mem::size_of, rc::Rc};
 
 pub enum AccountFlag {
     Initialized,
@@ -37,6 +36,17 @@ pub struct MarketState {
     pub market_authority: Pubkey, // The authority for disabling the market
 }
 
+// Holds the results of a new_order transaction for the caller to receive
+pub struct RequestProceeds {
+    pub native_pc_unlocked: u64,
+
+    pub coin_credit: u64,
+    pub native_pc_credit: u64,
+
+    pub coin_debit: u64,
+    pub native_pc_debit: u64,
+}
+
 ////////////////////////////////////////////////////
 // Events
 //TODO refactor eventviews, remove bitflags
@@ -51,12 +61,16 @@ enum EventFlag {
     ReleaseFunds = 0x10,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
 pub struct Event {
     event_flags: u8,
     owner: Pubkey,
+    order_id: u128, // Is composed of price and unique id, acts as key in critbit
     native_qty_released: u64,
     native_qty_paid: u64,
 }
+
+const EVENT_LEN: usize = size_of::<Event>();
 
 impl EventFlag {
     fn from_side(side: Side) -> BitFlags<Self> {
@@ -82,6 +96,7 @@ impl Event {
             EventView::Fill {
                 side,
                 maker,
+                order_id,
                 native_qty_paid,
                 native_qty_received,
                 owner,
@@ -95,6 +110,7 @@ impl Event {
                     (EventFlag::from_side(side) | EventFlag::Fill).bits() | maker_flag;
                 Event {
                     event_flags,
+                    order_id,
                     native_qty_released: native_qty_received,
                     native_qty_paid,
                     owner,
@@ -103,6 +119,7 @@ impl Event {
 
             EventView::Out {
                 side,
+                order_id,
                 release_funds,
                 native_qty_unlocked,
                 native_qty_still_locked,
@@ -116,6 +133,7 @@ impl Event {
                 let event_flags =
                     (EventFlag::from_side(side) | EventFlag::Out).bits() | release_funds_flag;
                 Event {
+                    order_id,
                     event_flags,
                     native_qty_released: native_qty_unlocked,
                     native_qty_paid: native_qty_still_locked,
@@ -130,6 +148,7 @@ pub enum EventView {
     Fill {
         side: Side,
         maker: bool,
+        order_id: u128,
         native_qty_paid: u64,
         native_qty_received: u64,
         owner: Pubkey,
@@ -137,6 +156,7 @@ pub enum EventView {
     Out {
         side: Side,
         release_funds: bool,
+        order_id: u128,
         native_qty_unlocked: u64,
         native_qty_still_locked: u64,
         owner: Pubkey,
@@ -144,30 +164,86 @@ pub enum EventView {
 }
 
 ////////////////////////////////////////////////////
-// Queues
+// Event Queue
 
-pub trait QueueHeader: Pod {
-    type Item: Pod + Copy;
-
-    fn head(&self) -> u64;
-    fn set_head(&mut self, value: u64);
-    fn count(&self) -> u64;
-    fn set_count(&mut self, value: u64);
-
-    fn incr_event_id(&mut self);
-    fn decr_event_id(&mut self, n: u64);
-}
-
-pub struct Queue<'a, H: QueueHeader> {
-    header: RefMut<'a, H>,
-    buf: RefMut<'a, [H::Item]>,
-}
-
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
 pub struct EventQueueHeader {
     account_flags: u64, // Initialized, EventQueue
     head: u64,
     count: u64,
-    seq_num: u64,
+    seq_num: u64, //TODO needed?
+}
+const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
+
+pub struct EventQueue<'a> {
+    // The event queue account contains a serialized header
+    // and a circular buffer of serialized events
+    pub(crate) header: EventQueueHeader,
+    pub(crate) buffer: Rc<RefCell<&'a mut [u8]>>, //The whole account data
 }
 
-pub type EventQueue<'a> = Queue<'a, EventQueueHeader>;
+impl EventQueue<'_> {
+    pub fn get_buf_len(&self) -> usize {
+        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN
+    }
+
+    pub fn full(&self) -> bool {
+        self.header.count as usize == (self.get_buf_len() / EVENT_LEN)
+        //TODO check
+    }
+
+    pub fn push_back(&mut self, event: Event) -> Result<(), Event> {
+        if self.full() {
+            return Err(event);
+        }
+        let offset = EVENT_QUEUE_HEADER_LEN
+            + ((self.header.head + self.header.count * EVENT_LEN as u64) as usize)
+                % self.get_buf_len();
+        let mut queue_event_data = &mut self.buffer.borrow_mut()[offset..offset + EVENT_LEN];
+        event.serialize(&mut queue_event_data).unwrap();
+
+        self.header.count += 1;
+        self.header.seq_num += 1;
+
+        Ok(())
+    }
+
+    pub fn peek_front(&self) -> Option<Event> {
+        if self.header.count == 0 {
+            return None;
+        }
+        let offset = EVENT_QUEUE_HEADER_LEN + self.header.head as usize;
+        let mut event_data = &self.buffer.borrow()[offset..offset + EVENT_LEN];
+        Some(Event::deserialize(&mut event_data).unwrap())
+    }
+
+    pub fn pop_front(&mut self) -> Result<Event, ()> {
+        if self.header.count == 0 {
+            return Err(());
+        }
+        let offset = EVENT_QUEUE_HEADER_LEN + self.header.head as usize;
+        let mut event_data = &self.buffer.borrow()[offset..offset + EVENT_LEN];
+        let event = Event::deserialize(&mut event_data).unwrap();
+
+        self.header.count -= 1;
+        self.header.head = (self.header.head + 1) % self.get_buf_len() as u64;
+
+        Ok(event)
+    }
+
+    // #[inline]
+    // pub fn revert_pushes(&mut self, desired_len: u64) -> DexResult<()> {
+    //     check_assert!(desired_len <= self.header.count())?;
+    //     let len_diff = self.header.count() - desired_len;
+    //     self.header.set_count(desired_len);
+    //     self.header.decr_event_id(len_diff);
+    //     Ok(())
+    // }
+
+    // pub fn iter(&self) -> impl Iterator<Item = &H::Item> {
+    //     QueueIterator {
+    //         queue: self,
+    //         index: 0,
+    //     }
+    // }
+}

@@ -4,7 +4,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use std::convert::TryFrom;
-use std::{cell::RefCell, convert::identity, mem::size_of, num::NonZeroU64, rc::Rc};
+use std::{cell::RefCell, convert::identity, mem::size_of, rc::Rc};
 // A Slab contains the data for a slab header and an array of nodes of a critbit tree
 // whose leafs contain the data referencing an order of the orderbook.
 
@@ -46,6 +46,7 @@ pub struct LeafNode {
     quantity: u64,
 }
 
+pub const NODE_DATA_SIZE: usize = size_of::<LeafNode>();
 pub const SLOT_SIZE: usize = size_of::<LeafNode>() + 4; // Account for the tag
 
 impl LeafNode {
@@ -57,8 +58,8 @@ impl LeafNode {
         }
     }
 
-    pub fn price(&self) -> NonZeroU64 {
-        NonZeroU64::new((self.key >> 64) as u64).unwrap()
+    pub fn price(&self) -> u64 {
+        (self.key >> 64) as u64
     }
 
     pub fn order_id(&self) -> u128 {
@@ -183,13 +184,13 @@ pub struct Slab<'a>(pub Rc<RefCell<&'a mut [u8]>>);
 
 // Data access methods
 impl<'a> Slab<'a> {
-    pub fn new(bytes: &'a mut [u8]) -> Self {
-        let len_without_header = bytes.len().checked_sub(SLAB_HEADER_LEN).unwrap();
-        let slop = len_without_header % size_of::<AnyNode>();
-        let truncated_len = bytes.len() - slop;
-        let bytes = &mut bytes[..truncated_len];
-        Slab(Rc::new(RefCell::new(bytes)))
-    }
+    // pub fn new(bytes: &'a mut [u8]) -> Self {
+    //     let len_without_header = bytes.len().checked_sub(SLAB_HEADER_LEN).unwrap();
+    //     let slop = len_without_header % size_of::<AnyNode>();
+    //     let truncated_len = bytes.len() - slop;
+    //     let bytes = &mut bytes[..truncated_len];
+    //     Slab(Rc::new(RefCell::new(bytes)))
+    // }
 
     pub fn new_from_acc_info(acc_info: AccountInfo<'a>) -> Self {
         let len_without_header = acc_info.data_len().checked_sub(SLAB_HEADER_LEN).unwrap();
@@ -230,7 +231,7 @@ impl<'a> Slab<'a> {
         bump_index == free_list_len
     }
 
-    fn get_node(&self, key: u32) -> Option<AnyNode> {
+    pub(crate) fn get_node(&self, key: u32) -> Option<AnyNode> {
         let offset = SLAB_HEADER_LEN + key as usize;
         let node = AnyNode::deserialize(&mut &self.0.borrow()[offset..offset + SLOT_SIZE]).unwrap();
         let tag = NodeTag::try_from(node.tag);
@@ -294,15 +295,26 @@ impl<'a> Slab<'a> {
         let val = self.get_node(key)?;
         let mut header = self.get_header();
         let mut any_node_ref = self.get_node(key).unwrap();
-        let free_node_ref = &mut FreeNode::deserialize(&mut &any_node_ref.data[..]).unwrap();
         any_node_ref.tag = if header.free_list_len == 0 {
             NodeTag::LastFreeNode.into()
         } else {
             NodeTag::FreeNode.into()
         };
-        free_node_ref.next = header.free_list_head;
+        let free_node_ref = FreeNode {
+            next: header.free_list_head,
+        };
         header.free_list_len += 1;
         header.free_list_head = key;
+        let mut free_node_data = Vec::with_capacity(NODE_DATA_SIZE);
+        free_node_ref.serialize(&mut free_node_data);
+        self.write_node(
+            &AnyNode {
+                tag: any_node_ref.tag,
+                data: free_node_data,
+            },
+            key,
+        );
+
         Some(val)
     }
 

@@ -11,13 +11,6 @@ pub struct OrderBookState<'a> {
 }
 
 impl<'ob> OrderBookState<'ob> {
-    pub(crate) fn orders_mut(&mut self, side: Side) -> &Slab<'ob> {
-        match side {
-            Side::Bid => &self.bids,
-            Side::Ask => &self.asks,
-        }
-    }
-
     pub(crate) fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
             Side::Bid => self.bids.find_max(),

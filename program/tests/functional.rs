@@ -122,12 +122,13 @@ async fn test_agnostic_orderbook() {
         asks_account.pubkey(),
         NewOrderParams {
             max_base_qty: 1000,
-            max_quote_qty_locked: 1000,
+            max_quote_qty: 1000,
             limit_price: 1000,
             owner: Pubkey::new_unique(),
             post_only: false,
-            post_allowed: 0,
+            post_allowed: true,
             self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            order_id: 1000 << 64,
         },
     );
     sign_send_instructions(
