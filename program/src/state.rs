@@ -13,6 +13,7 @@ pub enum AccountFlag {
     Permissioned,
 }
 
+#[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub enum Side {
     Bid,
     Ask,
