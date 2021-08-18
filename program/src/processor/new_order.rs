@@ -99,8 +99,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         Side::Ask => order_book.new_ask(params, &mut event_queue)?,
     }
 
-    let mut event_queue_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
-    event_queue.header.serialize(&mut event_queue_data).unwrap();
+    let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
+    event_queue
+        .header
+        .serialize(&mut event_queue_header_data)
+        .unwrap();
 
     Ok(())
 }
