@@ -3,7 +3,7 @@ use solana_program::msg;
 use crate::{
     critbit::{LeafNode, NodeHandle, Slab},
     error::{AOError, AOResult},
-    processor::new_order::NewOrderParams,
+    processor::new_order,
     state::{Event, EventQueue, EventView, MarketState, SelfTradeBehavior, Side},
 };
 
@@ -24,10 +24,10 @@ impl<'ob> OrderBookState<'ob> {
 
     pub(crate) fn new_bid(
         &mut self,
-        params: NewOrderParams,
+        params: new_order::Params,
         event_queue: &mut EventQueue,
     ) -> AOResult {
-        let NewOrderParams {
+        let new_order::Params {
             max_base_qty,
             max_quote_qty,
             order_id,
@@ -248,10 +248,10 @@ impl<'ob> OrderBookState<'ob> {
 
     pub(crate) fn new_ask(
         &mut self,
-        params: NewOrderParams,
+        params: new_order::Params,
         event_queue: &mut EventQueue,
     ) -> AOResult {
-        let NewOrderParams {
+        let new_order::Params {
             max_base_qty,
             max_quote_qty,
             order_id,

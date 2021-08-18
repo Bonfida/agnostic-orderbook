@@ -4,7 +4,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::processor::{create_market::CreateMarketParams, new_order::NewOrderParams};
+use crate::processor::{create_market, new_order};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AgnosticOrderbookInstruction {
@@ -13,14 +13,14 @@ pub enum AgnosticOrderbookInstruction {
     /// 2. `[writable]` A zeroed out bids account
     /// 3. `[writable]` A zeroed out asks account
     /// 5. `[]` The market authority (optional)
-    CreateMarket(CreateMarketParams),
+    CreateMarket(create_market::Params),
     /// 0. `[writable]` The market account
     /// 1. `[writable]` The event queue account
     /// 2. `[writable]` The bids account
     /// 3. `[writable]` The asks account
     /// 4. `[]` The owner of the order
     /// 5. `[signer]` The caller authority
-    NewOrder(NewOrderParams),
+    NewOrder(new_order::Params),
     /// 0. `[writable]` The market account
     /// 1. `[writable]` The event queue account
     /// 2. `[signer]` The caller authority
@@ -49,7 +49,7 @@ pub fn create_market(
     asks: Pubkey,
     market_authority: Option<Pubkey>,
 ) -> Instruction {
-    let instruction_data = AgnosticOrderbookInstruction::CreateMarket(CreateMarketParams {
+    let instruction_data = AgnosticOrderbookInstruction::CreateMarket(create_market::Params {
         caller_authority,
         event_queue,
         bids,
@@ -80,7 +80,7 @@ pub fn new_order(
     event_queue: Pubkey,
     bids: Pubkey,
     asks: Pubkey,
-    new_order_params: NewOrderParams,
+    new_order_params: new_order::Params,
 ) -> Instruction {
     let data = AgnosticOrderbookInstruction::NewOrder(new_order_params.clone())
         .try_to_vec()

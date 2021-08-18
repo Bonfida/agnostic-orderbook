@@ -232,6 +232,14 @@ impl EventQueue<'_> {
         Ok(event)
     }
 
+    pub fn pop_n(&mut self, number_of_entries_to_pop: u64) {
+        let capped_number_of_entries_to_pop =
+            std::cmp::min(self.header.count, number_of_entries_to_pop);
+        self.header.count -= capped_number_of_entries_to_pop;
+        self.header.head =
+            (self.header.head + capped_number_of_entries_to_pop) % self.get_buf_len() as u64;
+    }
+
     // #[inline]
     // pub fn revert_pushes(&mut self, desired_len: u64) -> DexResult<()> {
     //     check_assert!(desired_len <= self.header.count())?;

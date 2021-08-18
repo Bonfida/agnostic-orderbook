@@ -10,7 +10,7 @@ use solana_program::{
 use crate::state::{AccountFlag, MarketState};
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct CreateMarketParams {
+pub struct Params {
     pub caller_authority: Pubkey,
     pub event_queue: Pubkey,
     pub bids: Pubkey,
@@ -47,14 +47,10 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub fn process_create_market(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    params: CreateMarketParams,
-) -> ProgramResult {
+pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
-    let CreateMarketParams {
+    let Params {
         caller_authority,
         event_queue,
         bids,

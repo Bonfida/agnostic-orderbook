@@ -1,5 +1,5 @@
 use agnostic_orderbook::instruction::{create_market, new_order};
-use agnostic_orderbook::processor::new_order::NewOrderParams;
+use agnostic_orderbook::processor::new_order;
 use agnostic_orderbook::state::{SelfTradeBehavior, Side};
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
@@ -120,7 +120,7 @@ async fn test_agnostic_orderbook() {
         event_queue_account.pubkey(),
         bids_account.pubkey(),
         asks_account.pubkey(),
-        NewOrderParams {
+        new_order::Params {
             max_base_qty: 1000,
             max_quote_qty: 1000,
             limit_price: 1000,
