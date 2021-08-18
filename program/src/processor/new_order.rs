@@ -55,8 +55,10 @@ pub fn process_new_order(
     let market_state = MarketState::deserialize(&mut market_data).unwrap();
     // let bids: RefMut<&[u8]> = accounts.bids.data.try_borrow_mut().unwrap();
     let order_book = OrderBookState {
-        bids: &RefMut::map(accounts.bids.data.try_borrow_mut().unwrap(), Slab::new),
-        asks: &RefMut::map(accounts.asks.data.borrow_mut(), Slab::new),
+        bids: &RefMut::map(accounts.bids.data.try_borrow_mut().unwrap(), |s| {
+            Slab::new(*s)
+        }),
+        asks: &RefMut::map(accounts.asks.data.borrow_mut(), |s| Slab::new(*s)),
         market_state,
     };
 
