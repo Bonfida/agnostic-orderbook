@@ -174,7 +174,7 @@ pub struct EventQueueHeader {
     count: u64,
     seq_num: u64, //TODO needed?
 }
-const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
+pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
 
 pub struct EventQueue<'a> {
     // The event queue account contains a serialized header

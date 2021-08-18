@@ -46,7 +46,7 @@ pub struct LeafNode {
     quantity: u64,
 }
 
-pub const NODE_DATA_SIZE: usize = size_of::<LeafNode>();
+pub const NODE_DATA_SIZE: usize = size_of::<LeafNode>(); //TODO Change to hardcoded
 pub const SLOT_SIZE: usize = size_of::<LeafNode>() + 4; // Account for the tag
 
 impl LeafNode {

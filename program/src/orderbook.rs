@@ -44,6 +44,7 @@ impl<'ob> OrderBookState<'ob> {
 
         // New bid
         let crossed;
+        #[allow(clippy::never_loop)]
         let done = loop {
             let best_offer_h = match self.find_bbo(Side::Ask) {
                 None => {
@@ -86,9 +87,7 @@ impl<'ob> OrderBookState<'ob> {
                         cancelled_take_qty = trade_qty;
                         cancelled_provide_qty = trade_qty;
                     }
-                    SelfTradeBehavior::AbortTransaction => {
-                        return Err(AOError::WouldSelfTrade.into())
-                    }
+                    SelfTradeBehavior::AbortTransaction => return Err(AOError::WouldSelfTrade),
                 };
 
                 let remaining_provide_qty = best_offer_ref.quantity() - cancelled_provide_qty;
@@ -191,11 +190,9 @@ impl<'ob> OrderBookState<'ob> {
                 .map_err(|_| AOError::EventQueueFull)?;
         }
 
-        if !done {
-            if base_qty_remaining > 0 && base_qty_remaining > 0 {
-                msg!("Unmatched remains from the order: base_qty_remaining {:?}, quote_qty_remaining {:?}", base_qty_remaining, quote_qty_remaining);
-                return Ok(());
-            }
+        if !done && base_qty_remaining > 0 && base_qty_remaining > 0 {
+            msg!("Unmatched remains from the order: base_qty_remaining {:?}, quote_qty_remaining {:?}", base_qty_remaining, quote_qty_remaining);
+            return Ok(());
         }
 
         let (coin_qty_to_post, pc_qty_to_keep_locked) = if post_allowed && !crossed {
@@ -270,6 +267,7 @@ impl<'ob> OrderBookState<'ob> {
         let mut accum_fill_price = 0;
 
         let crossed;
+        #[allow(clippy::never_loop)]
         let done = loop {
             let best_bid_h = match self.find_bbo(Side::Bid) {
                 None => {
@@ -310,9 +308,7 @@ impl<'ob> OrderBookState<'ob> {
                         cancelled_provide_qty = best_bid_ref.quantity();
                         cancelled_take_qty = 0;
                     }
-                    SelfTradeBehavior::AbortTransaction => {
-                        return Err(AOError::WouldSelfTrade.into())
-                    }
+                    SelfTradeBehavior::AbortTransaction => return Err(AOError::WouldSelfTrade),
                 };
 
                 let remaining_provide_size = bid_size - cancelled_provide_qty;

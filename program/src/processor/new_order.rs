@@ -4,6 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -11,7 +12,9 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     orderbook::OrderBookState,
-    state::{EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side},
+    state::{
+        EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
+    },
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -34,6 +37,7 @@ struct Accounts<'a, 'b: 'a> {
     admin: &'a AccountInfo<'b>,
     asks: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
+    order_owner: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
 }
 
@@ -44,10 +48,11 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
         let market = next_account_info(accounts_iter)?;
-        let admin = next_account_info(accounts_iter)?;
-        let asks = next_account_info(accounts_iter)?;
-        let bids = next_account_info(accounts_iter)?;
         let event_queue = next_account_info(accounts_iter)?;
+        let bids = next_account_info(accounts_iter)?;
+        let asks = next_account_info(accounts_iter)?;
+        let order_owner = next_account_info(accounts_iter)?;
+        let admin = next_account_info(accounts_iter)?;
         //TODO
         // check_account_owner(market, program_id)?;
         // check_signer(admin)?;
@@ -56,6 +61,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             admin,
             asks,
             bids,
+            order_owner,
             event_queue,
         })
     }
@@ -76,8 +82,11 @@ pub fn process_new_order(
         market_state,
     };
 
-    let mut event_queue_data: &[u8] = &accounts.event_queue.data.borrow();
-    let header = EventQueueHeader::deserialize(&mut event_queue_data).unwrap();
+    let header = {
+        let mut event_queue_data: &[u8] =
+            &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
+        EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
+    };
     let mut event_queue = EventQueue {
         header,
         buffer: Rc::clone(&accounts.event_queue.data),
@@ -91,7 +100,8 @@ pub fn process_new_order(
     let mut event_queue_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue.header.serialize(&mut event_queue_data).unwrap();
 
-    //TODO rewrite OB
+    let mut event_queue_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
+    event_queue.header.serialize(&mut event_queue_data).unwrap();
 
     Ok(())
 }
