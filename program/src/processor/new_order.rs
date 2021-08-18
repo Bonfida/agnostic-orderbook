@@ -72,6 +72,12 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
 
     let mut market_data: &[u8] = &accounts.market.data.borrow();
     let market_state = MarketState::deserialize(&mut market_data).unwrap();
+
+    if &market_state.event_queue != accounts.event_queue.key {
+        msg!("Invalid event queue for current market");
+        return Err(ProgramError::InvalidArgument);
+    }
+
     let mut order_book = OrderBookState {
         bids: Slab(Rc::clone(&accounts.bids.data)),
         asks: Slab(Rc::clone(&accounts.asks.data)),

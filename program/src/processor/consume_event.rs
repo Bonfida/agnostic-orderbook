@@ -59,6 +59,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         return Err(ProgramError::InvalidArgument);
     }
 
+    if &market_state.event_queue != accounts.event_queue.key {
+        msg!("Invalid event queue for current market");
+        return Err(ProgramError::InvalidArgument);
+    }
+
     let header = {
         let mut event_queue_data: &[u8] =
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
