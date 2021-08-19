@@ -41,9 +41,9 @@ impl InnerNode {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct LeafNode {
-    key: u128,
-    owner: Pubkey,
-    quantity: u64,
+    pub key: u128,
+    pub owner: Pubkey,
+    pub quantity: u64,
 }
 
 pub const SLOT_SIZE: usize = size_of::<LeafNode>() + 4; // Account for the tag
