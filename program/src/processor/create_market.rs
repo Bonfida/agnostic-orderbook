@@ -71,8 +71,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     }
 
     let market_state = MarketState {
-        account_flags: AccountFlag::Market as u64,
-        own_address: *accounts.market.key,
+        account_flags: AccountFlag::Market,
         caller_authority,
         event_queue,
         bids,

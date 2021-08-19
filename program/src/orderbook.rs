@@ -190,7 +190,7 @@ impl<'ob> OrderBookState<'ob> {
                 .map_err(|_| AOError::EventQueueFull)?;
         }
 
-        if !done && base_qty_remaining > 0 && base_qty_remaining > 0 {
+        if !done && base_qty_remaining > 0 && quote_qty_remaining > 0 {
             msg!("Unmatched remains from the order: base_qty_remaining {:?}, quote_qty_remaining {:?}", base_qty_remaining, quote_qty_remaining);
             return Ok(());
         }

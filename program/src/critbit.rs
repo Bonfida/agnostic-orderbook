@@ -243,7 +243,7 @@ impl<'a> Slab<'a> {
 
     fn write_node(&mut self, node: &AnyNode, key: u32) {
         let offset = SLAB_HEADER_LEN + key as usize;
-        self.0.borrow_mut()[offset..offset + 4].copy_from_slice(&node.tag.to_le_bytes());
+        self.0.borrow_mut()[offset..offset + 4].copy_from_slice(&node.tag.to_le_bytes()); //TODO
         self.0.borrow_mut()[offset + 4..offset + SLOT_SIZE].copy_from_slice(&node.data);
     }
 
@@ -306,7 +306,7 @@ impl<'a> Slab<'a> {
         header.free_list_len += 1;
         header.free_list_head = key;
         let mut free_node_data = Vec::with_capacity(NODE_DATA_SIZE);
-        free_node_ref.serialize(&mut free_node_data);
+        free_node_ref.serialize(&mut free_node_data).unwrap();
         self.write_node(
             &AnyNode {
                 tag: any_node_ref.tag,
@@ -435,6 +435,66 @@ impl<'a> Slab<'a> {
         }
     }
 
+    pub fn remove_by_key(&mut self, search_key: u128) -> Option<LeafNode> {
+        let mut parent_h = self.root()?;
+        let mut child_h;
+        let mut crit_bit;
+        match self.get_node(parent_h).unwrap().case().unwrap() {
+            Node::Leaf(leaf) if leaf.key == search_key => {
+                let mut header = self.get_header();
+                assert_eq!(identity(header.leaf_count), 1);
+                header.root_node = 0;
+                header.leaf_count = 0;
+                let _old_root = self.remove(parent_h).unwrap();
+                return Some(leaf);
+            }
+            Node::Leaf(_) => return None,
+            Node::Inner(inner) => {
+                let (ch, cb) = inner.walk_down(search_key);
+                child_h = ch;
+                crit_bit = cb;
+            }
+        }
+        loop {
+            match self.get_node(child_h).unwrap().case().unwrap() {
+                Node::Inner(inner) => {
+                    let (grandchild_h, grandchild_crit_bit) = inner.walk_down(search_key);
+                    parent_h = child_h;
+                    child_h = grandchild_h;
+                    crit_bit = grandchild_crit_bit;
+                    continue;
+                }
+                Node::Leaf(leaf) => {
+                    if leaf.key != search_key {
+                        return None;
+                    }
+
+                    break;
+                }
+            }
+        }
+        // replace parent with its remaining child node
+        // free child_h, replace *parent_h with *other_child_h, free other_child_h
+        let other_child_h =
+            self.get_node(parent_h).unwrap().children().unwrap()[!crit_bit as usize];
+        let other_child_node_contents = self.remove(other_child_h).unwrap();
+        self.write_node(&other_child_node_contents, parent_h);
+        self.get_header().leaf_count -= 1;
+        let removed_leaf = LeafNode::deserialize(&mut &self.remove(child_h).unwrap().data[..]);
+        Some(removed_leaf.unwrap())
+    }
+
+    pub fn remove_min(&mut self) -> Option<LeafNode> {
+        self.remove_by_key(self.get_node(self.find_min()?)?.key()?)
+    }
+
+    pub fn remove_max(&mut self) -> Option<LeafNode> {
+        self.remove_by_key(self.get_node(self.find_max()?)?.key()?)
+    }
+
+    /////////////////////////////////////////
+    // Misc
+
     #[cfg(test)]
     fn find_by_key(&self, search_key: u128) -> Option<NodeHandle> {
         let mut node_handle: NodeHandle = self.root()?;
@@ -502,63 +562,6 @@ impl<'a> Slab<'a> {
         }
 
         found
-    }
-
-    pub fn remove_by_key(&mut self, search_key: u128) -> Option<LeafNode> {
-        let mut parent_h = self.root()?;
-        let mut child_h;
-        let mut crit_bit;
-        match self.get_node(parent_h).unwrap().case().unwrap() {
-            Node::Leaf(leaf) if leaf.key == search_key => {
-                let mut header = self.get_header();
-                assert_eq!(identity(header.leaf_count), 1);
-                header.root_node = 0;
-                header.leaf_count = 0;
-                let _old_root = self.remove(parent_h).unwrap();
-                return Some(leaf);
-            }
-            Node::Leaf(_) => return None,
-            Node::Inner(inner) => {
-                let (ch, cb) = inner.walk_down(search_key);
-                child_h = ch;
-                crit_bit = cb;
-            }
-        }
-        loop {
-            match self.get_node(child_h).unwrap().case().unwrap() {
-                Node::Inner(inner) => {
-                    let (grandchild_h, grandchild_crit_bit) = inner.walk_down(search_key);
-                    parent_h = child_h;
-                    child_h = grandchild_h;
-                    crit_bit = grandchild_crit_bit;
-                    continue;
-                }
-                Node::Leaf(leaf) => {
-                    if leaf.key != search_key {
-                        return None;
-                    }
-
-                    break;
-                }
-            }
-        }
-        // replace parent with its remaining child node
-        // free child_h, replace *parent_h with *other_child_h, free other_child_h
-        let other_child_h =
-            self.get_node(parent_h).unwrap().children().unwrap()[!crit_bit as usize];
-        let other_child_node_contents = self.remove(other_child_h).unwrap();
-        self.write_node(&other_child_node_contents, parent_h);
-        self.get_header().leaf_count -= 1;
-        let removed_leaf = LeafNode::deserialize(&mut &self.remove(child_h).unwrap().data[..]);
-        Some(removed_leaf.unwrap())
-    }
-
-    pub fn remove_min(&mut self) -> Option<LeafNode> {
-        self.remove_by_key(self.get_node(self.find_min()?)?.key()?)
-    }
-
-    pub fn remove_max(&mut self) -> Option<LeafNode> {
-        self.remove_by_key(self.get_node(self.find_max()?)?.key()?)
     }
 
     #[cfg(test)]

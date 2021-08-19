@@ -3,6 +3,7 @@ use enumflags2::BitFlags;
 use solana_program::pubkey::Pubkey;
 use std::{cell::RefCell, mem::size_of, rc::Rc};
 
+#[derive(BorshDeserialize, BorshSerialize)]
 pub enum AccountFlag {
     Initialized,
     Market,
@@ -28,13 +29,13 @@ pub enum SelfTradeBehavior {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct MarketState {
-    pub account_flags: u64,
-    pub own_address: Pubkey,
+    pub account_flags: AccountFlag,
     pub caller_authority: Pubkey, // The program that consumes the event queue via CPIs
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
-    pub market_authority: Pubkey, // The authority for disabling the market
+    pub market_authority: Pubkey, // The authority for disabling the market //TODO make caller
+                                  //TODO cranked_accs
 }
 
 // Holds the results of a new_order transaction for the caller to receive
@@ -146,6 +147,7 @@ impl Event {
 }
 
 pub enum EventView {
+    //TODO comment
     Fill {
         side: Side,
         maker: bool,
@@ -158,7 +160,7 @@ pub enum EventView {
         side: Side,
         release_funds: bool,
         order_id: u128,
-        native_qty_unlocked: u64,
+        native_qty_unlocked: u64, //TODO rename
         native_qty_still_locked: u64,
         owner: Pubkey,
     },

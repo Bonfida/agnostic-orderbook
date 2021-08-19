@@ -31,6 +31,8 @@ pub struct Params {
 }
 
 //TODO make price FP32
+//TODO add missing order types
+//TODO cranking reward
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
@@ -94,6 +96,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         buffer: Rc::clone(&accounts.event_queue.data),
     };
 
+    //TODO loop
     match params.side {
         Side::Bid => order_book.new_bid(params, &mut event_queue)?,
         Side::Ask => order_book.new_ask(params, &mut event_queue)?,
