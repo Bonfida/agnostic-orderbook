@@ -57,14 +57,14 @@ impl InnerNode {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(packed)]
 pub struct LeafNode {
-    tag: u32,
-    owner_slot: u8,
-    fee_tier: u8,
-    padding: [u8; 2],
-    key: u128,
-    owner: [u64; 4],
-    quantity: u64,
-    client_order_id: u64,
+    pub tag: u32,
+    pub owner_slot: u8,
+    pub fee_tier: u8,
+    pub padding: [u8; 2],
+    pub key: u128,
+    pub owner: [u64; 4],
+    pub quantity: u64,
+    pub client_order_id: u64,
 }
 unsafe impl Zeroable for LeafNode {}
 unsafe impl Pod for LeafNode {}

@@ -4,12 +4,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    log::sol_log_compute_units,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
 
 use crate::{
-    critbit::Slab,
+    critbit::{LeafNode, NodeHandle, Slab},
     orderbook::OrderBookState,
     state::{MarketState, SelfTradeBehavior, Side},
 };
@@ -54,16 +56,34 @@ pub fn process_new_order(
     let mut market_data: &[u8] = &accounts.market.data.borrow();
     let market_state = MarketState::deserialize(&mut market_data).unwrap();
     // let bids: RefMut<&[u8]> = accounts.bids.data.try_borrow_mut().unwrap();
-    let order_book = OrderBookState {
-        bids: &RefMut::map(accounts.bids.data.try_borrow_mut().unwrap(), |s| {
+    let mut order_book = OrderBookState {
+        bids: &mut RefMut::map(accounts.bids.data.try_borrow_mut().unwrap(), |s| {
             Slab::new(*s)
         }),
-        asks: &RefMut::map(accounts.asks.data.borrow_mut(), |s| Slab::new(*s)),
+        asks: &mut RefMut::map(accounts.asks.data.borrow_mut(), |s| Slab::new(*s)),
         market_state,
     };
 
     // Critbit test
-    let _ = order_book.find_bbo(Side::Ask);
+    let leafnode = LeafNode {
+        tag: 2,
+        owner_slot: 0,
+        fee_tier: 0,
+        padding: [0, 0],
+        key: 0,
+        owner: [0, 0, 0, 0],
+        quantity: 0,
+        client_order_id: 0,
+    };
+
+    msg!("Pre insertion");
+    sol_log_compute_units();
+    order_book
+        .orders_mut(Side::Bid)
+        .insert_leaf(&leafnode)
+        .unwrap();
+    msg!("Post insertion");
+    sol_log_compute_units();
 
     Ok(())
 }
