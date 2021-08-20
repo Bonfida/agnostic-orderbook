@@ -40,8 +40,8 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         Ok(Self {
             market,
             event_queue,
-            bids,
             asks,
+            bids,
             market_authority,
         })
     }

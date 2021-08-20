@@ -15,14 +15,13 @@ use crate::{
     state::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
     },
+    utils::{check_account_key, check_account_owner, check_signer},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub struct Params {
     pub number_of_entries_to_consume: u64,
 }
-
-//TODO make price FP32
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
@@ -32,7 +31,7 @@ struct Accounts<'a, 'b: 'a> {
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
     pub fn parse(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &'a [AccountInfo<'b>],
     ) -> Result<Self, ProgramError> {
         let mut accounts_iter = accounts.iter();
@@ -41,9 +40,9 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             event_queue: next_account_info(&mut accounts_iter)?,
             authority: next_account_info(&mut accounts_iter)?,
         };
-        //TODO
-        // check_account_owner(market, program_id)?;
-        // check_signer(a.authority)?;
+        check_account_owner(a.market, program_id).unwrap();
+        check_account_owner(a.event_queue, program_id).unwrap();
+        check_signer(a.authority).unwrap();
         Ok(a)
     }
 }
@@ -54,10 +53,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let mut market_data: &[u8] = &accounts.market.data.borrow();
     let market_state = MarketState::deserialize(&mut market_data).unwrap();
 
-    if &market_state.caller_authority != accounts.authority.key {
-        msg!("The caller authority is invalid for this OB instance.");
-        return Err(ProgramError::InvalidArgument);
-    }
+    check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
+    check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
     if &market_state.event_queue != accounts.event_queue.key {
         msg!("Invalid event queue for current market");

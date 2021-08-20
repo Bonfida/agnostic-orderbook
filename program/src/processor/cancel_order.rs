@@ -11,29 +11,20 @@ use solana_program::{
 
 use crate::{
     critbit::Slab,
+    error::AOError,
     orderbook::OrderBookState,
     state::{
-        EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
+        Event, EventQueue, EventQueueHeader, EventView, MarketState, SelfTradeBehavior, Side,
+        EVENT_QUEUE_HEADER_LEN,
     },
     utils::{check_account_key, check_account_owner, check_signer},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub struct Params {
-    pub max_base_qty: u64,
-    pub max_quote_qty: u64,
     pub order_id: u128,
-    pub limit_price: u64,
     pub side: Side,
-    pub owner: Pubkey,
-    pub post_only: bool,
-    pub post_allowed: bool,
-    pub self_trade_behavior: SelfTradeBehavior,
 }
-
-//TODO make price FP32
-//TODO add missing order types
-//TODO cranking reward
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
@@ -56,11 +47,12 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         let asks = next_account_info(accounts_iter)?;
         let order_owner = next_account_info(accounts_iter)?;
         let admin = next_account_info(accounts_iter)?;
-        check_account_owner(market, program_id).unwrap();
-        check_account_owner(event_queue, program_id).unwrap();
-        check_account_owner(bids, program_id).unwrap();
-        check_account_owner(asks, program_id).unwrap();
-        check_signer(admin).unwrap();
+        check_account_owner(market, program_id)?;
+        check_account_owner(event_queue, program_id)?;
+        check_account_owner(bids, program_id)?;
+        check_account_owner(asks, program_id)?;
+        check_signer(order_owner)?;
+        //TODO check if caller auth signs?
         Ok(Self {
             market,
             admin,
@@ -81,9 +73,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.bids, &market_state.bids).unwrap();
     check_account_key(accounts.asks, &market_state.asks).unwrap();
-    // check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
-    let mut order_book = OrderBookState {
+    let order_book = OrderBookState {
         bids: Slab(Rc::clone(&accounts.bids.data)),
         asks: Slab(Rc::clone(&accounts.asks.data)),
         market_state,
@@ -99,11 +90,34 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         buffer: Rc::clone(&accounts.event_queue.data),
     };
 
-    //TODO loop
-    match params.side {
-        Side::Bid => order_book.new_bid(params, &mut event_queue)?,
-        Side::Ask => order_book.new_ask(params, &mut event_queue)?,
+    let mut slab = match params.side {
+        Side::Bid => order_book.bids,
+        Side::Ask => order_book.asks,
+    };
+    let leaf_node = slab
+        .remove_by_key(params.order_id)
+        .ok_or(AOError::OrderNotFound)?;
+
+    if leaf_node.owner() != *accounts.order_owner.key {
+        msg!("Order owner mismatch.");
+        return Err(AOError::OrderNotYours.into());
     }
+
+    let native_qty_unlocked = match params.side {
+        Side::Bid => leaf_node.quantity() * leaf_node.price(),
+        Side::Ask => leaf_node.quantity(),
+    };
+
+    event_queue
+        .push_back(Event::new(EventView::Out {
+            side: params.side,
+            release_funds: false,
+            native_qty_unlocked,
+            native_qty_still_locked: 0,
+            owner: *accounts.order_owner.key,
+            order_id: params.order_id,
+        }))
+        .map_err(|_| AOError::EventQueueFull)?;
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue

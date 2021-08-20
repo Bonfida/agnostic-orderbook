@@ -4,7 +4,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::processor::{create_market, new_order};
+use crate::processor::{cancel_order, consume_event, create_market, new_order};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AgnosticOrderbookInstruction {
@@ -24,17 +24,11 @@ pub enum AgnosticOrderbookInstruction {
     /// 0. `[writable]` The market account
     /// 1. `[writable]` The event queue account
     /// 2. `[signer]` The caller authority
-    ConsumeEvents,
+    ConsumeEvents(consume_event::Params),
     /// 0. `[writable]` The market account
     /// 1. `[signer]` The order owner
     /// 2. `[writable]` Then asks or bids account
-    CancelOrder,
-    /// 0. `[writable]` The market account
-    /// 1. `[writable]` The bids account
-    /// 2. `[writable]` The asks account
-    /// 3. `[signer]` The order owner
-    /// 4. `[writable]` The event queue account
-    CancelOrderByClientId,
+    CancelOrder(cancel_order::Params),
     /// 0. `[writable]` The market account
     /// 1. `[signer]` The market authority
     DisableMarket,

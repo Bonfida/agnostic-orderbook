@@ -11,6 +11,7 @@ use crate::instruction::AgnosticOrderbookInstruction;
 
 ////////////////////////////////////////////////////////////
 
+pub mod cancel_order;
 pub mod consume_event;
 pub mod create_market;
 pub mod new_order;
@@ -37,9 +38,14 @@ impl Processor {
                 msg!("Instruction: New Order");
                 new_order::process(program_id, accounts, params)?;
             }
-            AgnosticOrderbookInstruction::ConsumeEvents => todo!(),
-            AgnosticOrderbookInstruction::CancelOrder => todo!(),
-            AgnosticOrderbookInstruction::CancelOrderByClientId => todo!(),
+            AgnosticOrderbookInstruction::ConsumeEvents(params) => {
+                msg!("Instruction: Consume Events");
+                consume_event::process(program_id, accounts, params)?;
+            }
+            AgnosticOrderbookInstruction::CancelOrder(params) => {
+                msg!("Instruction: Cancel Order");
+                cancel_order::process(program_id, accounts, params)?;
+            }
             AgnosticOrderbookInstruction::DisableMarket => todo!(),
         }
         Ok(())
