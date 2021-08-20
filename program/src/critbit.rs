@@ -39,7 +39,7 @@ impl InnerNode {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub struct LeafNode {
     key: u128,
     owner: Pubkey,
@@ -78,7 +78,7 @@ impl LeafNode {
         self.owner
     }
 
-    pub fn to_any(&self) -> AnyNode {
+    pub fn to_any(self) -> AnyNode {
         //TODO retire
         let mut data = Vec::new();
         self.serialize(&mut data).unwrap();
@@ -129,20 +129,6 @@ impl<'a> AnyNode {
     }
 
     fn case(&'a self) -> Option<Node> {
-        match NodeTag::try_from(self.tag) {
-            Ok(NodeTag::InnerNode) => {
-                let inner_node = InnerNode::deserialize(&mut &self.data[..]).unwrap();
-                Some(Node::Inner(inner_node))
-            }
-            Ok(NodeTag::LeafNode) => {
-                let leaf_node = LeafNode::deserialize(&mut &self.data[..]).unwrap();
-                Some(Node::Leaf(leaf_node))
-            }
-            _ => None,
-        }
-    }
-
-    fn case_mut(&mut self) -> Option<Node> {
         match NodeTag::try_from(self.tag) {
             Ok(NodeTag::InnerNode) => {
                 let inner_node = InnerNode::deserialize(&mut &self.data[..]).unwrap();
@@ -207,28 +193,6 @@ impl<'a> Slab<'a> {
 impl<'a> Slab<'a> {
     fn capacity(&self) -> u64 {
         ((self.0.borrow().len() - SLAB_HEADER_LEN) % SLOT_SIZE) as u64
-    }
-
-    fn clear(&mut self) {
-        let header = &mut self.get_header();
-        *header = SlabHeader {
-            bump_index: 0,
-            free_list_len: 0,
-            free_list_head: 0,
-
-            root_node: 0,
-            leaf_count: 0,
-            market_address: Pubkey::new_from_array([0; 32]),
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        let SlabHeader {
-            bump_index,
-            free_list_len,
-            ..
-        } = self.get_header();
-        bump_index == free_list_len
     }
 
     pub(crate) fn get_node(&self, key: u32) -> Option<AnyNode> {
@@ -316,10 +280,6 @@ impl<'a> Slab<'a> {
         );
 
         Some(val)
-    }
-
-    fn contains(&self, key: u32) -> bool {
-        self.get_node(key).is_some()
     }
 }
 
@@ -518,52 +478,6 @@ impl<'a> Slab<'a> {
         }
     }
 
-    pub(crate) fn find_by<F: Fn(&LeafNode) -> bool>(
-        &self,
-        limit: &mut u16,
-        predicate: F,
-    ) -> Vec<u128> {
-        let mut found = Vec::new();
-        let mut nodes_to_search: Vec<NodeHandle> = Vec::new();
-        let mut current_node: Option<AnyNode>;
-
-        let top_node = self.root();
-
-        // No found nodes.
-        if top_node.is_none() {
-            return found;
-        }
-
-        nodes_to_search.push(top_node.unwrap());
-
-        // Search through the tree.
-        while !nodes_to_search.is_empty() && *limit > 0 {
-            *limit -= 1;
-
-            current_node = self.get_node(nodes_to_search.pop().unwrap());
-
-            // Node not found.
-            if current_node.is_none() {
-                break;
-            }
-
-            match current_node.unwrap().case().unwrap() {
-                Node::Leaf(leaf) if predicate(&leaf) => {
-                    // Found a matching leaf.
-                    found.push(leaf.key)
-                }
-                Node::Inner(inner) => {
-                    // Search the children.
-                    nodes_to_search.push(inner.children[0]);
-                    nodes_to_search.push(inner.children[1]);
-                }
-                _ => (),
-            }
-        }
-
-        found
-    }
-
     #[cfg(test)]
     fn traverse(&self) -> Vec<LeafNode> {
         fn walk_rec<'a>(slab: &'a Slab, sub_root: NodeHandle, buf: &mut Vec<LeafNode>) {
@@ -593,7 +507,7 @@ impl<'a> Slab<'a> {
     fn hexdump(&self) {
         println!("Header:");
         let mut header_data = Vec::new();
-        self.get_header().serialize(&mut header_data);
+        self.get_header().serialize(&mut header_data).unwrap();
         hexdump::hexdump(&header_data);
         println!("Data:");
         hexdump::hexdump(&self.0.borrow());
@@ -665,179 +579,194 @@ impl<'a> Slab<'a> {
 /////////////////////////////////////
 // Tests
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use bytemuck::bytes_of;
-//     use rand::prelude::*;
+#[cfg(test)]
+mod tests {
 
-//     #[test]
-//     fn simulate_find_min() {
-//         use std::collections::BTreeMap;
+    use super::*;
+    use rand::prelude::*;
 
-//         for trial in 0..10u64 {
-//             let mut aligned_buf = vec![0u64; 10_000];
-//             let bytes: &mut [u8] = cast_slice_mut(aligned_buf.as_mut_slice());
+    #[test]
+    fn simulate_find_min() {
+        use std::collections::BTreeMap;
 
-//             let slab: &mut Slab = Slab::new(bytes);
-//             let mut model: BTreeMap<u128, LeafNode> = BTreeMap::new();
+        for trial in 0..10u64 {
+            let mut bytes = vec![0u8; 80_000];
+            let slab_data = Rc::new(RefCell::new(&mut bytes[..]));
+            let mut slab = Slab(slab_data);
 
-//             let mut all_keys = vec![];
+            let mut model: BTreeMap<u128, LeafNode> = BTreeMap::new();
 
-//             let mut rng = StdRng::seed_from_u64(trial);
+            let mut all_keys = vec![];
 
-//             assert_eq!(slab.find_min(), None);
-//             assert_eq!(slab.find_max(), None);
+            let mut rng = StdRng::seed_from_u64(trial);
 
-//             for i in 0..100 {
-//                 let offset = rng.gen();
-//                 let key = rng.gen();
-//                 let owner = rng.gen();
-//                 let qty = rng.gen();
-//                 let leaf = LeafNode::new(offset, key, owner, qty);
+            assert_eq!(slab.find_min(), None);
+            assert_eq!(slab.find_max(), None);
 
-//                 println!("{:x}", key);
-//                 println!("{}", i);
+            for i in 0..100 {
+                let key = rng.gen();
+                let owner = Pubkey::new_unique();
+                let qty = rng.gen();
+                let leaf = LeafNode::new(key, owner, qty);
 
-//                 slab.insert_leaf(&leaf).unwrap();
-//                 model.insert(key, leaf).ok_or(()).unwrap_err();
-//                 all_keys.push(key);
+                println!("{:x}", key);
+                println!("{}", i);
 
-//                 // test find_by_key
-//                 let valid_search_key = *all_keys.choose(&mut rng).unwrap();
-//                 let invalid_search_key = rng.gen();
+                slab.insert_leaf(&leaf).unwrap();
+                model.insert(key, leaf).ok_or(()).unwrap_err();
+                all_keys.push(key);
 
-//                 for &search_key in &[valid_search_key, invalid_search_key] {
-//                     let slab_value = slab
-//                         .find_by_key(search_key)
-//                         .map(|x| slab.get_node(x))
-//                         .flatten()
-//                         .map(bytes_of);
-//                     let model_value = model.get(&search_key).map(bytes_of);
-//                     assert_eq!(slab_value, model_value);
-//                 }
+                // test find_by_key
+                let valid_search_key = *all_keys.choose(&mut rng).unwrap();
+                let invalid_search_key = rng.gen();
 
-//                 // test find_min
-//                 let slab_min = slab.get_node(slab.find_min().unwrap()).unwrap();
-//                 let model_min = model.iter().next().unwrap().1;
-//                 assert_eq!(bytes_of(slab_min), bytes_of(model_min));
+                for &search_key in &[valid_search_key, invalid_search_key] {
+                    let slab_value = slab
+                        .find_by_key(search_key)
+                        .map(|x| slab.get_node(x))
+                        .flatten()
+                        .map(|a| a.as_leaf())
+                        .flatten();
+                    let model_value = model.get(&search_key).copied();
+                    assert_eq!(slab_value, model_value);
+                }
 
-//                 // test find_max
-//                 let slab_max = slab.get_node(slab.find_max().unwrap()).unwrap();
-//                 let model_max = model.iter().next_back().unwrap().1;
-//                 assert_eq!(bytes_of(slab_max), bytes_of(model_max));
-//             }
-//         }
-//     }
+                // test find_min
+                let slab_min = slab
+                    .get_node(slab.find_min().unwrap())
+                    .map(|a| a.as_leaf())
+                    .flatten()
+                    .unwrap();
+                let model_min = model.iter().next().unwrap().1;
+                assert_eq!(&slab_min, model_min);
 
-//     #[test]
-//     fn simulate_operations() {
-//         use rand::distributions::WeightedIndex;
-//         use std::collections::BTreeMap;
+                // test find_max
+                let slab_max = slab
+                    .get_node(slab.find_max().unwrap())
+                    .map(|a| a.as_leaf())
+                    .flatten()
+                    .unwrap();
+                let model_max = model.iter().next_back().unwrap().1;
+                assert_eq!(&slab_max, model_max);
+            }
+        }
+    }
 
-//         let mut aligned_buf = vec![0u64; 1_250_000];
-//         let bytes: &mut [u8] = &mut cast_slice_mut(aligned_buf.as_mut_slice());
-//         let slab: &mut Slab = Slab::new(bytes);
-//         let mut model: BTreeMap<u128, LeafNode> = BTreeMap::new();
+    #[test]
+    fn simulate_operations() {
+        use rand::distributions::WeightedIndex;
+        use std::collections::BTreeMap;
 
-//         let mut all_keys = vec![];
-//         let mut rng = StdRng::seed_from_u64(0);
+        let mut bytes = vec![0u8; 80_000];
+        let slab_data = Rc::new(RefCell::new(&mut bytes[..]));
+        let mut slab = Slab(slab_data);
+        let mut model: BTreeMap<u128, LeafNode> = BTreeMap::new();
 
-//         #[derive(Copy, Clone)]
-//         enum Op {
-//             InsertNew,
-//             InsertDup,
-//             Delete,
-//             Min,
-//             Max,
-//             End,
-//         }
+        let mut all_keys = vec![];
+        let mut rng = StdRng::seed_from_u64(0);
 
-//         for weights in &[
-//             [
-//                 (Op::InsertNew, 2000),
-//                 (Op::InsertDup, 200),
-//                 (Op::Delete, 2210),
-//                 (Op::Min, 500),
-//                 (Op::Max, 500),
-//                 (Op::End, 1),
-//             ],
-//             [
-//                 (Op::InsertNew, 10),
-//                 (Op::InsertDup, 200),
-//                 (Op::Delete, 5210),
-//                 (Op::Min, 500),
-//                 (Op::Max, 500),
-//                 (Op::End, 1),
-//             ],
-//         ] {
-//             let dist = WeightedIndex::new(weights.iter().map(|(_op, wt)| wt)).unwrap();
+        #[derive(Copy, Clone)]
+        enum Op {
+            InsertNew,
+            InsertDup,
+            Delete,
+            Min,
+            Max,
+            End,
+        }
 
-//             for i in 0..100_000 {
-//                 slab.check_invariants();
-//                 let model_state = model.values().collect::<Vec<_>>();
-//                 let slab_state = slab.traverse();
-//                 assert_eq!(model_state, slab_state);
+        for weights in &[
+            [
+                (Op::InsertNew, 2000),
+                (Op::InsertDup, 200),
+                (Op::Delete, 2210),
+                (Op::Min, 500),
+                (Op::Max, 500),
+                (Op::End, 1),
+            ],
+            [
+                (Op::InsertNew, 10),
+                (Op::InsertDup, 200),
+                (Op::Delete, 5210),
+                (Op::Min, 500),
+                (Op::Max, 500),
+                (Op::End, 1),
+            ],
+        ] {
+            let dist = WeightedIndex::new(weights.iter().map(|(_op, wt)| wt)).unwrap();
 
-//                 match weights[dist.sample(&mut rng)].0 {
-//                     op @ Op::InsertNew | op @ Op::InsertDup => {
-//                         let offset = rng.gen();
-//                         let key = match op {
-//                             Op::InsertNew => rng.gen(),
-//                             Op::InsertDup => *all_keys.choose(&mut rng).unwrap(),
-//                             _ => unreachable!(),
-//                         };
-//                         let owner = rng.gen();
-//                         let qty = rng.gen();
-//                         let leaf = LeafNode::new(offset, key, owner, qty);
+            for i in 0..100_000 {
+                slab.check_invariants();
+                let model_state = model.values().collect::<Vec<_>>();
+                let slab_state: Vec<LeafNode> = slab.traverse();
+                assert_eq!(model_state, slab_state.iter().collect::<Vec<&LeafNode>>());
 
-//                         println!("Insert {:x}", key);
+                match weights[dist.sample(&mut rng)].0 {
+                    op @ Op::InsertNew | op @ Op::InsertDup => {
+                        let key = match op {
+                            Op::InsertNew => rng.gen(),
+                            Op::InsertDup => *all_keys.choose(&mut rng).unwrap(),
+                            _ => unreachable!(),
+                        };
+                        let owner = Pubkey::new_unique();
+                        let qty = rng.gen();
+                        let leaf = LeafNode::new(key, owner, qty);
 
-//                         all_keys.push(key);
-//                         let slab_value = slab.insert_leaf(&leaf).unwrap().1;
-//                         let model_value = model.insert(key, leaf);
-//                         if slab_value != model_value {
-//                             slab.hexdump();
-//                         }
-//                         assert_eq!(slab_value, model_value);
-//                     }
-//                     Op::Delete => {
-//                         let key = all_keys
-//                             .choose(&mut rng)
-//                             .map(|x| *x)
-//                             .unwrap_or_else(|| rng.gen());
+                        println!("Insert {:x}", key);
 
-//                         println!("Remove {:x}", key);
+                        all_keys.push(key);
+                        let slab_value = slab.insert_leaf(&leaf).unwrap().1;
+                        let model_value = model.insert(key, leaf);
+                        if slab_value != model_value {
+                            slab.hexdump();
+                        }
+                        assert_eq!(slab_value, model_value);
+                    }
+                    Op::Delete => {
+                        let key = all_keys
+                            .choose(&mut rng)
+                            .copied()
+                            .unwrap_or_else(|| rng.gen());
 
-//                         let slab_value = slab.remove_by_key(key);
-//                         let model_value = model.remove(&key);
-//                         assert_eq!(slab_value.as_ref().map(cast_ref), model_value.as_ref());
-//                     }
-//                     Op::Min => {
-//                         if model.len() == 0 {
-//                             assert_eq!(identity(slab.get_header().leaf_count), 0);
-//                         } else {
-//                             let slab_min = slab.get_node(slab.find_min().unwrap()).unwrap();
-//                             let model_min = model.iter().next().unwrap().1;
-//                             assert_eq!(bytes_of(slab_min), bytes_of(model_min));
-//                         }
-//                     }
-//                     Op::Max => {
-//                         if model.len() == 0 {
-//                             assert_eq!(identity(slab.get_header().leaf_count), 0);
-//                         } else {
-//                             let slab_max = slab.get_node(slab.find_max().unwrap()).unwrap();
-//                             let model_max = model.iter().next_back().unwrap().1;
-//                             assert_eq!(bytes_of(slab_max), bytes_of(model_max));
-//                         }
-//                     }
-//                     Op::End => {
-//                         if i > 10_000 {
-//                             break;
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
+                        println!("Remove {:x}", key);
+
+                        let slab_value = slab.remove_by_key(key);
+                        let model_value = model.remove(&key);
+                        assert_eq!(slab_value, model_value);
+                    }
+                    Op::Min => {
+                        if model.is_empty() {
+                            assert_eq!(identity(slab.get_header().leaf_count), 0);
+                        } else {
+                            let slab_min = slab
+                                .get_node(slab.find_min().unwrap())
+                                .map(|a| a.as_leaf())
+                                .flatten()
+                                .unwrap();
+                            let model_min = model.iter().next().unwrap().1;
+                            assert_eq!(&slab_min, model_min);
+                        }
+                    }
+                    Op::Max => {
+                        if model.is_empty() {
+                            assert_eq!(identity(slab.get_header().leaf_count), 0);
+                        } else {
+                            let slab_max = slab
+                                .get_node(slab.find_max().unwrap())
+                                .map(|a| a.as_leaf())
+                                .flatten()
+                                .unwrap();
+                            let model_max = model.iter().next_back().unwrap().1;
+                            assert_eq!(&slab_max, model_max);
+                        }
+                    }
+                    Op::End => {
+                        if i > 10_000 {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

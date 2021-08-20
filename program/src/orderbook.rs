@@ -31,7 +31,7 @@ impl<'ob> OrderBookState<'ob> {
             max_base_qty,
             max_quote_qty,
             order_id,
-            side,
+            side: _,
             limit_price,
             owner,
             post_only,
@@ -253,9 +253,9 @@ impl<'ob> OrderBookState<'ob> {
     ) -> AOResult {
         let new_order::Params {
             max_base_qty,
-            max_quote_qty,
+            max_quote_qty: _,
             order_id,
-            side,
+            side: _,
             limit_price,
             owner,
             post_only,
