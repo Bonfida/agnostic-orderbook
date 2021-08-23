@@ -20,12 +20,13 @@ use crate::{
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub struct Params {
-    pub max_base_qty: u64,
+    pub max_asset_qty: u64,
     pub max_quote_qty: u64,
     pub order_id: u128,
     pub limit_price: u64,
     pub side: Side,
-    pub owner: Pubkey,
+    pub match_limit: u64,
+    pub callback_info: Vec<u8>,
     pub post_only: bool,
     pub post_allowed: bool,
     pub self_trade_behavior: SelfTradeBehavior,
@@ -83,11 +84,18 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     check_account_key(accounts.asks, &market_state.asks).unwrap();
     // check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
+    let callback_info_len = market_state.callback_info_len as usize;
+
     let mut order_book = OrderBookState {
-        bids: Slab(Rc::clone(&accounts.bids.data)),
-        asks: Slab(Rc::clone(&accounts.asks.data)),
+        bids: Slab::new_from_acc_info(accounts.bids, callback_info_len),
+        asks: Slab::new_from_acc_info(accounts.asks, callback_info_len),
         market_state,
     };
+
+    if params.callback_info.len() != callback_info_len {
+        msg!("Invalid callback information");
+        return Err(ProgramError::InvalidArgument);
+    }
 
     let header = {
         let mut event_queue_data: &[u8] =
@@ -97,13 +105,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let mut event_queue = EventQueue {
         header,
         buffer: Rc::clone(&accounts.event_queue.data),
+        callback_info_len,
     };
 
     //TODO loop
-    match params.side {
-        Side::Bid => order_book.new_bid(params, &mut event_queue)?,
-        Side::Ask => order_book.new_ask(params, &mut event_queue)?,
-    }
+    order_book.new_order(params, &mut &mut event_queue)?;
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue

@@ -1,7 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use enumflags2::BitFlags;
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::pubkey::Pubkey;
-use std::{cell::RefCell, mem::size_of, rc::Rc};
+use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AccountFlag {
@@ -14,13 +15,23 @@ pub enum AccountFlag {
     Permissioned,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive)]
+#[repr(u8)]
 pub enum Side {
     Bid,
     Ask,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
+impl Side {
+    pub fn opposite(&self) -> Self {
+        match self {
+            Side::Bid => Side::Ask,
+            Side::Ask => Side::Bid,
+        }
+    }
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq)]
 pub enum SelfTradeBehavior {
     DecrementTake,
     CancelProvide,
@@ -34,6 +45,7 @@ pub struct MarketState {
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
+    pub callback_info_len: u64,
     pub market_authority: Pubkey, // The authority for disabling the market //TODO make caller
                                   //TODO cranked_accs
 }
@@ -52,118 +64,69 @@ pub struct RequestProceeds {
 ////////////////////////////////////////////////////
 // Events
 //TODO refactor eventviews, remove bitflags
-
-#[derive(Copy, Clone, BitFlags, Debug)]
-#[repr(u8)]
-enum EventFlag {
-    Fill = 0x1,
-    Out = 0x2,
-    Bid = 0x4,
-    Maker = 0x8,
-    ReleaseFunds = 0x10,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
-pub struct Event {
-    event_flags: u8,
-    owner: Pubkey,
-    order_id: u128, // Is composed of price and unique id, acts as key in critbit
-    native_qty_released: u64,
-    native_qty_paid: u64,
-}
-
-const EVENT_LEN: usize = size_of::<Event>();
-
-impl EventFlag {
-    fn from_side(side: Side) -> BitFlags<Self> {
-        match side {
-            Side::Bid => EventFlag::Bid.into(),
-            Side::Ask => BitFlags::empty(),
-        }
-    }
-
-    fn flags_to_side(flags: BitFlags<Self>) -> Side {
-        if flags.contains(EventFlag::Bid) {
-            Side::Bid
-        } else {
-            Side::Ask
-        }
-    }
-}
-
-impl Event {
-    #[inline(always)]
-    pub fn new(view: EventView) -> Self {
-        match view {
-            EventView::Fill {
-                side,
-                maker,
-                order_id,
-                native_qty_paid,
-                native_qty_received,
-                owner,
-            } => {
-                let maker_flag = if maker {
-                    BitFlags::from_flag(EventFlag::Maker).bits()
-                } else {
-                    0
-                };
-                let event_flags =
-                    (EventFlag::from_side(side) | EventFlag::Fill).bits() | maker_flag;
-                Event {
-                    event_flags,
-                    order_id,
-                    native_qty_released: native_qty_received,
-                    native_qty_paid,
-                    owner,
-                }
-            }
-
-            EventView::Out {
-                side,
-                order_id,
-                release_funds,
-                native_qty_unlocked,
-                native_qty_still_locked,
-                owner,
-            } => {
-                let release_funds_flag = if release_funds {
-                    BitFlags::from_flag(EventFlag::ReleaseFunds).bits()
-                } else {
-                    0
-                };
-                let event_flags =
-                    (EventFlag::from_side(side) | EventFlag::Out).bits() | release_funds_flag;
-                Event {
-                    order_id,
-                    event_flags,
-                    native_qty_released: native_qty_unlocked,
-                    native_qty_paid: native_qty_still_locked,
-                    owner,
-                }
-            }
-        }
-    }
-}
-
-pub enum EventView {
+#[derive(BorshDeserialize, BorshSerialize)]
+pub enum Event {
     //TODO comment
     Fill {
-        side: Side,
-        maker: bool,
-        order_id: u128,
-        native_qty_paid: u64,
-        native_qty_received: u64,
-        owner: Pubkey,
+        taker_side: Side,
+        maker_order_id: u128,
+        quote_size: u64,
+        asset_size: u64,
+        maker_callback_info: Vec<u8>,
+        taker_callback_info: Vec<u8>,
     },
     Out {
         side: Side,
-        release_funds: bool,
         order_id: u128,
-        native_qty_unlocked: u64, //TODO rename
-        native_qty_still_locked: u64,
-        owner: Pubkey,
+        asset_size: u64,
+        callback_info: Vec<u8>,
     },
+}
+
+impl Event {
+    pub fn serialize<W: Write>(&self, writer: &mut W) {
+        match self {
+            Event::Fill {
+                taker_side,
+                maker_order_id,
+                quote_size,
+                asset_size,
+                maker_callback_info,
+                taker_callback_info,
+            } => {
+                writer.write(&[taker_side.to_u8().unwrap()]);
+                writer.write(&maker_order_id.to_le_bytes());
+                writer.write(&quote_size.to_le_bytes());
+                writer.write(&asset_size.to_le_bytes());
+                writer.write(&maker_callback_info);
+                writer.write(&taker_callback_info);
+            }
+            Event::Out {
+                side,
+                order_id,
+                asset_size,
+                callback_info,
+            } => {
+                unimplemented!()
+            }
+        }
+    }
+
+    pub fn deserialize(buf: &mut &[u8], callback_info_len: usize) -> Self {
+        match buf[0] {
+            0 => Event::Fill {
+                taker_side: Side::from_u8(buf[1]).unwrap(),
+                maker_order_id: u128::from_le_bytes(buf[2..18].try_into().unwrap()),
+                quote_size: u64::from_le_bytes(buf[18..26].try_into().unwrap()),
+                asset_size: u64::from_le_bytes(buf[26..34].try_into().unwrap()),
+                maker_callback_info: buf[34..34 + callback_info_len].to_owned(),
+                taker_callback_info: buf[34 + callback_info_len..34 + (callback_info_len << 1)]
+                    .to_owned(),
+            },
+            1 => unimplemented!(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 ////////////////////////////////////////////////////
@@ -174,6 +137,8 @@ pub struct EventQueueHeader {
     account_flags: u64, // Initialized, EventQueue
     head: u64,
     count: u64,
+    event_size: u64,
+    register_size: u64,
     seq_num: u64, //TODO needed?
 }
 pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
@@ -183,15 +148,16 @@ pub struct EventQueue<'a> {
     // and a circular buffer of serialized events
     pub(crate) header: EventQueueHeader,
     pub(crate) buffer: Rc<RefCell<&'a mut [u8]>>, //The whole account data
+    pub(crate) callback_info_len: usize,
 }
 
 impl EventQueue<'_> {
     pub fn get_buf_len(&self) -> usize {
-        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN
+        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (self.header.register_size as usize)
     }
 
     pub fn full(&self) -> bool {
-        self.header.count as usize == (self.get_buf_len() / EVENT_LEN)
+        self.header.count as usize == (self.get_buf_len() / (self.header.event_size as usize))
         //TODO check
     }
 
@@ -200,10 +166,13 @@ impl EventQueue<'_> {
             return Err(event);
         }
         let offset = EVENT_QUEUE_HEADER_LEN
-            + ((self.header.head + self.header.count * EVENT_LEN as u64) as usize)
+            + ((self.header.register_size
+                + self.header.head
+                + self.header.count * self.header.event_size) as usize)
                 % self.get_buf_len();
-        let mut queue_event_data = &mut self.buffer.borrow_mut()[offset..offset + EVENT_LEN];
-        event.serialize(&mut queue_event_data).unwrap();
+        let mut queue_event_data =
+            &mut self.buffer.borrow_mut()[offset..offset + (self.header.event_size as usize)];
+        event.serialize(&mut queue_event_data);
 
         self.header.count += 1;
         self.header.seq_num += 1;
@@ -215,18 +184,22 @@ impl EventQueue<'_> {
         if self.header.count == 0 {
             return None;
         }
-        let offset = EVENT_QUEUE_HEADER_LEN + self.header.head as usize;
-        let mut event_data = &self.buffer.borrow()[offset..offset + EVENT_LEN];
-        Some(Event::deserialize(&mut event_data).unwrap())
+        let offset =
+            EVENT_QUEUE_HEADER_LEN + (self.header.register_size + self.header.head) as usize;
+        let mut event_data =
+            &self.buffer.borrow()[offset..offset + (self.header.event_size as usize)];
+        Some(Event::deserialize(&mut event_data, self.callback_info_len))
     }
 
     pub fn pop_front(&mut self) -> Result<Event, ()> {
         if self.header.count == 0 {
             return Err(());
         }
-        let offset = EVENT_QUEUE_HEADER_LEN + self.header.head as usize;
-        let mut event_data = &self.buffer.borrow()[offset..offset + EVENT_LEN];
-        let event = Event::deserialize(&mut event_data).unwrap();
+        let offset =
+            EVENT_QUEUE_HEADER_LEN + (self.header.register_size + self.header.head) as usize;
+        let mut event_data =
+            &self.buffer.borrow()[offset..offset + (self.header.event_size as usize)];
+        let event = Event::deserialize(&mut event_data, self.callback_info_len);
 
         self.header.count -= 1;
         self.header.head = (self.header.head + 1) % self.get_buf_len() as u64;
@@ -240,6 +213,12 @@ impl EventQueue<'_> {
         self.header.count -= capped_number_of_entries_to_pop;
         self.header.head =
             (self.header.head + capped_number_of_entries_to_pop) % self.get_buf_len() as u64;
+    }
+
+    pub fn write_to_register<T: BorshSerialize>(self, object: T) {
+        let mut register = &mut self.buffer.borrow_mut()
+            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+        object.serialize(&mut register).unwrap();
     }
 
     // #[inline]

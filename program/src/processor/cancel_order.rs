@@ -14,7 +14,7 @@ use crate::{
     error::AOError,
     orderbook::OrderBookState,
     state::{
-        Event, EventQueue, EventQueueHeader, EventView, MarketState, SelfTradeBehavior, Side,
+        Event, EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side,
         EVENT_QUEUE_HEADER_LEN,
     },
     utils::{check_account_key, check_account_owner, check_signer},
@@ -31,7 +31,6 @@ struct Accounts<'a, 'b: 'a> {
     admin: &'a AccountInfo<'b>,
     asks: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
-    order_owner: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
 }
 
@@ -45,20 +44,17 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         let event_queue = next_account_info(accounts_iter)?;
         let bids = next_account_info(accounts_iter)?;
         let asks = next_account_info(accounts_iter)?;
-        let order_owner = next_account_info(accounts_iter)?;
         let admin = next_account_info(accounts_iter)?;
         check_account_owner(market, program_id)?;
         check_account_owner(event_queue, program_id)?;
         check_account_owner(bids, program_id)?;
         check_account_owner(asks, program_id)?;
-        check_signer(order_owner)?;
         //TODO check if caller auth signs?
         Ok(Self {
             market,
             admin,
             asks,
             bids,
-            order_owner,
             event_queue,
         })
     }
@@ -74,9 +70,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     check_account_key(accounts.bids, &market_state.bids).unwrap();
     check_account_key(accounts.asks, &market_state.asks).unwrap();
 
-    let order_book = OrderBookState {
-        bids: Slab(Rc::clone(&accounts.bids.data)),
-        asks: Slab(Rc::clone(&accounts.asks.data)),
+    let callback_info_len = market_state.callback_info_len as usize;
+
+    let mut order_book = OrderBookState {
+        bids: Slab::new_from_acc_info(accounts.bids, callback_info_len),
+        asks: Slab::new_from_acc_info(accounts.asks, callback_info_len),
         market_state,
     };
 
@@ -87,37 +85,19 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     };
     let mut event_queue = EventQueue {
         header,
+        callback_info_len,
         buffer: Rc::clone(&accounts.event_queue.data),
     };
 
-    let mut slab = match params.side {
-        Side::Bid => order_book.bids,
-        Side::Ask => order_book.asks,
-    };
+    let mut slab = order_book.get_tree(params.side);
     let leaf_node = slab
         .remove_by_key(params.order_id)
         .ok_or(AOError::OrderNotFound)?;
 
-    if leaf_node.owner() != *accounts.order_owner.key {
-        msg!("Order owner mismatch.");
-        return Err(AOError::OrderNotYours.into());
-    }
-
     let native_qty_unlocked = match params.side {
-        Side::Bid => leaf_node.quantity() * leaf_node.price(),
-        Side::Ask => leaf_node.quantity(),
+        Side::Bid => leaf_node.asset_quantity * leaf_node.price(),
+        Side::Ask => leaf_node.asset_quantity,
     };
-
-    event_queue
-        .push_back(Event::new(EventView::Out {
-            side: params.side,
-            release_funds: false,
-            native_qty_unlocked,
-            native_qty_still_locked: 0,
-            owner: *accounts.order_owner.key,
-            order_id: params.order_id,
-        }))
-        .map_err(|_| AOError::EventQueueFull)?;
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue

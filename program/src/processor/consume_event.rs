@@ -69,6 +69,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let mut event_queue = EventQueue {
         header,
         buffer: Rc::clone(&accounts.event_queue.data),
+        callback_info_len: market_state.callback_info_len as usize,
     };
 
     event_queue.pop_n(params.number_of_entries_to_consume);

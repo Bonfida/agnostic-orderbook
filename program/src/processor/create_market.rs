@@ -15,6 +15,7 @@ pub struct Params {
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
+    pub callback_info_len: u64,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -55,6 +56,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         event_queue,
         bids,
         asks,
+        callback_info_len,
     } = params;
 
     if accounts.event_queue.owner != program_id {
@@ -76,6 +78,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         event_queue,
         bids,
         asks,
+        callback_info_len,
         market_authority: match accounts.market_authority {
             Some(market_authority) => *market_authority.key,
             None => Pubkey::default(),

@@ -107,6 +107,7 @@ async fn test_agnostic_orderbook() {
         bids_account.pubkey(),
         asks_account.pubkey(),
         None,
+        32,
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
         .await
@@ -121,15 +122,16 @@ async fn test_agnostic_orderbook() {
         bids_account.pubkey(),
         asks_account.pubkey(),
         new_order::Params {
-            max_base_qty: 1000,
+            max_asset_qty: 1000,
             max_quote_qty: 1000,
             limit_price: 1000,
             side: Side::Bid,
-            owner: Pubkey::new_unique(),
+            callback_info: Pubkey::new_unique().to_bytes().to_vec(),
             post_only: false,
             post_allowed: true,
             self_trade_behavior: SelfTradeBehavior::CancelProvide,
             order_id: 1000 << 64,
+            match_limit: 3,
         },
     );
     sign_send_instructions(

@@ -42,12 +42,14 @@ pub fn create_market(
     bids: Pubkey,
     asks: Pubkey,
     market_authority: Option<Pubkey>,
+    callback_info_len: u64,
 ) -> Instruction {
     let instruction_data = AgnosticOrderbookInstruction::CreateMarket(create_market::Params {
         caller_authority,
         event_queue,
         bids,
         asks,
+        callback_info_len,
     });
     let data = instruction_data.try_to_vec().unwrap();
     let mut accounts = vec![
@@ -84,7 +86,6 @@ pub fn new_order(
         AccountMeta::new(event_queue, false),
         AccountMeta::new(bids, false),
         AccountMeta::new(asks, false),
-        AccountMeta::new_readonly(new_order_params.owner, false),
         AccountMeta::new_readonly(caller_authority, true),
     ];
 
