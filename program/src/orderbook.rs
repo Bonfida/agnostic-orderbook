@@ -1,5 +1,5 @@
 use crate::{
-    critbit::{LeafNode, NodeHandle, Slab},
+    critbit::{LeafNode, Node, NodeHandle, Slab},
     error::AOError,
     processor::new_order,
     state::{Event, EventQueue, MarketState, SelfTradeBehavior, Side},
@@ -75,8 +75,10 @@ impl<'ob> OrderBookState<'ob> {
             let mut best_bo_ref = self
                 .get_tree(side.opposite())
                 .get_node(best_bo_h)
-                .unwrap()
-                .as_leaf(self.market_state.callback_info_len as usize)
+                .and_then(|a| match a {
+                    Node::Leaf(l) => Some(l),
+                    _ => None,
+                })
                 .unwrap();
 
             let trade_price = best_bo_ref.price();
@@ -179,17 +181,22 @@ impl<'ob> OrderBookState<'ob> {
             ),
             Side::Ask => asset_qty_remaining, // TODO: check accuracy
         };
-        let new_leaf = LeafNode::new(order_id, callback_info.clone(), asset_qty_to_post);
+        let new_leaf = Node::Leaf(LeafNode::new(
+            order_id,
+            callback_info.clone(),
+            asset_qty_to_post,
+        ));
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         if let Err(AOError::SlabOutOfSpace) = insert_result {
             // boot out the least aggressive bid
             msg!("bids full! booting...");
             let order = self.get_tree(side).remove_min().unwrap();
+            let l = order.as_leaf().unwrap();
             let out = Event::Out {
                 side: Side::Bid,
-                order_id: order.order_id(),
-                asset_size: order.asset_quantity,
-                callback_info: order.callback_info.clone(),
+                order_id: l.order_id(),
+                asset_size: l.asset_quantity,
+                callback_info: l.callback_info.clone(),
             };
             event_queue
                 .push_back(out)

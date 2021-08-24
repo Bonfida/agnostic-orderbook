@@ -86,9 +86,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
 
     let slab = order_book.get_tree(params.side);
-    let leaf_node = slab
+    let node = slab
         .remove_by_key(params.order_id)
         .ok_or(AOError::OrderNotFound)?;
+    let leaf_node = node.as_leaf().unwrap();
     let total_asset_qty = leaf_node.asset_quantity;
     let total_quote_qty = fp32_mul(leaf_node.asset_quantity, leaf_node.price());
 
