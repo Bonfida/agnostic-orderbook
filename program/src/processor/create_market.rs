@@ -7,7 +7,10 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::state::{AccountFlag, MarketState};
+use crate::{
+    orderbook::{OrderSummary, ORDER_SUMMARY_SIZE},
+    state::{AccountFlag, EventQueueHeader, MarketState},
+};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Params {
@@ -84,6 +87,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
             None => Pubkey::default(),
         },
     };
+
+    let event_queue_header = EventQueueHeader::default();
+    event_queue_header
+        .serialize(&mut (&mut accounts.event_queue.data.borrow_mut() as &mut [u8]))
+        .unwrap();
 
     let mut market_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
     market_state.serialize(&mut market_data).unwrap();

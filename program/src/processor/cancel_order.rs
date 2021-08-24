@@ -105,6 +105,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         .header
         .serialize(&mut event_queue_header_data)
         .unwrap();
+    order_book.commit_changes();
 
     Ok(())
 }

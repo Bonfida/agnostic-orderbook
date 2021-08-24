@@ -218,7 +218,7 @@ impl<'a> Slab<'a> {
         }
     }
 
-    fn write_header(&self) {
+    pub(crate) fn write_header(&self) {
         self.header
             .serialize(&mut &mut self.buffer.borrow_mut()[..SLAB_HEADER_LEN])
             .unwrap()

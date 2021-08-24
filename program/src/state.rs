@@ -1,8 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
+
+use crate::orderbook::ORDER_SUMMARY_SIZE;
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AccountFlag {
@@ -142,6 +144,19 @@ pub struct EventQueueHeader {
     seq_num: u64, //TODO needed?
 }
 pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
+
+impl Default for EventQueueHeader {
+    fn default() -> Self {
+        Self {
+            account_flags: 0,
+            head: 0,
+            count: 0,
+            event_size: 0,
+            register_size: ORDER_SUMMARY_SIZE + 1,
+            seq_num: 0,
+        }
+    }
+}
 
 pub struct EventQueue<'a> {
     // The event queue account contains a serialized header
