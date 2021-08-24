@@ -38,11 +38,10 @@ pub struct Params {
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
-    admin: &'a AccountInfo<'b>,
-    asks: &'a AccountInfo<'b>,
-    bids: &'a AccountInfo<'b>,
-    order_owner: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
+    bids: &'a AccountInfo<'b>,
+    asks: &'a AccountInfo<'b>,
+    admin: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -51,25 +50,19 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         accounts: &'a [AccountInfo<'b>],
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
-        let market = next_account_info(accounts_iter)?;
-        let event_queue = next_account_info(accounts_iter)?;
-        let bids = next_account_info(accounts_iter)?;
-        let asks = next_account_info(accounts_iter)?;
-        let order_owner = next_account_info(accounts_iter)?;
-        let admin = next_account_info(accounts_iter)?;
-        check_account_owner(market, program_id).unwrap();
-        check_account_owner(event_queue, program_id).unwrap();
-        check_account_owner(bids, program_id).unwrap();
-        check_account_owner(asks, program_id).unwrap();
-        check_signer(admin).unwrap();
-        Ok(Self {
-            market,
-            admin,
-            asks,
-            bids,
-            order_owner,
-            event_queue,
-        })
+        let a = Self {
+            market: next_account_info(accounts_iter)?,
+            event_queue: next_account_info(accounts_iter)?,
+            bids: next_account_info(accounts_iter)?,
+            asks: next_account_info(accounts_iter)?,
+            admin: next_account_info(accounts_iter)?,
+        };
+        check_account_owner(a.market, program_id).unwrap();
+        check_account_owner(a.event_queue, program_id).unwrap();
+        check_account_owner(a.bids, program_id).unwrap();
+        check_account_owner(a.asks, program_id).unwrap();
+        check_signer(a.admin).unwrap();
+        Ok(a)
     }
 }
 
@@ -102,14 +95,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let mut event_queue = EventQueue {
-        header,
-        buffer: Rc::clone(&accounts.event_queue.data),
-        callback_info_len,
-    };
+    let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
 
     //TODO loop
-    order_book.new_order(params, &mut &mut event_queue)?;
+    let order_summary = order_book.new_order(params, &mut &mut event_queue)?;
+    event_queue.write_to_register(order_summary);
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue

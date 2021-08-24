@@ -12,12 +12,12 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     error::AOError,
-    orderbook::OrderBookState,
+    orderbook::{OrderBookState, OrderSummary},
     state::{
         Event, EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side,
         EVENT_QUEUE_HEADER_LEN,
     },
-    utils::{check_account_key, check_account_owner, check_signer},
+    utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -83,21 +83,21 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let mut event_queue = EventQueue {
-        header,
-        callback_info_len,
-        buffer: Rc::clone(&accounts.event_queue.data),
-    };
+    let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
 
-    let mut slab = order_book.get_tree(params.side);
+    let slab = order_book.get_tree(params.side);
     let leaf_node = slab
         .remove_by_key(params.order_id)
         .ok_or(AOError::OrderNotFound)?;
+    let total_asset_qty = leaf_node.asset_quantity;
+    let total_quote_qty = fp32_mul(leaf_node.asset_quantity, leaf_node.price());
 
-    let native_qty_unlocked = match params.side {
-        Side::Bid => leaf_node.asset_quantity * leaf_node.price(),
-        Side::Ask => leaf_node.asset_quantity,
+    let order_summary = OrderSummary {
+        total_asset_qty,
+        total_quote_qty,
     };
+
+    event_queue.write_to_register(order_summary);
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue

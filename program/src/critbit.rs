@@ -243,7 +243,8 @@ impl<'a> Slab<'a> {
     fn write_node(&mut self, node: &AnyNode, key: u32) {
         let offset = SLAB_HEADER_LEN + key as usize;
         self.buffer.borrow_mut()[offset..offset + 4].copy_from_slice(&node.tag.to_le_bytes()); //TODO
-        self.buffer.borrow_mut()[offset + 4..offset + self.slot_size].copy_from_slice(&node.data);
+        self.buffer.borrow_mut()[offset + 4..offset + 4 + node.data.len()]
+            .copy_from_slice(&node.data);
     }
 
     fn insert(&mut self, val: &AnyNode) -> Result<u32, ()> {

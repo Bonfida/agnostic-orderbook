@@ -10,8 +10,8 @@ use solana_program::msg;
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct OrderSummary {
-    total_asset_qty: u64,
-    total_quote_qty: u64,
+    pub total_asset_qty: u64,
+    pub total_quote_qty: u64,
 }
 
 pub struct OrderBookState<'a> {

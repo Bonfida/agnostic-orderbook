@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::pubkey::Pubkey;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -151,6 +151,28 @@ pub struct EventQueue<'a> {
     pub(crate) callback_info_len: usize,
 }
 
+#[derive(BorshDeserialize, BorshSerialize)]
+pub enum Register<T: BorshSerialize + BorshDeserialize> {
+    Uninitialized,
+    Initialized(T),
+}
+
+impl<'a> EventQueue<'a> {
+    pub fn new_safe(
+        header: EventQueueHeader,
+        account: &AccountInfo<'a>,
+        callback_info_len: usize,
+    ) -> Self {
+        let q = Self {
+            header,
+            buffer: Rc::clone(&account.data),
+            callback_info_len,
+        };
+        q.clear_register();
+        q
+    }
+}
+
 impl EventQueue<'_> {
     pub fn get_buf_len(&self) -> usize {
         self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (self.header.register_size as usize)
@@ -215,10 +237,20 @@ impl EventQueue<'_> {
             (self.header.head + capped_number_of_entries_to_pop) % self.get_buf_len() as u64;
     }
 
-    pub fn write_to_register<T: BorshSerialize>(self, object: T) {
+    pub fn write_to_register<T: BorshSerialize + BorshDeserialize>(&self, object: T) {
         let mut register = &mut self.buffer.borrow_mut()
             [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
-        object.serialize(&mut register).unwrap();
+        Register::Initialized(object)
+            .serialize(&mut register)
+            .unwrap();
+    }
+
+    pub fn clear_register(&self) {
+        let mut register = &mut self.buffer.borrow_mut()
+            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+        Register::<u8>::Uninitialized
+            .serialize(&mut register)
+            .unwrap();
     }
 
     // #[inline]
