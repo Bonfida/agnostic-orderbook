@@ -3,10 +3,11 @@ use thiserror::Error;
 
 use solana_program::{decode_error::DecodeError, program_error::ProgramError};
 
-pub type AOResult<T = ()> = Result<T, AOError>;
+pub type AoResult<T = ()> = Result<T, AoError>;
 
+//TODO clean-up
 #[derive(Clone, Debug, Error, FromPrimitive)]
-pub enum AOError {
+pub enum AoError {
     #[error("TODO Place-holder.")]
     InvalidMarketFlags,
     #[error("TODO Place-holder.")]
@@ -33,7 +34,7 @@ pub enum AOError {
     WrongAccountTailPadding,
 
     #[error("TODO Place-holder.")]
-    RequestQueueEmpty,
+    EventQueueEmpty,
     #[error("TODO Place-holder.")]
     EventQueueTooSmall,
     #[error("TODO Place-holder.")]
@@ -79,13 +80,13 @@ pub enum AOError {
     SlabOutOfSpace,
 }
 
-impl From<AOError> for ProgramError {
-    fn from(e: AOError) -> Self {
+impl From<AoError> for ProgramError {
+    fn from(e: AoError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
 
-impl<T> DecodeError<T> for AOError {
+impl<T> DecodeError<T> for AoError {
     fn type_of() -> &'static str {
         "AOError"
     }

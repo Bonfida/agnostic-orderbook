@@ -12,7 +12,7 @@ use crate::instruction::AgnosticOrderbookInstruction;
 ////////////////////////////////////////////////////////////
 
 pub mod cancel_order;
-pub mod consume_event;
+pub mod consume_events;
 pub mod create_market;
 pub mod new_order;
 
@@ -40,7 +40,7 @@ impl Processor {
             }
             AgnosticOrderbookInstruction::ConsumeEvents(params) => {
                 msg!("Instruction: Consume Events");
-                consume_event::process(program_id, accounts, params)?;
+                consume_events::process(program_id, accounts, params)?;
             }
             AgnosticOrderbookInstruction::CancelOrder(params) => {
                 msg!("Instruction: Cancel Order");

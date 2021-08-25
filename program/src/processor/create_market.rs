@@ -7,10 +7,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{
-    orderbook::{OrderSummary, ORDER_SUMMARY_SIZE},
-    state::{AccountFlag, EventQueueHeader, MarketState},
-};
+use crate::state::{AccountFlag, EventQueueHeader, MarketState};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Params {
@@ -26,12 +23,11 @@ struct Accounts<'a, 'b: 'a> {
     event_queue: &'a AccountInfo<'b>,
     asks: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
-    market_authority: Option<&'a AccountInfo<'b>>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
     pub fn parse(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &'a [AccountInfo<'b>],
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
@@ -39,14 +35,12 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         let event_queue = next_account_info(accounts_iter)?;
         let bids = next_account_info(accounts_iter)?;
         let asks = next_account_info(accounts_iter)?;
-        let market_authority = next_account_info(accounts_iter).ok();
 
         Ok(Self {
             market,
             event_queue,
             asks,
             bids,
-            market_authority,
         })
     }
 }
@@ -82,10 +76,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
         bids,
         asks,
         callback_info_len,
-        market_authority: match accounts.market_authority {
-            Some(market_authority) => *market_authority.key,
-            None => Pubkey::default(),
-        },
     };
 
     let event_queue_header = EventQueueHeader::default();

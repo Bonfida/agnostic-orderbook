@@ -1,6 +1,6 @@
 use crate::{
     critbit::{LeafNode, Node, NodeHandle, Slab},
-    error::AOError,
+    error::AoError,
     processor::new_order,
     state::{Event, EventQueue, MarketState, SelfTradeBehavior, Side},
     utils::{fp32_div, fp32_mul},
@@ -8,13 +8,14 @@ use crate::{
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::msg;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct OrderSummary {
+    pub posted_order_id: Option<u128>,
     pub total_asset_qty: u64,
     pub total_quote_qty: u64,
 }
 
-pub const ORDER_SUMMARY_SIZE: u64 = 16;
+pub const ORDER_SUMMARY_SIZE: u64 = 33;
 
 pub struct OrderBookState<'a> {
     // first byte of a key is 0xaa or 0xbb, disambiguating bids and asks
@@ -47,11 +48,10 @@ impl<'ob> OrderBookState<'ob> {
         &mut self,
         params: new_order::Params,
         event_queue: &mut EventQueue,
-    ) -> Result<OrderSummary, AOError> {
+    ) -> Result<OrderSummary, AoError> {
         let new_order::Params {
             max_asset_qty,
             max_quote_qty,
-            order_id,
             side,
             limit_price,
             callback_info,
@@ -66,7 +66,6 @@ impl<'ob> OrderBookState<'ob> {
 
         // New bid
         let mut crossed = true;
-        #[allow(clippy::never_loop)]
         loop {
             if match_limit == 0 {
                 break;
@@ -117,7 +116,7 @@ impl<'ob> OrderBookState<'ob> {
                         SelfTradeBehavior::CancelProvide => {
                             cancelled_provide_asset_qty = best_bo_ref.asset_quantity;
                         }
-                        SelfTradeBehavior::AbortTransaction => return Err(AOError::WouldSelfTrade),
+                        SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
                         SelfTradeBehavior::DecrementTake => unreachable!(),
                     };
 
@@ -131,7 +130,7 @@ impl<'ob> OrderBookState<'ob> {
                     };
                     event_queue
                         .push_back(provide_out)
-                        .map_err(|_| AOError::EventQueueFull)?;
+                        .map_err(|_| AoError::EventQueueFull)?;
                     if remaining_provide_asset_qty == 0 {
                         self.get_tree(side.opposite())
                             .remove_by_key(best_offer_id)
@@ -140,10 +139,7 @@ impl<'ob> OrderBookState<'ob> {
                         best_bo_ref.set_asset_quantity(remaining_provide_asset_qty);
                     }
 
-                    return Ok(OrderSummary {
-                        total_asset_qty: max_asset_qty - asset_qty_remaining,
-                        total_quote_qty: max_quote_qty - quote_qty_remaining,
-                    });
+                    continue;
                 }
             }
 
@@ -159,7 +155,7 @@ impl<'ob> OrderBookState<'ob> {
             };
             event_queue
                 .push_back(maker_fill)
-                .map_err(|_| AOError::EventQueueFull)?;
+                .map_err(|_| AoError::EventQueueFull)?;
 
             best_bo_ref.set_asset_quantity(best_bo_ref.asset_quantity - asset_trade_qty);
             asset_qty_remaining -= asset_trade_qty;
@@ -177,6 +173,7 @@ impl<'ob> OrderBookState<'ob> {
 
         if crossed || !post_allowed {
             return Ok(OrderSummary {
+                posted_order_id: None,
                 total_asset_qty: max_asset_qty - asset_qty_remaining,
                 total_quote_qty: max_quote_qty - quote_qty_remaining,
             });
@@ -188,13 +185,14 @@ impl<'ob> OrderBookState<'ob> {
             ),
             Side::Ask => asset_qty_remaining, // TODO: check accuracy
         };
+        let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
         let new_leaf = Node::Leaf(LeafNode::new(
-            order_id,
-            callback_info.clone(),
+            new_leaf_order_id,
+            callback_info,
             asset_qty_to_post,
         ));
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
-        if let Err(AOError::SlabOutOfSpace) = insert_result {
+        if let Err(AoError::SlabOutOfSpace) = insert_result {
             // boot out the least aggressive bid
             msg!("bids full! booting...");
             let order = self.get_tree(side).remove_min().unwrap();
@@ -207,12 +205,13 @@ impl<'ob> OrderBookState<'ob> {
             };
             event_queue
                 .push_back(out)
-                .map_err(|_| AOError::EventQueueFull)?;
+                .map_err(|_| AoError::EventQueueFull)?;
             self.get_tree(side).insert_leaf(&new_leaf).unwrap();
         } else {
             insert_result.unwrap();
         }
         Ok(OrderSummary {
+            posted_order_id: Some(new_leaf_order_id),
             total_asset_qty: max_asset_qty - asset_qty_remaining,
             total_quote_qty: max_quote_qty - quote_qty_remaining,
         })

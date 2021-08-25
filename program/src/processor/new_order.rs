@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -22,7 +20,6 @@ use crate::{
 pub struct Params {
     pub max_asset_qty: u64,
     pub max_quote_qty: u64,
-    pub order_id: u128,
     pub limit_price: u64,
     pub side: Side,
     pub match_limit: u64,
@@ -32,8 +29,6 @@ pub struct Params {
     pub self_trade_behavior: SelfTradeBehavior,
 }
 
-//TODO make price FP32
-//TODO add missing order types
 //TODO cranking reward
 
 struct Accounts<'a, 'b: 'a> {
@@ -97,8 +92,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     };
     let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
 
-    //TODO loop
     let order_summary = order_book.new_order(params, &mut &mut event_queue)?;
+    msg!("Order summary : {:?}", order_summary);
     event_queue.write_to_register(order_summary);
 
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();

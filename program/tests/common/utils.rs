@@ -1,12 +1,7 @@
-use solana_program::{
-    instruction::{Instruction, InstructionError},
-    pubkey::Pubkey,
-    rent::Rent,
-    system_instruction,
-};
+use solana_program::instruction::Instruction;
 use solana_program_test::ProgramTestContext;
+use solana_sdk::signature::Signer;
 use solana_sdk::{signature::Keypair, transaction::Transaction, transport::TransportError};
-use solana_sdk::{signature::Signer, transaction::TransactionError};
 
 // Utils
 pub async fn sign_send_instructions(

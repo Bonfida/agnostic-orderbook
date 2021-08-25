@@ -1,6 +1,11 @@
-use agnostic_orderbook::instruction::{create_market, new_order};
-use agnostic_orderbook::processor::new_order;
-use agnostic_orderbook::state::{SelfTradeBehavior, Side};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use agnostic_orderbook::instruction::{cancel_order, consume_events, create_market, new_order};
+use agnostic_orderbook::orderbook::OrderSummary;
+use agnostic_orderbook::processor::{cancel_order, consume_events, new_order};
+use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
+use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
 use solana_program_test::{processor, ProgramTest};
@@ -106,7 +111,6 @@ async fn test_agnostic_orderbook() {
         event_queue_account.pubkey(),
         bids_account.pubkey(),
         asks_account.pubkey(),
-        None,
         32,
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
@@ -130,13 +134,95 @@ async fn test_agnostic_orderbook() {
             post_only: false,
             post_allowed: true,
             self_trade_behavior: SelfTradeBehavior::CancelProvide,
-            order_id: 1000 << 64,
             match_limit: 3,
         },
     );
     sign_send_instructions(
         &mut prg_test_ctx,
         vec![new_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // New Order
+    let new_order_instruction = new_order(
+        agnostic_orderbook_program_id,
+        market_account.pubkey(),
+        caller_authority.pubkey(),
+        event_queue_account.pubkey(),
+        bids_account.pubkey(),
+        asks_account.pubkey(),
+        new_order::Params {
+            max_asset_qty: 1000,
+            max_quote_qty: 1000,
+            limit_price: 1000,
+            side: Side::Ask,
+            callback_info: Pubkey::new_unique().to_bytes().to_vec(),
+            post_only: false,
+            post_allowed: true,
+            self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            match_limit: 3,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![new_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    let mut event_queue_acc = prg_test_ctx
+        .banks_client
+        .get_account(event_queue_account.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    let event_queue_header =
+        EventQueueHeader::deserialize(&mut (&event_queue_acc.data as &[u8])).unwrap();
+    let event_queue = EventQueue::new(
+        event_queue_header,
+        Rc::new(RefCell::new(&mut event_queue_acc.data)),
+        32,
+    );
+    let order_summary: OrderSummary = event_queue.read_register().unwrap().unwrap();
+    println!("Parsed order summary {:?}", order_summary);
+
+    // Cancel order
+    let cancel_order_instruction = cancel_order(
+        agnostic_orderbook_program_id,
+        market_account.pubkey(),
+        caller_authority.pubkey(),
+        event_queue_account.pubkey(),
+        bids_account.pubkey(),
+        asks_account.pubkey(),
+        cancel_order::Params {
+            order_id: order_summary.posted_order_id.unwrap(),
+            side: Side::Ask,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![cancel_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // Consume events
+    let consume_events_instruction = consume_events(
+        agnostic_orderbook_program_id,
+        market_account.pubkey(),
+        caller_authority.pubkey(),
+        event_queue_account.pubkey(),
+        consume_events::Params {
+            number_of_entries_to_consume: 1,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![consume_events_instruction],
         vec![&caller_authority],
     )
     .await

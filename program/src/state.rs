@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
-use crate::orderbook::ORDER_SUMMARY_SIZE;
+use crate::{critbit::IoError, error::AoError, orderbook::ORDER_SUMMARY_SIZE};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum AccountFlag {
@@ -48,8 +48,7 @@ pub struct MarketState {
     pub bids: Pubkey,
     pub asks: Pubkey,
     pub callback_info_len: u64,
-    pub market_authority: Pubkey, // The authority for disabling the market //TODO make caller
-                                  //TODO cranked_accs
+    //TODO cranked_accs
 }
 
 // Holds the results of a new_order transaction for the caller to receive
@@ -65,10 +64,8 @@ pub struct RequestProceeds {
 
 ////////////////////////////////////////////////////
 // Events
-//TODO refactor eventviews, remove bitflags
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum Event {
-    //TODO comment
     Fill {
         taker_side: Side,
         maker_order_id: u128,
@@ -86,7 +83,7 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn serialize<W: Write>(&self, writer: &mut W) {
+    pub fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), IoError> {
         match self {
             Event::Fill {
                 taker_side,
@@ -96,12 +93,12 @@ impl Event {
                 maker_callback_info,
                 taker_callback_info,
             } => {
-                writer.write(&[taker_side.to_u8().unwrap()]);
-                writer.write(&maker_order_id.to_le_bytes());
-                writer.write(&quote_size.to_le_bytes());
-                writer.write(&asset_size.to_le_bytes());
-                writer.write(&maker_callback_info);
-                writer.write(&taker_callback_info);
+                writer.write_all(&[taker_side.to_u8().unwrap()])?;
+                writer.write_all(&maker_order_id.to_le_bytes())?;
+                writer.write_all(&quote_size.to_le_bytes())?;
+                writer.write_all(&asset_size.to_le_bytes())?;
+                writer.write_all(&maker_callback_info)?;
+                writer.write_all(&taker_callback_info)?;
             }
             Event::Out {
                 side,
@@ -109,9 +106,13 @@ impl Event {
                 asset_size,
                 callback_info,
             } => {
-                unimplemented!()
+                writer.write_all(&[side.to_u8().unwrap()])?;
+                writer.write_all(&order_id.to_le_bytes())?;
+                writer.write_all(&asset_size.to_le_bytes())?;
+                writer.write_all(&callback_info)?;
             }
-        }
+        };
+        Ok(())
     }
 
     pub fn deserialize(buf: &mut &[u8], callback_info_len: usize) -> Self {
@@ -141,7 +142,7 @@ pub struct EventQueueHeader {
     count: u64,
     event_size: u64,
     register_size: u64,
-    seq_num: u64, //TODO needed?
+    seq_num: u64,
 }
 pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
 
@@ -172,6 +173,16 @@ pub enum Register<T: BorshSerialize + BorshDeserialize> {
     Initialized(T),
 }
 
+impl<T: BorshSerialize + BorshDeserialize> Register<T> {
+    pub fn unwrap(self) -> T {
+        if let Self::Initialized(a) = self {
+            a
+        } else {
+            panic!()
+        }
+    }
+}
+
 impl<'a> EventQueue<'a> {
     pub fn new_safe(
         header: EventQueueHeader,
@@ -186,9 +197,37 @@ impl<'a> EventQueue<'a> {
         q.clear_register();
         q
     }
+
+    pub fn new(
+        header: EventQueueHeader,
+        account: Rc<RefCell<&'a mut [u8]>>,
+        callback_info_len: usize,
+    ) -> Self {
+        Self {
+            header,
+            buffer: account,
+            callback_info_len,
+        }
+    }
 }
 
 impl EventQueue<'_> {
+    pub fn gen_order_id(&mut self, limit_price: u64, side: Side) -> u128 {
+        let seq_num = self.gen_seq_num();
+        let upper = (limit_price as u128) << 64;
+        let lower = match side {
+            Side::Bid => !seq_num,
+            Side::Ask => seq_num,
+        };
+        upper | (lower as u128)
+    }
+
+    fn gen_seq_num(&mut self) -> u64 {
+        let seq_num = self.header.seq_num;
+        self.header.seq_num += 1;
+        seq_num
+    }
+
     pub fn get_buf_len(&self) -> usize {
         self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (self.header.register_size as usize)
     }
@@ -209,7 +248,7 @@ impl EventQueue<'_> {
                 % self.get_buf_len();
         let mut queue_event_data =
             &mut self.buffer.borrow_mut()[offset..offset + (self.header.event_size as usize)];
-        event.serialize(&mut queue_event_data);
+        event.serialize(&mut queue_event_data).unwrap();
 
         self.header.count += 1;
         self.header.seq_num += 1;
@@ -228,9 +267,9 @@ impl EventQueue<'_> {
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
     }
 
-    pub fn pop_front(&mut self) -> Result<Event, ()> {
+    pub fn pop_front(&mut self) -> Result<Event, AoError> {
         if self.header.count == 0 {
-            return Err(());
+            return Err(AoError::EventQueueEmpty);
         }
         let offset =
             EVENT_QUEUE_HEADER_LEN + (self.header.register_size + self.header.head) as usize;
@@ -266,6 +305,14 @@ impl EventQueue<'_> {
         Register::<u8>::Uninitialized
             .serialize(&mut register)
             .unwrap();
+    }
+
+    pub fn read_register<T: BorshSerialize + BorshDeserialize>(
+        &self,
+    ) -> Result<Register<T>, IoError> {
+        let mut register = &self.buffer.borrow()
+            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+        Register::deserialize(&mut register)
     }
 
     // #[inline]

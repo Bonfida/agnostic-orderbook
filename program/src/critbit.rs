@@ -1,4 +1,4 @@
-use crate::error::AOError;
+use crate::error::AoError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
@@ -10,7 +10,6 @@ use std::{cell::RefCell, convert::identity, mem::size_of, rc::Rc};
 
 ////////////////////////////////////
 // Nodes
-//TODO make node tags u8
 
 pub type NodeHandle = u32;
 
@@ -66,8 +65,6 @@ impl LeafNode {
     }
 }
 
-pub const NODE_DATA_SIZE: usize = size_of::<LeafNode>(); //TODO Change to hardcoded
-                                                         // pub const SLOT_SIZE: usize = size_of::<LeafNode>() + 4; // Account for the tag
 pub const INNER_NODE_SIZE: usize = 32;
 
 impl LeafNode {
@@ -199,17 +196,9 @@ pub struct Slab<'a> {
 
 // Data access methods
 impl<'a> Slab<'a> {
-    // pub fn new(bytes: &'a mut [u8]) -> Self {
-    //     let len_without_header = bytes.len().checked_sub(SLAB_HEADER_LEN).unwrap();
-    //     let slop = len_without_header % size_of::<AnyNode>();
-    //     let truncated_len = bytes.len() - slop;
-    //     let bytes = &mut bytes[..truncated_len];
-    //     Slab(Rc::new(RefCell::new(bytes)))
-    // }
-
     pub fn new_from_acc_info(acc_info: &AccountInfo<'a>, callback_info_len: usize) -> Self {
         let slot_size = Self::compute_slot_size(callback_info_len);
-        // assert_eq!(len_without_header % slot_size, 0); // TODO either truncate or throw
+        // assert_eq!(len_without_header % slot_size, 0);
         Self {
             buffer: Rc::clone(&acc_info.data),
             callback_info_len,
@@ -344,7 +333,7 @@ impl<'a> Slab<'a> {
     pub fn insert_leaf(
         &mut self,
         new_leaf_node: &Node,
-    ) -> Result<(NodeHandle, Option<Node>), AOError> {
+    ) -> Result<(NodeHandle, Option<Node>), AoError> {
         let new_leaf = new_leaf_node.as_leaf().unwrap();
         let mut root: NodeHandle = match self.root() {
             Some(h) => h,
@@ -356,7 +345,7 @@ impl<'a> Slab<'a> {
                         self.header.leaf_count = 1;
                         return Ok((handle, None));
                     }
-                    Err(_) => return Err(AOError::SlabOutOfSpace),
+                    Err(_) => return Err(AoError::SlabOutOfSpace),
                 }
             }
         };
@@ -387,12 +376,12 @@ impl<'a> Slab<'a> {
 
             let new_leaf_handle = self
                 .insert(&new_leaf_node)
-                .map_err(|_| AOError::SlabOutOfSpace)?;
+                .map_err(|_| AoError::SlabOutOfSpace)?;
             let moved_root_handle = match self.insert(&root_contents) {
                 Ok(h) => h,
                 Err(_) => {
                     self.remove(new_leaf_handle).unwrap();
-                    return Err(AOError::SlabOutOfSpace);
+                    return Err(AoError::SlabOutOfSpace);
                 }
             };
 

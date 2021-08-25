@@ -1,22 +1,16 @@
-use std::rc::Rc;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
 
 use crate::{
     critbit::Slab,
-    error::AOError,
+    error::AoError,
     orderbook::{OrderBookState, OrderSummary},
-    state::{
-        Event, EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side,
-        EVENT_QUEUE_HEADER_LEN,
-    },
+    state::{EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
 };
 
@@ -28,10 +22,10 @@ pub struct Params {
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
-    admin: &'a AccountInfo<'b>,
-    asks: &'a AccountInfo<'b>,
-    bids: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
+    bids: &'a AccountInfo<'b>,
+    asks: &'a AccountInfo<'b>,
+    authority: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -40,23 +34,20 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         accounts: &'a [AccountInfo<'b>],
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
-        let market = next_account_info(accounts_iter)?;
-        let event_queue = next_account_info(accounts_iter)?;
-        let bids = next_account_info(accounts_iter)?;
-        let asks = next_account_info(accounts_iter)?;
-        let admin = next_account_info(accounts_iter)?;
-        check_account_owner(market, program_id)?;
-        check_account_owner(event_queue, program_id)?;
-        check_account_owner(bids, program_id)?;
-        check_account_owner(asks, program_id)?;
-        //TODO check if caller auth signs?
-        Ok(Self {
-            market,
-            admin,
-            asks,
-            bids,
-            event_queue,
-        })
+
+        let a = Self {
+            market: next_account_info(accounts_iter)?,
+            event_queue: next_account_info(accounts_iter)?,
+            bids: next_account_info(accounts_iter)?,
+            asks: next_account_info(accounts_iter)?,
+            authority: next_account_info(accounts_iter)?,
+        };
+        check_account_owner(a.market, program_id)?;
+        check_account_owner(a.event_queue, program_id)?;
+        check_account_owner(a.bids, program_id)?;
+        check_account_owner(a.asks, program_id)?;
+        check_signer(a.authority)?;
+        Ok(a)
     }
 }
 
@@ -88,12 +79,13 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let slab = order_book.get_tree(params.side);
     let node = slab
         .remove_by_key(params.order_id)
-        .ok_or(AOError::OrderNotFound)?;
+        .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();
     let total_asset_qty = leaf_node.asset_quantity;
     let total_quote_qty = fp32_mul(leaf_node.asset_quantity, leaf_node.price());
 
     let order_summary = OrderSummary {
+        posted_order_id: None,
         total_asset_qty,
         total_quote_qty,
     };
