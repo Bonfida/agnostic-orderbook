@@ -60,6 +60,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.bids, &market_state.bids).unwrap();
     check_account_key(accounts.asks, &market_state.asks).unwrap();
+    check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
     let callback_info_len = market_state.callback_info_len as usize;
 

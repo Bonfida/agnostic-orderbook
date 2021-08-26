@@ -15,7 +15,7 @@ pub struct OrderSummary {
     pub total_quote_qty: u64,
 }
 
-pub const ORDER_SUMMARY_SIZE: u64 = 33;
+pub const ORDER_SUMMARY_SIZE: u32 = 33;
 
 pub struct OrderBookState<'a> {
     // first byte of a key is 0xaa or 0xbb, disambiguating bids and asks

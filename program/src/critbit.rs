@@ -1,4 +1,5 @@
 use crate::error::AoError;
+use crate::state::AccountTag;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
@@ -176,6 +177,7 @@ impl<'a> Node {
 
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 struct SlabHeader {
+    account_tag: AccountTag,
     bump_index: u64,
     free_list_len: u64,
     free_list_head: u32,
@@ -215,6 +217,29 @@ impl<'a> Slab<'a> {
 
     fn compute_slot_size(callback_info_len: usize) -> usize {
         std::cmp::max(callback_info_len + 8 + 16 + 4, INNER_NODE_SIZE)
+    }
+
+    pub(crate) fn initialize(
+        bids_account: &AccountInfo<'a>,
+        asks_account: &AccountInfo<'a>,
+        market_address: Pubkey,
+    ) {
+        let mut header = SlabHeader {
+            account_tag: AccountTag::Asks,
+            bump_index: 0,
+            free_list_len: 0,
+            free_list_head: 0,
+            root_node: 0,
+            leaf_count: 0,
+            market_address,
+        };
+        header
+            .serialize(&mut ((&mut asks_account.data.borrow_mut()) as &mut [u8]))
+            .unwrap();
+        header.account_tag = AccountTag::Bids;
+        header
+            .serialize(&mut ((&mut bids_account.data.borrow_mut()) as &mut [u8]))
+            .unwrap();
     }
 }
 

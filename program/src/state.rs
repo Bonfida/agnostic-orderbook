@@ -6,15 +6,13 @@ use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
 use crate::{critbit::IoError, error::AoError, orderbook::ORDER_SUMMARY_SIZE};
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub enum AccountFlag {
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+pub enum AccountTag {
     Initialized,
     Market,
     EventQueue,
     Bids,
     Asks,
-    Disabled,
-    Permissioned,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive)]
@@ -42,24 +40,13 @@ pub enum SelfTradeBehavior {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct MarketState {
-    pub account_flags: AccountFlag,
+    pub tag: AccountTag,
     pub caller_authority: Pubkey, // The program that consumes the event queue via CPIs
     pub event_queue: Pubkey,
     pub bids: Pubkey,
     pub asks: Pubkey,
     pub callback_info_len: u64,
     //TODO cranked_accs
-}
-
-// Holds the results of a new_order transaction for the caller to receive
-pub struct RequestProceeds {
-    pub native_pc_unlocked: u64,
-
-    pub coin_credit: u64,
-    pub native_pc_credit: u64,
-
-    pub coin_debit: u64,
-    pub native_pc_debit: u64,
 }
 
 ////////////////////////////////////////////////////
@@ -135,21 +122,21 @@ impl Event {
 ////////////////////////////////////////////////////
 // Event Queue
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Copy)]
+#[derive(BorshDeserialize, BorshSerialize, Clone)]
 pub struct EventQueueHeader {
-    account_flags: u64, // Initialized, EventQueue
+    tag: AccountTag, // Initialized, EventQueue
     head: u64,
     count: u64,
     event_size: u64,
-    register_size: u64,
     seq_num: u64,
+    register_size: u32,
 }
 pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
 
 impl Default for EventQueueHeader {
     fn default() -> Self {
         Self {
-            account_flags: 0,
+            tag: AccountTag::EventQueue,
             head: 0,
             count: 0,
             event_size: 0,
@@ -242,7 +229,7 @@ impl EventQueue<'_> {
             return Err(event);
         }
         let offset = EVENT_QUEUE_HEADER_LEN
-            + ((self.header.register_size
+            + (((self.header.register_size as u64)
                 + self.header.head
                 + self.header.count * self.header.event_size) as usize)
                 % self.get_buf_len();
@@ -260,8 +247,8 @@ impl EventQueue<'_> {
         if self.header.count == 0 {
             return None;
         }
-        let offset =
-            EVENT_QUEUE_HEADER_LEN + (self.header.register_size + self.header.head) as usize;
+        let offset = EVENT_QUEUE_HEADER_LEN
+            + ((self.header.register_size as u64) + self.header.head) as usize;
         let mut event_data =
             &self.buffer.borrow()[offset..offset + (self.header.event_size as usize)];
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
@@ -271,8 +258,8 @@ impl EventQueue<'_> {
         if self.header.count == 0 {
             return Err(AoError::EventQueueEmpty);
         }
-        let offset =
-            EVENT_QUEUE_HEADER_LEN + (self.header.register_size + self.header.head) as usize;
+        let offset = EVENT_QUEUE_HEADER_LEN
+            + ((self.header.register_size as u64) + self.header.head) as usize;
         let mut event_data =
             &self.buffer.borrow()[offset..offset + (self.header.event_size as usize)];
         let event = Event::deserialize(&mut event_data, self.callback_info_len);

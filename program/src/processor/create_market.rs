@@ -7,7 +7,10 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::state::{AccountFlag, EventQueueHeader, MarketState};
+use crate::{
+    critbit::Slab,
+    state::{AccountTag, EventQueueHeader, MarketState},
+};
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Params {
@@ -70,7 +73,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     }
 
     let market_state = MarketState {
-        account_flags: AccountFlag::Market,
+        tag: AccountTag::Market,
         caller_authority,
         event_queue,
         bids,
@@ -82,6 +85,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     event_queue_header
         .serialize(&mut (&mut accounts.event_queue.data.borrow_mut() as &mut [u8]))
         .unwrap();
+
+    Slab::initialize(accounts.bids, accounts.asks, *accounts.market.key);
 
     let mut market_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
     market_state.serialize(&mut market_data).unwrap();

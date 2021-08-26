@@ -36,7 +36,7 @@ struct Accounts<'a, 'b: 'a> {
     event_queue: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
     asks: &'a AccountInfo<'b>,
-    admin: &'a AccountInfo<'b>,
+    authority: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -50,13 +50,13 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
-            admin: next_account_info(accounts_iter)?,
+            authority: next_account_info(accounts_iter)?,
         };
         check_account_owner(a.market, program_id).unwrap();
         check_account_owner(a.event_queue, program_id).unwrap();
         check_account_owner(a.bids, program_id).unwrap();
         check_account_owner(a.asks, program_id).unwrap();
-        check_signer(a.admin).unwrap();
+        check_signer(a.authority).unwrap();
         Ok(a)
     }
 }
@@ -70,7 +70,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.bids, &market_state.bids).unwrap();
     check_account_key(accounts.asks, &market_state.asks).unwrap();
-    // check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
+    check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
     let callback_info_len = market_state.callback_info_len as usize;
 
