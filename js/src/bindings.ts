@@ -58,6 +58,22 @@ export class MarketState {
       accountInfo.data
     ) as MarketState;
   }
+
+  async loadBidsSlab(connection: Connection) {
+    const bidsInfo = await connection.getAccountInfo(this.bids);
+    if (!bidsInfo?.data) {
+      throw new Error("Invalid bids account");
+    }
+    return deserialize(Slab.schema, Slab, bidsInfo.data) as Slab;
+  }
+
+  async loadAsksSlab(connection: Connection) {
+    const asksInfo = await connection.getAccountInfo(this.asks);
+    if (!asksInfo?.data) {
+      throw new Error("Invalid asks account");
+    }
+    return deserialize(Slab.schema, Slab, asksInfo.data) as Slab;
+  }
 }
 
 ///////////////////////////////////////////////
@@ -216,6 +232,14 @@ export class EventQueue {
     return deserializeUnchecked(this.schema, EventQueue, data) as EventQueue;
   }
 
+  static async load(connection: Connection, address: PublicKey) {
+    const accountInfo = await connection.getAccountInfo(address);
+    if (!accountInfo?.data) {
+      throw new Error("Invalid address provided");
+    }
+    return this.parse(accountInfo.data);
+  }
+
   static parseEvent(data: Buffer) {
     switch (data.length) {
       case this.LEN_FILL:
@@ -233,7 +257,7 @@ export class EventQueue {
 }
 
 ///////////////////////////////////////////////
-////// Orderbook
+////// Nodes and Slab
 ///////////////////////////////////////////////
 
 export class InnerNode {
@@ -373,6 +397,7 @@ export class Slab {
         kind: "struct",
         values: [
           ["header", SlabHeader],
+          ["buffer", ["u8"]],
           ["callBackInfoLen", "u8"],
           ["slotSize", "u8"],
         ],
