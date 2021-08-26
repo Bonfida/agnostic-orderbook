@@ -11,9 +11,13 @@ use crate::instruction::AgnosticOrderbookInstruction;
 
 ////////////////////////////////////////////////////////////
 
+#[allow(missing_docs)]
 pub mod cancel_order;
+#[allow(missing_docs)]
 pub mod consume_events;
+#[allow(missing_docs)]
 pub mod create_market;
+#[allow(missing_docs)]
 pub mod new_order;
 
 pub struct Processor {}
@@ -46,7 +50,6 @@ impl Processor {
                 msg!("Instruction: Cancel Order");
                 cancel_order::process(program_id, accounts, params)?;
             }
-            AgnosticOrderbookInstruction::DisableMarket => todo!(),
         }
         Ok(())
     }

@@ -4,52 +4,85 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::processor::{cancel_order, consume_events, create_market, new_order};
-
+pub use crate::processor::{cancel_order, consume_events, create_market, new_order};
 #[derive(BorshDeserialize, BorshSerialize)]
+/// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
-    /// 0. `[writable]` The market account
-    /// 1. `[writable]` A zeroed out event queue account
-    /// 2. `[writable]` A zeroed out bids account
-    /// 3. `[writable]` A zeroed out asks account
-    /// 5. `[]` The market authority (optional)
+    /// Create and initialize a new orderbook market
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description                      |
+    /// |-------|----------|--------|----------------------------------|
+    /// | 0     | ✅       | ❌     | The market account               |
+    /// | 1     | ✅       | ❌     | A zeroed out event queue account |
+    /// | 2     | ✅       | ❌     | A zeroed out bids account        |
+    /// | 3     | ✅       | ❌     | A zeroed out asks account        |
     CreateMarket(create_market::Params),
-    /// 0. `[writable]` The market account
-    /// 1. `[writable]` The event queue account
-    /// 2. `[writable]` The bids account
-    /// 3. `[writable]` The asks account
-    /// 4. `[]` The owner of the order
-    /// 5. `[signer]` The caller authority
+    /// Execute a new order on the orderbook.
+    ///
+    /// Depending on the provided parameters, the program will attempt to match the order with existing entries
+    /// in the orderbook, and then optionally post the remaining order.
+    ///
+    /// Required accounts
+    ///
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    /// | 4     | ❌       | ✅     | The caller authority    |
     NewOrder(new_order::Params),
-    /// 0. `[writable]` The market account
-    /// 1. `[writable]` The event queue account
-    /// 2. `[signer]` The caller authority
+    /// Pop a series of events off the event queue.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 3     | ❌       | ✅     | The caller authority    |
     ConsumeEvents(consume_events::Params),
-    /// 0. `[writable]` The market account
-    /// 1. `[signer]` The order owner
-    /// 2. `[writable]` Then asks or bids account
+    /// Cancel an existing order in the orderbook.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    /// | 4     | ❌       | ✅     | The caller authority    |
     CancelOrder(cancel_order::Params),
-    /// 0. `[writable]` The market account
-    /// 1. `[signer]` The market authority
-    DisableMarket,
 }
 
+/**
+Create and initialize a new orderbook market
+
+The event_queue, bids, and asks accounts should be freshly allocated or zeroed out accounts.
+
+* The market account will only contain a [`MarketState`](`crate::state::MarketState`) object and should be sized appropriately.
+
+* The event queue will contain an [`EventQueueHeader`](`crate::state::EventQueueHeader`) object followed by a return register sized for a [`OrderSummary`](`crate::orderbook::OrderSummary`)
+(size of [`ORDER_SUMMARY_SIZE`](`crate::orderbook::ORDER_SUMMARY_SIZE`)) and then a series of events [`Event`](`crate::state::Event`). The serialized size of an [`Event`](`crate::state::Event`) object
+is given by [`compute_slot_size`](`crate::state::Event::compute_slot_size`) The size of the queue should be determined
+accordingly.
+
+* The asks and bids accounts will contain a header of size [`SLAB_HEADER_LEN`][`crate::critbit::SLAB_HEADER_LEN`] followed by a series of slots of size
+[`compute_slot_size(callback_info_len)`][`crate::critbit::Slab::compute_slot_size`].
+*/
 pub fn create_market(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,
-    caller_authority: Pubkey,
     event_queue: Pubkey,
     bids: Pubkey,
     asks: Pubkey,
-    callback_info_len: u64,
+    create_market_params: create_market::Params,
 ) -> Instruction {
-    let instruction_data = AgnosticOrderbookInstruction::CreateMarket(create_market::Params {
-        caller_authority,
-        event_queue,
-        bids,
-        asks,
-        callback_info_len,
-    });
+    let instruction_data = AgnosticOrderbookInstruction::CreateMarket(create_market_params);
     let data = instruction_data.try_to_vec().unwrap();
     let accounts = vec![
         AccountMeta::new(market_account, false),
@@ -64,7 +97,12 @@ pub fn create_market(
         data,
     }
 }
+/**
+Execute a new order on the orderbook.
 
+Depending on the provided parameters, the program will attempt to match the order with existing entries
+in the orderbook, and then optionally post the remaining order.
+*/
 pub fn new_order(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,
@@ -92,6 +130,7 @@ pub fn new_order(
     }
 }
 
+/// Cancel an existing order in the orderbook.
 pub fn cancel_order(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,
@@ -119,6 +158,7 @@ pub fn cancel_order(
     }
 }
 
+/// Pop a series of events off the event queue.
 pub fn consume_events(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,

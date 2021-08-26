@@ -2,8 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use agnostic_orderbook::instruction::{cancel_order, consume_events, create_market, new_order};
-use agnostic_orderbook::orderbook::OrderSummary;
-use agnostic_orderbook::processor::{cancel_order, consume_events, new_order};
+use agnostic_orderbook::state::OrderSummary;
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
 use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
@@ -107,11 +106,13 @@ async fn test_agnostic_orderbook() {
     let create_market_instruction = create_market(
         agnostic_orderbook_program_id,
         market_account.pubkey(),
-        caller_authority.pubkey(),
         event_queue_account.pubkey(),
         bids_account.pubkey(),
         asks_account.pubkey(),
-        32,
+        create_market::Params {
+            caller_authority: caller_authority.pubkey(),
+            callback_info_len: 32,
+        },
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
         .await

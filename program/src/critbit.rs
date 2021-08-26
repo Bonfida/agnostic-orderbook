@@ -1,5 +1,5 @@
 use crate::error::AoError;
-use crate::state::AccountTag;
+use crate::state::{AccountTag, Side};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
@@ -187,7 +187,7 @@ struct SlabHeader {
     market_address: Pubkey,
 }
 
-const SLAB_HEADER_LEN: usize = size_of::<SlabHeader>();
+pub const SLAB_HEADER_LEN: usize = size_of::<SlabHeader>();
 
 pub struct Slab<'a> {
     header: SlabHeader,
@@ -198,6 +198,12 @@ pub struct Slab<'a> {
 
 // Data access methods
 impl<'a> Slab<'a> {
+    pub fn check(&self, side: Side) -> bool {
+        match side {
+            Side::Bid => self.header.account_tag == AccountTag::Bids,
+            Side::Ask => self.header.account_tag == AccountTag::Asks,
+        }
+    }
     pub fn new_from_acc_info(acc_info: &AccountInfo<'a>, callback_info_len: usize) -> Self {
         let slot_size = Self::compute_slot_size(callback_info_len);
         // assert_eq!(len_without_header % slot_size, 0);
@@ -215,7 +221,7 @@ impl<'a> Slab<'a> {
             .unwrap()
     }
 
-    fn compute_slot_size(callback_info_len: usize) -> usize {
+    pub fn compute_slot_size(callback_info_len: usize) -> usize {
         std::cmp::max(callback_info_len + 8 + 16 + 4, INNER_NODE_SIZE)
     }
 

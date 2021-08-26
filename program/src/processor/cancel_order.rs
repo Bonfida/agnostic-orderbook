@@ -7,16 +7,19 @@ use solana_program::{
 };
 
 use crate::{
-    critbit::Slab,
     error::AoError,
     orderbook::{OrderBookState, OrderSummary},
     state::{EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
 };
-
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
+/**
+The required arguments for a cancel_order instruction.
+*/
 pub struct Params {
+    /// The order id is a unique identifier for a particular order
     pub order_id: u128,
+    #[allow(missing_docs)]
     pub side: Side,
 }
 
@@ -51,11 +54,17 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) -> ProgramResult {
+pub(crate) fn process(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    params: Params,
+) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
     let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data).unwrap();
+    let market_state = MarketState::deserialize(&mut market_data)
+        .unwrap()
+        .check()?;
 
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.bids, &market_state.bids).unwrap();
@@ -64,18 +73,18 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
 
     let callback_info_len = market_state.callback_info_len as usize;
 
-    let mut order_book = OrderBookState {
-        bids: Slab::new_from_acc_info(accounts.bids, callback_info_len),
-        asks: Slab::new_from_acc_info(accounts.asks, callback_info_len),
-        market_state,
-    };
+    let mut order_book = OrderBookState::new_safe(
+        accounts.bids,
+        accounts.asks,
+        market_state.callback_info_len as usize,
+    )?;
 
     let header = {
         let mut event_queue_data: &[u8] =
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
+    let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
 
     let slab = order_book.get_tree(params.side);
     let node = slab

@@ -8,7 +8,6 @@ use solana_program::{
 };
 
 use crate::{
-    critbit::Slab,
     orderbook::OrderBookState,
     state::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
@@ -17,15 +16,34 @@ use crate::{
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
+/**
+The required arguments for a new_order instruction.
+*/
 pub struct Params {
+    /// The maximum quantity of asset to be traded.
     pub max_asset_qty: u64,
+    /// The maximum quantity of quote to be traded.
     pub max_quote_qty: u64,
+    /// The limit price of the order. This value is understood as a 32-bit fixed point number.
     pub limit_price: u64,
+    /// The order's side.
     pub side: Side,
+    /// The maximum number of orders to match against before performing a partial fill.
+    ///
+    /// It is then possible for a caller program to detect a partial fill by reading the [`OrderSummary`][`crate::orderbook::OrderSummary`]
+    /// in the event queue register.
     pub match_limit: u64,
+    /// The callback information is used to attach metadata to an order. This callback information will be transmitted back through the event queue.
+    ///
+    /// The size of this vector should not exceed the current market's [`callback_info_len`][`MarketState::callback_info_len`].
     pub callback_info: Vec<u8>,
+    /// The order will not be matched against the orderbook and will be direcly written into it.
+    ///
+    /// The operation will fail if the order's limit_price crosses the spread.
     pub post_only: bool,
+    /// The order will be matched against the orderbook, but what remains will not be written as a new order into the orderbook.
     pub post_allowed: bool,
+    /// Describes what would happen if this order was matched against an order with an equal `callback_info` field.
     pub self_trade_behavior: SelfTradeBehavior,
 }
 
@@ -61,11 +79,17 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) -> ProgramResult {
+pub(crate) fn process(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    params: Params,
+) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
     let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data).unwrap();
+    let market_state = MarketState::deserialize(&mut market_data)
+        .unwrap()
+        .check()?;
 
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.bids, &market_state.bids).unwrap();
@@ -74,11 +98,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
 
     let callback_info_len = market_state.callback_info_len as usize;
 
-    let mut order_book = OrderBookState {
-        bids: Slab::new_from_acc_info(accounts.bids, callback_info_len),
-        asks: Slab::new_from_acc_info(accounts.asks, callback_info_len),
-        market_state,
-    };
+    let mut order_book = OrderBookState::new_safe(
+        accounts.bids,
+        accounts.asks,
+        market_state.callback_info_len as usize,
+    )?;
 
     if params.callback_info.len() != callback_info_len {
         msg!("Invalid callback information");
@@ -88,9 +112,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: Params) ->
     let header = {
         let mut event_queue_data: &[u8] =
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
-        EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
+        EventQueueHeader::deserialize(&mut event_queue_data)
+            .unwrap()
+            .check()?
     };
-    let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len);
+    let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
 
     let order_summary = order_book.new_order(params, &mut &mut event_queue)?;
     msg!("Order summary : {:?}", order_summary);

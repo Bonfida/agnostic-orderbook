@@ -2,29 +2,49 @@ use crate::{
     critbit::{LeafNode, Node, NodeHandle, Slab},
     error::AoError,
     processor::new_order,
-    state::{Event, EventQueue, MarketState, SelfTradeBehavior, Side},
+    state::{Event, EventQueue, SelfTradeBehavior, Side},
     utils::{fp32_div, fp32_mul},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
+use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
+/// This struct is written back into the event queue's register after new_order or cancel_order.
+///
+/// In the case of a new order, the quantities describe the total order amounts which
+/// were either matched against other orders or written into the orderbook.
+///
+/// In the case of an order cancellation, the quantities describe what was left of the order in the orderbook.
 pub struct OrderSummary {
+    /// When applicable, the order id of the newly created order.
     pub posted_order_id: Option<u128>,
+    #[allow(missing_docs)]
     pub total_asset_qty: u64,
+    #[allow(missing_docs)]
     pub total_quote_qty: u64,
 }
 
+/// The serialized size of an OrderSummary object.
 pub const ORDER_SUMMARY_SIZE: u32 = 33;
 
-pub struct OrderBookState<'a> {
-    // first byte of a key is 0xaa or 0xbb, disambiguating bids and asks
-    pub bids: Slab<'a>,
-    pub asks: Slab<'a>,
-    pub market_state: MarketState,
+pub(crate) struct OrderBookState<'a> {
+    bids: Slab<'a>,
+    asks: Slab<'a>,
 }
 
 impl<'ob> OrderBookState<'ob> {
+    pub(crate) fn new_safe(
+        bids_account: &AccountInfo<'ob>,
+        asks_account: &AccountInfo<'ob>,
+        callback_info_len: usize,
+    ) -> Result<Self, ProgramError> {
+        let bids = Slab::new_from_acc_info(bids_account, callback_info_len);
+        let asks = Slab::new_from_acc_info(asks_account, callback_info_len);
+        if !(bids.check(Side::Bid) && asks.check(Side::Ask)) {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(Self { bids, asks })
+    }
     fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
             Side::Bid => self.bids.find_max(),
@@ -195,7 +215,10 @@ impl<'ob> OrderBookState<'ob> {
         if let Err(AoError::SlabOutOfSpace) = insert_result {
             // boot out the least aggressive bid
             msg!("bids full! booting...");
-            let order = self.get_tree(side).remove_min().unwrap();
+            let order = match side {
+                Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
+                Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
+            };
             let l = order.as_leaf().unwrap();
             let out = Event::Out {
                 side: Side::Bid,
