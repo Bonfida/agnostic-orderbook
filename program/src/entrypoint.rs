@@ -26,43 +26,25 @@ pub fn process_instruction(
     Ok(())
 }
 
-// TODO: cleanup
 impl PrintProgramError for AoError {
     fn print<E>(&self)
     where
         E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
         match self {
-            AoError::InvalidMarketFlags => todo!(),
-            AoError::InvalidAskFlags => todo!(),
-            AoError::InvalidBidFlags => todo!(),
-            AoError::InvalidQueueLength => todo!(),
-            AoError::OwnerAccountNotProvided => todo!(),
-            AoError::ConsumeEventsQueueFailure => todo!(),
-            AoError::AlreadyInitialized => todo!(),
-            AoError::WrongAccountDataAlignment => todo!(),
-            AoError::WrongAccountDataPaddingLength => todo!(),
-            AoError::WrongAccountHeadPadding => todo!(),
-            AoError::WrongAccountTailPadding => todo!(),
-            AoError::EventQueueEmpty => todo!(),
-            AoError::EventQueueTooSmall => todo!(),
-            AoError::SlabTooSmall => todo!(),
-            AoError::SplAccountProgramId => todo!(),
-            AoError::SplAccountLen => todo!(),
-            AoError::BorrowError => todo!(),
-            AoError::WrongBidsAccount => todo!(),
-            AoError::WrongAsksAccount => todo!(),
-            AoError::WrongEventQueueAccount => todo!(),
-            AoError::EventQueueFull => todo!(),
-            AoError::MarketIsDisabled => todo!(),
-            AoError::WrongSigner => todo!(),
-            AoError::WrongRentSysvarAccount => todo!(),
-            AoError::RentNotProvided => todo!(),
-            AoError::OrderNotFound => todo!(),
-            AoError::OrderNotYours => todo!(),
-            AoError::WouldSelfTrade => todo!(),
-            AoError::AssertionError => todo!(),
-            AoError::SlabOutOfSpace => todo!(),
+            AoError::AlreadyInitialized => msg!("Error: This account is already initialized"),
+            AoError::WrongBidsAccount => msg!("Error: An invalid bids account has been provided."),
+            AoError::WrongAsksAccount => msg!("Error: An invalid asks account has been provided."),
+            AoError::WrongEventQueueAccount => {
+                msg!("Error: An invalid event queue account has been provided.")
+            }
+            AoError::WrongCallerAuthority => {
+                msg!("Error: An invalid caller authority account has been provided.")
+            }
+            AoError::EventQueueFull => msg!("Error: The event queue is full. "),
+            AoError::OrderNotFound => msg!("Error: The order could not be found."),
+            AoError::WouldSelfTrade => msg!("Error: The order would self trade."),
+            AoError::SlabOutOfSpace => msg!("Error: The market's memory is full."),
         }
     }
 }

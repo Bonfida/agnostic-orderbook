@@ -8,75 +8,23 @@ pub type AoResult<T = ()> = Result<T, AoError>;
 //TODO clean-up
 #[derive(Clone, Debug, Error, FromPrimitive)]
 pub enum AoError {
-    #[error("TODO Place-holder.")]
-    InvalidMarketFlags,
-    #[error("TODO Place-holder.")]
-    InvalidAskFlags,
-    #[error("TODO Place-holder.")]
-    InvalidBidFlags,
-    #[error("TODO Place-holder.")]
-    InvalidQueueLength,
-    #[error("TODO Place-holder.")]
-    OwnerAccountNotProvided,
-
-    #[error("TODO Place-holder.")]
-    ConsumeEventsQueueFailure,
-
-    #[error("TODO Place-holder.")]
+    #[error("This account is already initialized")]
     AlreadyInitialized,
-    #[error("TODO Place-holder.")]
-    WrongAccountDataAlignment,
-    #[error("TODO Place-holder.")]
-    WrongAccountDataPaddingLength,
-    #[error("TODO Place-holder.")]
-    WrongAccountHeadPadding,
-    #[error("TODO Place-holder.")]
-    WrongAccountTailPadding,
-
-    #[error("TODO Place-holder.")]
-    EventQueueEmpty,
-    #[error("TODO Place-holder.")]
-    EventQueueTooSmall,
-    #[error("TODO Place-holder.")]
-    SlabTooSmall,
-
-    #[error("TODO Place-holder.")]
-    SplAccountProgramId,
-    #[error("TODO Place-holder.")]
-    SplAccountLen,
-
-    #[error("TODO Place-holder.")]
-    BorrowError,
-
-    #[error("TODO Place-holder.")]
+    #[error("An invalid bids account has been provided.")]
     WrongBidsAccount,
-    #[error("TODO Place-holder.")]
+    #[error("An invalid asks account has been provided.")]
     WrongAsksAccount,
-    #[error("TODO Place-holder.")]
+    #[error("An invalid event queue account has been provided.")]
     WrongEventQueueAccount,
-
-    #[error("TODO Place-holder.")]
+    #[error("An invalid caller authority account has been provided.")]
+    WrongCallerAuthority,
+    #[error("The event queue is full.")]
     EventQueueFull,
-    #[error("TODO Place-holder.")]
-    MarketIsDisabled,
-    #[error("TODO Place-holder.")]
-    WrongSigner,
-
-    #[error("TODO Place-holder.")]
-    WrongRentSysvarAccount,
-    #[error("TODO Place-holder.")]
-    RentNotProvided,
-    #[error("TODO Place-holder.")]
+    #[error("The order could not be found.")]
     OrderNotFound,
-    #[error("TODO Place-holder.")]
-    OrderNotYours,
-
-    #[error("TODO Place-holder.")]
+    #[error("The order would self trade.")]
     WouldSelfTrade,
-
-    #[error("TODO Place-holder.")]
-    AssertionError,
-    #[error("TODO Place-holder.")]
+    #[error("The market's memory is full.")]
     SlabOutOfSpace,
 }
 

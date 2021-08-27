@@ -10,6 +10,7 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     state::{AccountTag, EventQueueHeader, MarketState},
+    utils::check_unitialized,
 };
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -75,6 +76,11 @@ pub(crate) fn process(
         msg!("The asks account should be owned by the AO program");
         return Err(ProgramError::InvalidArgument);
     }
+
+    check_unitialized(accounts.event_queue)?;
+    check_unitialized(accounts.bids)?;
+    check_unitialized(accounts.asks)?;
+    check_unitialized(accounts.market)?;
 
     let market_state = MarketState {
         tag: AccountTag::Market,

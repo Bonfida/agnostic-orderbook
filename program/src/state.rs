@@ -11,7 +11,7 @@ pub use crate::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum AccountTag {
-    Initialized,
+    Uninitialized,
     Market,
     EventQueue,
     Bids,

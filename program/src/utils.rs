@@ -3,6 +3,11 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::{
+    error::{AoError, AoResult},
+    state::AccountTag,
+};
+
 #[cfg(not(debug_assertions))]
 #[inline(always)]
 unsafe fn invariant(check: bool) {
@@ -31,6 +36,13 @@ pub fn check_signer(account: &AccountInfo) -> ProgramResult {
         return Err(ProgramError::MissingRequiredSignature);
     }
     Ok(())
+}
+
+pub fn check_unitialized(account: &AccountInfo) -> AoResult {
+    if account.data.borrow()[0] != 0 {
+        return Err(AoError::AlreadyInitialized);
+    }
+    return Ok(());
 }
 
 /// a is fp0, b is fp32 and result is a/b fp0
