@@ -1,13 +1,21 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, deserializeUnchecked, serialize } from "borsh";
+import { Schema, deserialize, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 
 ///////////////////////////////////////////////
 ////// Market State
 ///////////////////////////////////////////////
 
+export enum AccountTag {
+  Initialized = 0,
+  Market = 1,
+  EventQueue = 2,
+  Bids = 3,
+  Asks = 4,
+}
+
 export class MarketState {
-  accountFlags: number;
+  tag: AccountTag;
   callerAuthority: PublicKey;
   eventQueue: PublicKey;
   bids: PublicKey;
@@ -32,14 +40,14 @@ export class MarketState {
   ]);
 
   constructor(arg: {
-    accountFlags: number;
+    tag: number;
     callerAuthority: Uint8Array;
     eventQueue: Uint8Array;
     bids: Uint8Array;
     asks: Uint8Array;
     callBackInfoLen: BN;
   }) {
-    this.accountFlags = arg.accountFlags;
+    this.tag = arg.tag as AccountTag;
     this.callerAuthority = new PublicKey(arg.callerAuthority);
     this.eventQueue = new PublicKey(arg.eventQueue);
     this.bids = new PublicKey(arg.bids);
@@ -81,7 +89,7 @@ export class MarketState {
 ///////////////////////////////////////////////
 
 export class EventQueueHeader {
-  accountFlags: BN;
+  tag: AccountTag;
   head: BN;
   count: BN;
   eventSize: BN;
@@ -89,14 +97,14 @@ export class EventQueueHeader {
   seqNum: BN;
 
   constructor(arg: {
-    accountFlags: BN;
+    tag: number;
     head: BN;
     count: BN;
     eventSize: BN;
     registerSize: BN;
     seqNum: BN;
   }) {
-    this.accountFlags = arg.accountFlags;
+    this.tag = arg.tag as AccountTag;
     this.head = arg.head;
     this.count = arg.count;
     this.eventSize = arg.eventSize;
@@ -106,8 +114,8 @@ export class EventQueueHeader {
 }
 
 export enum Side {
-  Bid,
-  Ask,
+  Bid = 0,
+  Ask = 1,
 }
 
 export class EventFill {
@@ -126,7 +134,7 @@ export class EventFill {
     makerCallbackInfo: number[];
     takerCallbackInfo: number[];
   }) {
-    this.takerSide = arg.takerSide == 0 ? Side.Bid : Side.Ask;
+    this.takerSide = arg.takerSide as Side;
     this.makerOrderId = arg.makerOrderId;
     this.quoteSize = arg.quoteSize;
     this.assetSize = arg.assetSize;
@@ -147,7 +155,7 @@ export class EventOut {
     assetSize: BN;
     callBackInfo: number[];
   }) {
-    this.side = arg.side == 0 ? Side.Bid : Side.Ask;
+    this.side = arg.side as Side;
     this.orderId = arg.orderId;
     this.assetSize = arg.assetSize;
     this.callBackInfo = arg.callBackInfo;
@@ -293,6 +301,11 @@ export class FreeNode {
 }
 
 export class Node {
+  inner?: InnerNode;
+  leaf?: LeafNode;
+  free?: FreeNode;
+  lastFree?: FreeNode;
+
   // @ts-ignore
   static schema: Schema = new Map([
     [
@@ -339,12 +352,25 @@ export class Node {
     ],
   ]);
 
+  constructor(arg: {
+    inner?: InnerNode;
+    leaf?: LeafNode;
+    free?: FreeNode;
+    lastFree?: FreeNode;
+  }) {
+    this.inner = arg.inner;
+    this.leaf = arg.leaf;
+    this.free = arg.free;
+    this.lastFree = arg.lastFree;
+  }
+
   static parse(data: Buffer) {
     return deserialize(this.schema, Node, data) as Node;
   }
 }
 
 export class SlabHeader {
+  accountTag: AccountTag;
   bumpIndex: BN;
   freeListLen: BN;
   freeListHead: number;
@@ -353,6 +379,7 @@ export class SlabHeader {
   marketAddress: PublicKey;
 
   constructor(arg: {
+    accountTag: number;
     bumpIndex: BN;
     freeListLen: BN;
     freeListHead: number;
@@ -360,6 +387,7 @@ export class SlabHeader {
     leafCount: BN;
     marketAddress: Uint8Array;
   }) {
+    this.accountTag = arg.accountTag as AccountTag;
     this.bumpIndex = arg.bumpIndex;
     this.freeListLen = arg.freeListLen;
     this.freeListHead = arg.freeListHead;
@@ -382,6 +410,7 @@ export class Slab {
       {
         kind: "struct",
         values: [
+          ["accountTag", "u8"],
           ["bumpIndex", "u64"],
           ["freeListLen", "u64"],
           ["freeListHead", "u32"],
