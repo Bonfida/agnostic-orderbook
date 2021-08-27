@@ -233,14 +233,12 @@ impl<'a> EventQueue<'a> {
     /// Initialize a new EventQueue object.
     ///
     /// Within a CPI context, the account parameter can be supplied through
-    /// ```ignore
+    /// ```no_run
     /// use std::rc::Rc;
     /// let a: AccountInfo;
     ///
-    /// let event_queue_header = EventQueueHeader::deserialize(&mut &a.data.borrow()[0..EVENT_QUEUE_HEADER_LEN].unwrap()
-    /// let event_queue = EventQueueHeader::deserialize(&mut &a.data.borrow()[0..EVENT_QUEUE_HEADER_LEN].unwrap();
-    ///
-    ///
+    /// let event_queue_header = EventQueueHeader::deserialize(&mut &a.data.borrow()[..EVENT_QUEUE_HEADER_LEN]).unwrap()
+    /// let event_queue = EventQueue::new(event_queue_header, Rc::clone(&a.data), callback_info_len);
     ///
     /// ```
     pub fn new(
@@ -307,10 +305,10 @@ impl<'a> EventQueue<'a> {
             return None;
         }
 
-        let offset = EVENT_QUEUE_HEADER_LEN
-            + ((self.header.register_size as u64)
-                + self.header.head
-                + index * self.header.event_size) as usize;
+        let header_offset = EVENT_QUEUE_HEADER_LEN + self.header.register_size as usize;
+        let offset = ((self.header.head + index * self.header.event_size) as usize
+            % self.get_buf_len())
+            + header_offset;
         let mut event_data =
             &self.buffer.borrow()[offset..offset + (self.header.event_size as usize)];
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
