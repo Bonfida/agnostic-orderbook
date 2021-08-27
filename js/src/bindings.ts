@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, deserializeUnchecked } from "borsh";
+import { Schema, deserialize, deserializeUnchecked, BinaryReader } from "borsh";
 import BN from "bn.js";
 
 ///////////////////////////////////////////////
@@ -12,6 +12,23 @@ export enum AccountTag {
   EventQueue = 2,
   Bids = 3,
   Asks = 4,
+}
+
+export enum EventType {
+  Fill = 0,
+  Out = 1,
+}
+
+export class BytesSlab {
+  buffer: Buffer | Uint8Array;
+
+  constructor(buf: Uint8Array) {
+    this.buffer = buf;
+  }
+
+  borshDeserialize(reader: BinaryReader) {
+    this.buffer = reader.buf.slice(reader.offset);
+  }
 }
 
 export class MarketState {
@@ -93,7 +110,7 @@ export class EventQueueHeader {
   head: BN;
   count: BN;
   eventSize: BN;
-  registerSize: BN;
+  register: number[];
   seqNum: BN;
 
   constructor(arg: {
@@ -101,14 +118,14 @@ export class EventQueueHeader {
     head: BN;
     count: BN;
     eventSize: BN;
-    registerSize: BN;
+    register: number[];
     seqNum: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.head = arg.head;
     this.count = arg.count;
     this.eventSize = arg.eventSize;
-    this.registerSize = arg.registerSize;
+    this.register = arg.register;
     this.seqNum = arg.seqNum;
   }
 }
@@ -178,7 +195,7 @@ export class EventQueue {
         kind: "struct",
         fields: [
           ["header", EventQueueHeader],
-          ["buffer", ["u8"]],
+          ["buffer", BytesSlab],
           ["callBackInfoLen", "u8"],
         ],
       },
@@ -192,8 +209,8 @@ export class EventQueue {
           ["head", "u64"],
           ["count", "u64"],
           ["eventSize", "u64"],
-          ["registerSize", "u64"],
           ["seqNum", "u64"],
+          ["register", ["u8"]],
         ],
       },
     ],
@@ -248,12 +265,24 @@ export class EventQueue {
     return this.parse(accountInfo.data);
   }
 
-  static parseEvent(data: Buffer) {
-    switch (data.length) {
-      case this.LEN_FILL:
-        return deserialize(this.schema, EventFill, data) as EventFill;
-      case this.LEN_OUT:
-        return deserialize(this.schema, EventOut, data) as EventOut;
+  parseEvent(idx: number) {
+    let offset =
+      (idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
+      this.buffer.length;
+    let data = Buffer.from(this.buffer.slice(offset));
+    switch (data[0]) {
+      case EventType.Fill:
+        return deserializeUnchecked(
+          EventQueue.schema,
+          EventFill,
+          data
+        ) as EventFill;
+      case EventType.Out:
+        return deserializeUnchecked(
+          EventQueue.schema,
+          EventOut,
+          data
+        ) as EventOut;
       default:
         throw new Error("Invalid data provided");
     }
@@ -364,6 +393,19 @@ export class Node {
     this.lastFree = arg.lastFree;
   }
 
+  getNode(): InnerNode | LeafNode | FreeNode {
+    if (!!this.inner) {
+      return this.inner;
+    }
+    if (!!this.leaf) {
+      return this.leaf;
+    }
+    if (!!this.free) {
+      return this.free;
+    }
+    return this.lastFree as FreeNode;
+  }
+
   static parse(data: Buffer) {
     return deserialize(this.schema, Node, data) as Node;
   }
@@ -426,9 +468,7 @@ export class Slab {
         kind: "struct",
         values: [
           ["header", SlabHeader],
-          ["buffer", ["u8"]],
-          ["callBackInfoLen", "u8"],
-          ["slotSize", "u8"],
+          ["buffer", BytesSlab],
         ],
       },
     ],
