@@ -288,6 +288,15 @@ export class EventQueue {
     }
   }
 
+  parseFill(limit?: number) {
+    const n = limit
+      ? Math.min(limit, this.header.count.toNumber())
+      : this.header.count.toNumber();
+    return [...Array(n).keys()]
+      .map((e) => this.parseEvent(e))
+      .filter((e) => e instanceof EventFill);
+  }
+
   static parseEventQueueHeader(data: Buffer) {
     return deserialize(this.schema, EventQueueHeader, data) as EventQueueHeader;
   }
