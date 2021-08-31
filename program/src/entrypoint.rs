@@ -45,6 +45,8 @@ impl PrintProgramError for AoError {
             AoError::OrderNotFound => msg!("Error: The order could not be found."),
             AoError::WouldSelfTrade => msg!("Error: The order would self trade."),
             AoError::SlabOutOfSpace => msg!("Error: The market's memory is full."),
+            AoError::FeeNotPayed => msg!("Error: The fee was not correctly payed."),
+            AoError::NoOperations => msg!("Error: This instruction is a No-op."),
         }
     }
 }

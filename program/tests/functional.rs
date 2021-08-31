@@ -2,11 +2,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use agnostic_orderbook::instruction::{cancel_order, consume_events, create_market, new_order};
-use agnostic_orderbook::state::OrderSummary;
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
+use agnostic_orderbook::state::{MarketState, OrderSummary};
+use agnostic_orderbook::CRANKER_REWARD;
 use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
-use solana_program::system_instruction::create_account;
+use solana_program::system_instruction::{create_account, transfer};
+use solana_program::system_program;
 use solana_program_test::{processor, ProgramTest};
 use solana_sdk::signature::Keypair;
 use solana_sdk::signature::Signer;
@@ -101,6 +103,23 @@ async fn test_agnostic_orderbook() {
     .await
     .unwrap();
 
+    // Create reward target account
+    let reward_target = Keypair::new();
+    let create_reward_target_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &reward_target.pubkey(),
+        1_000_000_000,
+        1,
+        &system_program::id(),
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_reward_target_account_instruction],
+        vec![&reward_target],
+    )
+    .await
+    .unwrap();
+
     // Create Market
     let caller_authority = Keypair::new();
     let create_market_instruction = create_market(
@@ -117,6 +136,32 @@ async fn test_agnostic_orderbook() {
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
         .await
         .unwrap();
+
+    // Transfer the fee
+    let transfer_new_order_fee_instruction = transfer(
+        &prg_test_ctx.payer.pubkey(),
+        &market_account.pubkey(),
+        CRANKER_REWARD,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![transfer_new_order_fee_instruction],
+        vec![],
+    )
+    .await
+    .unwrap();
+
+    let market_state = MarketState::deserialize(
+        &mut &prg_test_ctx
+            .banks_client
+            .get_account(market_account.pubkey())
+            .await
+            .unwrap()
+            .unwrap()
+            .data[..],
+    )
+    .unwrap();
+    println!("{:?}", market_state);
 
     // New Order
     let new_order_instruction = new_order(
@@ -142,6 +187,20 @@ async fn test_agnostic_orderbook() {
         &mut prg_test_ctx,
         vec![new_order_instruction],
         vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // Transfer the fee, again
+    let transfer_new_order_fee_instruction = transfer(
+        &prg_test_ctx.payer.pubkey(),
+        &market_account.pubkey(),
+        CRANKER_REWARD + 1,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![transfer_new_order_fee_instruction],
+        vec![],
     )
     .await
     .unwrap();
@@ -173,6 +232,18 @@ async fn test_agnostic_orderbook() {
     )
     .await
     .unwrap();
+
+    let market_state = MarketState::deserialize(
+        &mut &prg_test_ctx
+            .banks_client
+            .get_account(market_account.pubkey())
+            .await
+            .unwrap()
+            .unwrap()
+            .data[..],
+    )
+    .unwrap();
+    println!("{:?}", market_state);
 
     let mut event_queue_acc = prg_test_ctx
         .banks_client
@@ -217,6 +288,7 @@ async fn test_agnostic_orderbook() {
         market_account.pubkey(),
         caller_authority.pubkey(),
         event_queue_account.pubkey(),
+        reward_target.pubkey(),
         consume_events::Params {
             number_of_entries_to_consume: 1,
         },

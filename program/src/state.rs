@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
 use crate::critbit::IoError;
@@ -50,7 +50,7 @@ pub enum SelfTradeBehavior {
     AbortTransaction,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 /// The orderbook market's central state
 pub struct MarketState {
     /// Identifies the account as a [`MarketState`] object.
@@ -65,6 +65,13 @@ pub struct MarketState {
     pub asks: Pubkey,
     /// The length of an order's callback metadata.
     pub callback_info_len: u64,
+    /// The current budget of fees that have been collected.
+    /// Cranker rewards are taken from this. This value allows
+    /// for a verification that the fee was payed in the caller program
+    /// runtime while not having to add a CPI call to the serum-core.
+    pub fee_budget: u64,
+    /// The amount of lamports the market account was created with.
+    pub initial_lamports: u64,
     //TODO cranked_accs
 }
 
@@ -315,6 +322,7 @@ impl<'a> EventQueue<'a> {
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
     }
 
+    /// Returns the effective number of entries that were popped.
     pub(crate) fn pop_n(&mut self, number_of_entries_to_pop: u64) {
         let capped_number_of_entries_to_pop =
             std::cmp::min(self.header.count, number_of_entries_to_pop);

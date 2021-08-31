@@ -3,10 +3,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{
-    error::{AoError, AoResult},
-    state::AccountTag,
-};
+use crate::error::{AoError, AoResult};
 
 #[cfg(not(debug_assertions))]
 #[inline(always)]
@@ -42,7 +39,7 @@ pub fn check_unitialized(account: &AccountInfo) -> AoResult {
     if account.data.borrow()[0] != 0 {
         return Err(AoError::AlreadyInitialized);
     }
-    return Ok(());
+    Ok(())
 }
 
 /// a is fp0, b is fp32 and result is a/b fp0

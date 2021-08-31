@@ -14,6 +14,7 @@ use crate::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
     },
     utils::{check_account_key, check_account_owner, check_signer},
+    CRANKER_REWARD,
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -47,8 +48,6 @@ pub struct Params {
     /// Describes what would happen if this order was matched against an order with an equal `callback_info` field.
     pub self_trade_behavior: SelfTradeBehavior,
 }
-
-//TODO cranking reward
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
@@ -86,11 +85,12 @@ pub(crate) fn process(
     params: Params,
 ) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
-
-    let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data)
-        .unwrap()
-        .check()?;
+    let mut market_state = {
+        let mut market_data: &[u8] = &accounts.market.data.borrow();
+        MarketState::deserialize(&mut market_data)
+            .unwrap()
+            .check()?
+    };
 
     check_account_key(accounts.event_queue, &market_state.event_queue)
         .map_err(|_| AoError::WrongEventQueueAccount)?;
@@ -131,5 +131,18 @@ pub(crate) fn process(
         .serialize(&mut event_queue_header_data)
         .unwrap();
     order_book.commit_changes();
+
+    //Verify that fees were transfered. Fees are expected to be transfered by the caller program in order
+    // to reduce the CPI call stack depth.
+    if accounts.market.lamports() - market_state.initial_lamports
+        < market_state.fee_budget + CRANKER_REWARD
+    {
+        msg!("Fees were not correctly payed during caller runtime.");
+        return Err(AoError::FeeNotPayed.into());
+    }
+    market_state.fee_budget = accounts.market.lamports() - market_state.initial_lamports;
+    let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
+    market_state.serialize(&mut market_state_data).unwrap();
+
     Ok(())
 }

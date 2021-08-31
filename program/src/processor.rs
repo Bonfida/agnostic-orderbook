@@ -6,11 +6,6 @@ use solana_program::{
 
 use crate::instruction::AgnosticOrderbookInstruction;
 
-////////////////////////////////////////////////////////////
-// Constants
-
-////////////////////////////////////////////////////////////
-
 #[allow(missing_docs)]
 pub mod cancel_order;
 #[allow(missing_docs)]

@@ -8,6 +8,7 @@ use solana_program::{
 };
 
 use crate::{
+    error::AoError,
     state::{EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer},
 };
@@ -25,6 +26,7 @@ struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
     authority: &'a AccountInfo<'b>,
+    reward_target: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -37,6 +39,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             market: next_account_info(&mut accounts_iter)?,
             event_queue: next_account_info(&mut accounts_iter)?,
             authority: next_account_info(&mut accounts_iter)?,
+            reward_target: next_account_info(&mut accounts_iter)?,
         };
         check_account_owner(a.market, program_id).unwrap();
         check_account_owner(a.event_queue, program_id).unwrap();
@@ -52,10 +55,12 @@ pub(crate) fn process(
 ) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
-    let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data)
-        .unwrap()
-        .check()?;
+    let mut market_state = {
+        let mut market_data: &[u8] = &accounts.market.data.borrow();
+        MarketState::deserialize(&mut market_data)
+            .unwrap()
+            .check()?
+    };
 
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
@@ -76,10 +81,33 @@ pub(crate) fn process(
         market_state.callback_info_len as usize,
     )?;
 
-    event_queue.pop_n(params.number_of_entries_to_consume);
+    // Reward payout
+    let capped_number_of_entries_consumed = std::cmp::min(
+        event_queue.header.count,
+        params.number_of_entries_to_consume,
+    );
 
+    let reward = (market_state.fee_budget * capped_number_of_entries_consumed)
+        .checked_div(event_queue.header.count)
+        .ok_or(AoError::NoOperations)
+        .unwrap();
+    market_state.fee_budget -= reward;
+    **accounts.market.try_borrow_mut_lamports().unwrap() = accounts.market.lamports() - reward;
+    **accounts.reward_target.try_borrow_mut_lamports().unwrap() =
+        accounts.reward_target.lamports() + reward;
+
+    let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
+    market_state.serialize(&mut market_state_data).unwrap();
+
+    // Pop Events
+    event_queue.pop_n(params.number_of_entries_to_consume);
     let mut event_queue_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue.header.serialize(&mut event_queue_data).unwrap();
+
+    msg!(
+        "Number of events consumed: {:?}",
+        capped_number_of_entries_consumed
+    );
 
     Ok(())
 }

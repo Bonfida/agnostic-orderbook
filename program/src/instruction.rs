@@ -39,11 +39,12 @@ pub enum AgnosticOrderbookInstruction {
     ///
     /// Required accounts
     ///
-    /// | index | writable | signer | description             |
-    /// |-------|----------|--------|-------------------------|
-    /// | 0     | ✅       | ❌     | The market account      |
-    /// | 1     | ✅       | ❌     | The event queue account |
-    /// | 3     | ❌       | ✅     | The caller authority    |
+    /// | index | writable | signer | description               |
+    /// |-------|----------|--------|---------------------------|
+    /// | 0     | ✅       | ❌     | The market account        |
+    /// | 1     | ✅       | ❌     | The event queue account   |
+    /// | 3     | ❌       | ✅     | The caller authority      |
+    /// | 4     | ✅       | ❌     | The reward target account |
     ConsumeEvents(consume_events::Params),
     /// Cancel an existing order in the orderbook.
     ///
@@ -164,6 +165,7 @@ pub fn consume_events(
     market_account: Pubkey,
     caller_authority: Pubkey,
     event_queue: Pubkey,
+    reward_target: Pubkey,
     consume_events_params: consume_events::Params,
 ) -> Instruction {
     let data = AgnosticOrderbookInstruction::ConsumeEvents(consume_events_params)
@@ -173,6 +175,7 @@ pub fn consume_events(
         AccountMeta::new(market_account, false),
         AccountMeta::new(event_queue, false),
         AccountMeta::new_readonly(caller_authority, true),
+        AccountMeta::new(reward_target, false),
     ];
 
     Instruction {

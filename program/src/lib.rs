@@ -12,6 +12,8 @@ The AAOB program outputs information through the event queue account in of two w
 - instantaneous order information through the event queue's register (accessible through the [`read_register`][`state::EventQueue::read_register`] primitive).
 - the queue itself
 
+//TODO explain global structure: caller pgr, ordersummary, cranking of consume
+
 ## Creating an order
 
 The [`new_order`][`fn@instruction::new_order`] primitive will push a new order to the orderbook which will optionally match with existing orders if its limit price crosses
@@ -50,3 +52,12 @@ pub mod error;
 pub(crate) mod orderbook;
 pub(crate) mod processor;
 pub(crate) mod utils;
+
+////////////////////////////////////////////////////////////
+// Constants
+
+/// The minimum fee that is payed for opening an order.
+/// Fees are payed out to consume event crankers.
+pub const CRANKER_REWARD: u64 = 1_000;
+
+////////////////////////////////////////////////////////////

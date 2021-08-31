@@ -26,6 +26,10 @@ pub enum AoError {
     WouldSelfTrade,
     #[error("The market's memory is full.")]
     SlabOutOfSpace,
+    #[error("The due fee was not payed.")]
+    FeeNotPayed,
+    #[error("This instruction is a No-op.")]
+    NoOperations,
 }
 
 impl From<AoError> for ProgramError {

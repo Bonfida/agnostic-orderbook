@@ -89,6 +89,8 @@ pub(crate) fn process(
         bids: *accounts.bids.key,
         asks: *accounts.asks.key,
         callback_info_len,
+        fee_budget: 0,
+        initial_lamports: accounts.market.lamports(),
     };
 
     let event_queue_header = EventQueueHeader::initialize(params.callback_info_len as usize);
