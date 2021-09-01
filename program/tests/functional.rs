@@ -271,7 +271,6 @@ async fn test_agnostic_orderbook() {
         asks_account.pubkey(),
         cancel_order::Params {
             order_id: order_summary.posted_order_id.unwrap(),
-            side: Side::Ask,
         },
     );
     sign_send_instructions(

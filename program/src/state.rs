@@ -113,6 +113,8 @@ pub enum Event {
         #[allow(missing_docs)]
         asset_size: u64,
         #[allow(missing_docs)]
+        delete: bool,
+        #[allow(missing_docs)]
         callback_info: Vec<u8>,
     },
 }
@@ -140,11 +142,13 @@ impl Event {
                 side,
                 order_id,
                 asset_size,
+                delete,
                 callback_info,
             } => {
                 writer.write_all(&[side.to_u8().unwrap()])?;
                 writer.write_all(&order_id.to_le_bytes())?;
                 writer.write_all(&asset_size.to_le_bytes())?;
+                writer.write_all(&[(*delete as u8)])?;
                 writer.write_all(&callback_info)?;
             }
         };
@@ -163,7 +167,13 @@ impl Event {
                 taker_callback_info: buf[34 + callback_info_len..34 + (callback_info_len << 1)]
                     .to_owned(),
             },
-            1 => unimplemented!(),
+            1 => Event::Out {
+                side: Side::from_u8(buf[1]).unwrap(),
+                order_id: u128::from_le_bytes(buf[2..18].try_into().unwrap()),
+                asset_size: u64::from_le_bytes(buf[18..26].try_into().unwrap()),
+                delete: buf[26] == 1,
+                callback_info: buf[27..27 + callback_info_len].to_owned(),
+            },
             _ => unreachable!(),
         }
     }
@@ -263,9 +273,6 @@ impl<'a> EventQueue<'a> {
     }
 }
 
-/// This byte flag is set for order_ids with side Bid, and unset for side Ask
-pub const ORDER_ID_SIDE_FLAG: u64 = 1u64 << 63;
-
 impl<'a> EventQueue<'a> {
     pub(crate) fn gen_order_id(&mut self, limit_price: u64, side: Side) -> u128 {
         let seq_num = self.gen_seq_num();
@@ -358,8 +365,8 @@ impl<'a> EventQueue<'a> {
         Register::deserialize(&mut register)
     }
 
-    #[cfg(not(feature = "no-entrypoint"))]
     /// Returns an iterator over all the queue's events
+    #[cfg(feature = "no-entrypoint")]
     pub fn iter<'b>(&'b self) -> QueueIterator<'a, 'b> {
         QueueIterator {
             queue_header: &self.header,
@@ -373,7 +380,7 @@ impl<'a> EventQueue<'a> {
     }
 }
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(feature = "no-entrypoint")]
 impl<'a, 'b> IntoIterator for &'b EventQueue<'a> {
     type Item = Event;
 
@@ -383,7 +390,7 @@ impl<'a, 'b> IntoIterator for &'b EventQueue<'a> {
         self.iter()
     }
 }
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(feature = "no-entrypoint")]
 /// Utility struct for iterating over a queue
 pub struct QueueIterator<'a, 'b> {
     queue_header: &'b EventQueueHeader,
@@ -395,7 +402,7 @@ pub struct QueueIterator<'a, 'b> {
     remaining: u64,
 }
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(feature = "no-entrypoint")]
 impl<'a, 'b> Iterator for QueueIterator<'a, 'b> {
     type Item = Event;
 
@@ -411,5 +418,17 @@ impl<'a, 'b> Iterator for QueueIterator<'a, 'b> {
             (self.current_index + self.queue_header.event_size as usize) % self.buffer_length;
         self.remaining -= 1;
         Some(result)
+    }
+}
+
+/// This byte flag is set for order_ids with side Bid, and unset for side Ask
+pub const ORDER_ID_SIDE_FLAG: u128 = 1 << 63;
+
+/// This helper function deduces an order's side from its order_id
+pub fn get_side_from_order_id(order_id: u128) -> Side {
+    if ORDER_ID_SIDE_FLAG & order_id != 0 {
+        Side::Bid
+    } else {
+        Side::Ask
     }
 }

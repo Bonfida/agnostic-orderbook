@@ -9,7 +9,9 @@ use solana_program::{
 use crate::{
     error::AoError,
     orderbook::{OrderBookState, OrderSummary},
-    state::{EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
+    state::{
+        get_side_from_order_id, EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN,
+    },
     utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
 };
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -19,8 +21,6 @@ The required arguments for a cancel_order instruction.
 pub struct Params {
     /// The order id is a unique identifier for a particular order
     pub order_id: u128,
-    #[allow(missing_docs)]
-    pub side: Side,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -88,7 +88,7 @@ pub(crate) fn process(
     };
     let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
 
-    let slab = order_book.get_tree(params.side);
+    let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
     let node = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;

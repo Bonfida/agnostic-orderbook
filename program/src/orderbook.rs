@@ -142,8 +142,10 @@ impl<'ob> OrderBookState<'ob> {
 
                     let remaining_provide_asset_qty =
                         best_bo_ref.asset_quantity - cancelled_provide_asset_qty;
+                    let delete = remaining_provide_asset_qty == 0;
                     let provide_out = Event::Out {
                         side: side.opposite(),
+                        delete,
                         order_id: best_offer_id,
                         asset_size: cancelled_provide_asset_qty,
                         callback_info: best_bo_ref.callback_info.clone(),
@@ -151,7 +153,7 @@ impl<'ob> OrderBookState<'ob> {
                     event_queue
                         .push_back(provide_out)
                         .map_err(|_| AoError::EventQueueFull)?;
-                    if remaining_provide_asset_qty == 0 {
+                    if delete {
                         self.get_tree(side.opposite())
                             .remove_by_key(best_offer_id)
                             .unwrap();
@@ -222,6 +224,7 @@ impl<'ob> OrderBookState<'ob> {
             let l = order.as_leaf().unwrap();
             let out = Event::Out {
                 side: Side::Bid,
+                delete: true,
                 order_id: l.order_id(),
                 asset_size: l.asset_quantity,
                 callback_info: l.callback_info.clone(),
