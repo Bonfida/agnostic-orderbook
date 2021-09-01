@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
 
 use crate::critbit::IoError;
@@ -18,7 +18,9 @@ pub enum AccountTag {
     Asks,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive)]
+#[derive(
+    BorshDeserialize, BorshSerialize, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Debug,
+)]
 #[repr(u8)]
 #[allow(missing_docs)]
 pub enum Side {
@@ -77,7 +79,7 @@ impl MarketState {
 
 ////////////////////////////////////////////////////
 // Events
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 /// Events are the primary output of the asset agnostic orderbook
 pub enum Event {
     /// A fill event describes a match between a taker order and a provider order
@@ -173,7 +175,7 @@ impl Event {
 pub struct EventQueueHeader {
     tag: AccountTag, // Initialized, EventQueue
     head: u64,
-    count: u64,
+    pub(crate) count: u64,
     event_size: u64,
     seq_num: u64,
     register_size: u32,
@@ -285,10 +287,9 @@ impl<'a> EventQueue<'a> {
             return Err(event);
         }
         let offset = EVENT_QUEUE_HEADER_LEN
-            + (((self.header.register_size as u64)
-                + self.header.head
-                + self.header.count * self.header.event_size) as usize)
-                % self.get_buf_len();
+            + (self.header.register_size as usize)
+            + (((self.header.head + self.header.count * self.header.event_size) as usize)
+                % self.get_buf_len());
         let mut queue_event_data =
             &mut self.buffer.borrow_mut()[offset..offset + (self.header.event_size as usize)];
         event.serialize(&mut queue_event_data).unwrap();
