@@ -4,6 +4,9 @@ Orderbook program which can be used with generic assets.
 
 ## Overview
 
+This program is intended to be called upon by other programs that implement specific on-chain orderbooks.
+These "caller" program can use the agnostic orderbook as an underlying infrastructure.
+
 There are two ways to interact with an asset agnostic orderbook :
 - creating a new order
 - cancelling an existing order
@@ -12,7 +15,6 @@ The AAOB program outputs information through the event queue account in of two w
 - instantaneous order information through the event queue's register (accessible through the [`read_register`][`state::EventQueue::read_register`] primitive).
 - the queue itself
 
-//TODO explain global structure: caller pgr, ordersummary, cranking of consume
 
 ## Creating an order
 

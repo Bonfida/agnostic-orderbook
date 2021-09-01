@@ -45,7 +45,7 @@ impl<'ob> OrderBookState<'ob> {
         }
         Ok(Self { bids, asks })
     }
-    fn find_best_offer(&self, side: Side) -> Option<NodeHandle> {
+    fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
             Side::Bid => self.bids.find_max(),
             Side::Ask => self.asks.find_min(),
@@ -90,7 +90,7 @@ impl<'ob> OrderBookState<'ob> {
             if match_limit == 0 {
                 break;
             }
-            let best_bo_h = match self.find_best_offer(side.opposite()) {
+            let best_bo_h = match self.find_bbo(side.opposite()) {
                 None => {
                     crossed = false;
                     break;
