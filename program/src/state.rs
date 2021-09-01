@@ -263,6 +263,9 @@ impl<'a> EventQueue<'a> {
     }
 }
 
+/// This byte flag is set for order_ids with side Bid, and unset for side Ask
+pub const ORDER_ID_SIDE_FLAG: u64 = 1u64 << 63;
+
 impl<'a> EventQueue<'a> {
     pub(crate) fn gen_order_id(&mut self, limit_price: u64, side: Side) -> u128 {
         let seq_num = self.gen_seq_num();

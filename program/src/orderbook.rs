@@ -233,6 +233,8 @@ impl<'ob> OrderBookState<'ob> {
         } else {
             insert_result.unwrap();
         }
+        asset_qty_remaining -= asset_qty_to_post;
+        quote_qty_remaining -= fp32_mul(asset_qty_to_post, limit_price);
         Ok(OrderSummary {
             posted_order_id: Some(new_leaf_order_id),
             total_asset_qty: max_asset_qty - asset_qty_remaining,
