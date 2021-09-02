@@ -148,6 +148,7 @@ export class EventQueue {
           ["orderId", "u128"],
           ["quoteSize", "u64"],
           ["assetSize", "u64"],
+          ["delete", "u8"],
           ["callBackInfo", ["u8"]],
         ],
       },
