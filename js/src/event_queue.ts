@@ -72,17 +72,20 @@ export class EventOut {
   side: Side;
   orderId: BN;
   assetSize: BN;
+  delete: boolean;
   callBackInfo: number[];
 
   constructor(arg: {
     side: number;
     orderId: BN;
     assetSize: BN;
+    delete: number;
     callBackInfo: number[];
   }) {
     this.side = arg.side as Side;
     this.orderId = arg.orderId;
     this.assetSize = arg.assetSize;
+    this.delete = arg.delete === 1;
     this.callBackInfo = arg.callBackInfo;
   }
 }

@@ -22,6 +22,8 @@ export class MarketState {
   bids: PublicKey;
   asks: PublicKey;
   callBackInfoLen: BN;
+  feeBudget: BN;
+  initialLamports: BN;
 
   static schema: Schema = new Map([
     [
@@ -35,6 +37,8 @@ export class MarketState {
           ["bids", [32]],
           ["asks", [32]],
           ["callBackInfoLen", "u64"],
+          ["feeBudget", "u64"],
+          ["initialLamports", "u64"],
         ],
       },
     ],
@@ -47,6 +51,8 @@ export class MarketState {
     bids: Uint8Array;
     asks: Uint8Array;
     callBackInfoLen: BN;
+    feeBudget: BN;
+    initialLamports: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.callerAuthority = new PublicKey(arg.callerAuthority);
@@ -54,6 +60,8 @@ export class MarketState {
     this.bids = new PublicKey(arg.bids);
     this.asks = new PublicKey(arg.asks);
     this.callBackInfoLen = arg.callBackInfoLen;
+    this.feeBudget = arg.feeBudget;
+    this.initialLamports = arg.initialLamports;
   }
 
   static async retrieve(connection: Connection, market: PublicKey) {
