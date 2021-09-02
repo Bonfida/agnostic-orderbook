@@ -102,11 +102,6 @@ pub(crate) fn process(
 
     event_queue.write_to_register(order_summary);
 
-    let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
-    event_queue
-        .header
-        .serialize(&mut event_queue_header_data)
-        .unwrap();
     order_book.commit_changes();
 
     Ok(())
