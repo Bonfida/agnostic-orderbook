@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, BinaryReader } from "borsh";
+import { Schema, deserialize } from "borsh";
 import { Slab } from "./slab";
 import BN from "bn.js";
 
