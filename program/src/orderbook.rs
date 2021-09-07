@@ -22,10 +22,12 @@ pub struct OrderSummary {
     pub total_asset_qty: u64,
     #[allow(missing_docs)]
     pub total_quote_qty: u64,
+    #[allow(missing_docs)]
+    pub total_asset_qty_posted: u64,
 }
 
 /// The serialized size of an OrderSummary object.
-pub const ORDER_SUMMARY_SIZE: u32 = 33;
+pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
 pub(crate) struct OrderBookState<'a> {
     bids: Slab<'a>,
@@ -198,6 +200,7 @@ impl<'ob> OrderBookState<'ob> {
                 posted_order_id: None,
                 total_asset_qty: max_asset_qty - asset_qty_remaining,
                 total_quote_qty: max_quote_qty - quote_qty_remaining,
+                total_asset_qty_posted: 0,
             });
         }
         let asset_qty_to_post = match side {
@@ -242,6 +245,7 @@ impl<'ob> OrderBookState<'ob> {
             posted_order_id: Some(new_leaf_order_id),
             total_asset_qty: max_asset_qty - asset_qty_remaining,
             total_quote_qty: max_quote_qty - quote_qty_remaining,
+            total_asset_qty_posted: asset_qty_to_post,
         })
     }
 }

@@ -100,6 +100,7 @@ pub(crate) fn process(
         posted_order_id: None,
         total_asset_qty,
         total_quote_qty,
+        total_asset_qty_posted: 0,
     };
 
     event_queue.write_to_register(order_summary);
