@@ -1,7 +1,104 @@
+use agnostic_orderbook::instruction::create_market;
 use solana_program::instruction::Instruction;
+use solana_program::pubkey::Pubkey;
+use solana_program::system_instruction::create_account;
 use solana_program_test::ProgramTestContext;
 use solana_sdk::signature::Signer;
 use solana_sdk::{signature::Keypair, transaction::Transaction, transport::TransportError};
+
+/// Creates the accounts needed for the AAOB market testing and returns the
+/// address of the market.
+pub async fn create_market_and_accounts(
+    mut prg_test_ctx: &mut ProgramTestContext,
+    agnostic_orderbook_program_id: Pubkey,
+    caller_authority: &Keypair,
+) -> Pubkey {
+    // Create market state account
+    let market_account = Keypair::new();
+    let create_market_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &market_account.pubkey(),
+        1_000_000,
+        1_000_000,
+        &agnostic_orderbook_program_id,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_market_account_instruction],
+        vec![&market_account],
+    )
+    .await
+    .unwrap();
+
+    // Create event queue account
+    let event_queue_account = Keypair::new();
+    let create_event_queue_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &event_queue_account.pubkey(),
+        1_000_000,
+        1_000_000,
+        &agnostic_orderbook_program_id,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_event_queue_account_instruction],
+        vec![&event_queue_account],
+    )
+    .await
+    .unwrap();
+
+    // Create bids account
+    let bids_account = Keypair::new();
+    let create_bids_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &bids_account.pubkey(),
+        1_000_000,
+        1_000_000,
+        &agnostic_orderbook_program_id,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_bids_account_instruction],
+        vec![&bids_account],
+    )
+    .await
+    .unwrap();
+
+    // Create asks account
+    let asks_account = Keypair::new();
+    let create_asks_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &asks_account.pubkey(),
+        1_000_000,
+        1_000_000,
+        &agnostic_orderbook_program_id,
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_asks_account_instruction],
+        vec![&asks_account],
+    )
+    .await
+    .unwrap();
+
+    // Create Market
+    let create_market_instruction = create_market(
+        agnostic_orderbook_program_id,
+        market_account.pubkey(),
+        event_queue_account.pubkey(),
+        bids_account.pubkey(),
+        asks_account.pubkey(),
+        create_market::Params {
+            caller_authority: caller_authority.pubkey(),
+            callback_info_len: 32,
+        },
+    );
+    sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
+        .await
+        .unwrap();
+
+    market_account.pubkey()
+}
 
 // Utils
 pub async fn sign_send_instructions(

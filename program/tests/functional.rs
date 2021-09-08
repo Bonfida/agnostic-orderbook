@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use agnostic_orderbook::instruction::{cancel_order, consume_events, create_market, new_order};
+use agnostic_orderbook::instruction::{cancel_order, consume_events, new_order};
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
 use agnostic_orderbook::state::{MarketState, OrderSummary};
 use agnostic_orderbook::CRANKER_REWARD;
@@ -12,14 +12,8 @@ use solana_program::system_program;
 use solana_program_test::{processor, ProgramTest};
 use solana_sdk::signature::Keypair;
 use solana_sdk::signature::Signer;
-// use spl_token::{
-//     instruction::mint_to,
-//     state::{Account, AccountState},
-// };
 pub mod common;
-use crate::common::utils::sign_send_instructions;
-
-//TODO factorize into context
+use crate::common::utils::{create_market_and_accounts, sign_send_instructions};
 
 #[tokio::test]
 async fn test_agnostic_orderbook() {
@@ -32,115 +26,30 @@ async fn test_agnostic_orderbook() {
         processor!(agnostic_orderbook::entrypoint::process_instruction),
     );
 
-    // Create Market context
-    let mut prg_test_ctx = program_test.start_with_context().await;
+    // Create test context
+    let mut prg_test_ctx = &mut program_test.start_with_context().await;
 
-    // Create market state account
-    let market_account = Keypair::new();
-    let create_market_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &market_account.pubkey(),
-        1_000_000,
-        1_000_000,
-        &agnostic_orderbook_program_id,
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_market_account_instruction],
-        vec![&market_account],
-    )
-    .await
-    .unwrap();
-
-    // Create event queue account
-    let event_queue_account = Keypair::new();
-    let create_event_queue_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &event_queue_account.pubkey(),
-        1_000_000,
-        1_000_000,
-        &agnostic_orderbook_program_id,
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_event_queue_account_instruction],
-        vec![&event_queue_account],
-    )
-    .await
-    .unwrap();
-
-    // Create bids account
-    let bids_account = Keypair::new();
-    let create_bids_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &bids_account.pubkey(),
-        1_000_000,
-        1_000_000,
-        &agnostic_orderbook_program_id,
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_bids_account_instruction],
-        vec![&bids_account],
-    )
-    .await
-    .unwrap();
-
-    // Create asks account
-    let asks_account = Keypair::new();
-    let create_asks_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &asks_account.pubkey(),
-        1_000_000,
-        1_000_000,
-        &agnostic_orderbook_program_id,
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_asks_account_instruction],
-        vec![&asks_account],
-    )
-    .await
-    .unwrap();
-
-    // Create reward target account
-    let reward_target = Keypair::new();
-    let create_reward_target_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &reward_target.pubkey(),
-        1_000_000_000,
-        1,
-        &system_program::id(),
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_reward_target_account_instruction],
-        vec![&reward_target],
-    )
-    .await
-    .unwrap();
-
-    // Create Market
     let caller_authority = Keypair::new();
-    let create_market_instruction = create_market(
+    let market_account = create_market_and_accounts(
+        prg_test_ctx,
         agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        event_queue_account.pubkey(),
-        bids_account.pubkey(),
-        asks_account.pubkey(),
-        create_market::Params {
-            caller_authority: caller_authority.pubkey(),
-            callback_info_len: 32,
-        },
-    );
-    sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
-        .await
-        .unwrap();
+        &caller_authority,
+    )
+    .await;
 
-    // Transfer the fee
+    let market_state_data = prg_test_ctx
+        .banks_client
+        .get_account(market_account)
+        .await
+        .unwrap()
+        .unwrap();
+    let market_state = MarketState::deserialize(&mut &market_state_data.data[..]).unwrap();
+    println!("{:?}", market_state);
+
+    // Transfer the cranking fee
     let transfer_new_order_fee_instruction = transfer(
         &prg_test_ctx.payer.pubkey(),
-        &market_account.pubkey(),
+        &market_account,
         CRANKER_REWARD,
     );
     sign_send_instructions(
@@ -151,26 +60,14 @@ async fn test_agnostic_orderbook() {
     .await
     .unwrap();
 
-    let market_state = MarketState::deserialize(
-        &mut &prg_test_ctx
-            .banks_client
-            .get_account(market_account.pubkey())
-            .await
-            .unwrap()
-            .unwrap()
-            .data[..],
-    )
-    .unwrap();
-    println!("{:?}", market_state);
-
     // New Order
     let new_order_instruction = new_order(
         agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        caller_authority.pubkey(),
-        event_queue_account.pubkey(),
-        bids_account.pubkey(),
-        asks_account.pubkey(),
+        market_account,
+        market_state.caller_authority,
+        market_state.event_queue,
+        market_state.bids,
+        market_state.asks,
         new_order::Params {
             max_asset_qty: 1000,
             max_quote_qty: 1000,
@@ -194,7 +91,7 @@ async fn test_agnostic_orderbook() {
     // Transfer the fee, again
     let transfer_new_order_fee_instruction = transfer(
         &prg_test_ctx.payer.pubkey(),
-        &market_account.pubkey(),
+        &market_account,
         CRANKER_REWARD + 1,
     );
     sign_send_instructions(
@@ -208,11 +105,11 @@ async fn test_agnostic_orderbook() {
     // New Order
     let new_order_instruction = new_order(
         agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        caller_authority.pubkey(),
-        event_queue_account.pubkey(),
-        bids_account.pubkey(),
-        asks_account.pubkey(),
+        market_account,
+        market_state.caller_authority,
+        market_state.event_queue,
+        market_state.bids,
+        market_state.asks,
         new_order::Params {
             max_asset_qty: 1000,
             max_quote_qty: 1000,
@@ -236,7 +133,7 @@ async fn test_agnostic_orderbook() {
     let market_state = MarketState::deserialize(
         &mut &prg_test_ctx
             .banks_client
-            .get_account(market_account.pubkey())
+            .get_account(market_account)
             .await
             .unwrap()
             .unwrap()
@@ -247,7 +144,7 @@ async fn test_agnostic_orderbook() {
 
     let mut event_queue_acc = prg_test_ctx
         .banks_client
-        .get_account(event_queue_account.pubkey())
+        .get_account(market_state.event_queue)
         .await
         .unwrap()
         .unwrap();
@@ -264,11 +161,11 @@ async fn test_agnostic_orderbook() {
     // Cancel order
     let cancel_order_instruction = cancel_order(
         agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        caller_authority.pubkey(),
-        event_queue_account.pubkey(),
-        bids_account.pubkey(),
-        asks_account.pubkey(),
+        market_account,
+        market_state.caller_authority,
+        market_state.event_queue,
+        market_state.bids,
+        market_state.asks,
         cancel_order::Params {
             order_id: order_summary.posted_order_id.unwrap(),
         },
@@ -281,12 +178,29 @@ async fn test_agnostic_orderbook() {
     .await
     .unwrap();
 
+    // Create reward target account
+    let reward_target = Keypair::new();
+    let create_reward_target_account_instruction = create_account(
+        &prg_test_ctx.payer.pubkey(),
+        &reward_target.pubkey(),
+        1_000_000_000,
+        1,
+        &system_program::id(),
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![create_reward_target_account_instruction],
+        vec![&reward_target],
+    )
+    .await
+    .unwrap();
+
     // Consume events
     let consume_events_instruction = consume_events(
         agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        caller_authority.pubkey(),
-        event_queue_account.pubkey(),
+        market_account,
+        market_state.caller_authority,
+        market_state.event_queue,
         reward_target.pubkey(),
         consume_events::Params {
             number_of_entries_to_consume: 1,
