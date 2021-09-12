@@ -52,15 +52,18 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         check_signer(a.msrm_token_account_owner).unwrap();
         check_account_owner(a.msrm_token_account, &spl_token::ID).unwrap();
 
-        let token_account =
-            spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
-        if &token_account.owner != a.msrm_token_account_owner.key {
-            msg!("Invalid token account owner");
-            return Err(ProgramError::InvalidArgument);
-        }
-        if token_account.mint != super::msrm_token::ID || token_account.amount == 0 {
-            msg!("Invalid token account provided");
-            return Err(ProgramError::InvalidArgument);
+        #[cfg(not(feature = "permissionless-crank"))]
+        {
+            let token_account =
+                spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
+            if &token_account.owner != a.msrm_token_account_owner.key {
+                msg!("Invalid token account owner");
+                return Err(ProgramError::InvalidArgument);
+            }
+            if token_account.mint != super::msrm_token::ID || token_account.amount == 0 {
+                msg!("Invalid token account provided");
+                return Err(ProgramError::InvalidArgument);
+            }
         }
 
         Ok(a)
