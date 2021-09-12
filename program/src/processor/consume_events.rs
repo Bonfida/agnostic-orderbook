@@ -4,6 +4,7 @@ use solana_program::{
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
+    program_pack::Pack,
     pubkey::Pubkey,
 };
 
@@ -27,6 +28,8 @@ struct Accounts<'a, 'b: 'a> {
     event_queue: &'a AccountInfo<'b>,
     authority: &'a AccountInfo<'b>,
     reward_target: &'a AccountInfo<'b>,
+    msrm_token_account: &'a AccountInfo<'b>,
+    msrm_token_account_owner: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -40,10 +43,26 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             event_queue: next_account_info(&mut accounts_iter)?,
             authority: next_account_info(&mut accounts_iter)?,
             reward_target: next_account_info(&mut accounts_iter)?,
+            msrm_token_account: next_account_info(&mut accounts_iter)?,
+            msrm_token_account_owner: next_account_info(&mut accounts_iter)?,
         };
         check_account_owner(a.market, program_id).unwrap();
         check_account_owner(a.event_queue, program_id).unwrap();
         check_signer(a.authority).unwrap();
+        check_signer(a.msrm_token_account_owner).unwrap();
+        check_account_owner(a.msrm_token_account, &spl_token::ID).unwrap();
+
+        let token_account =
+            spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
+        if &token_account.owner != a.msrm_token_account_owner.key {
+            msg!("Invalid token account owner");
+            return Err(ProgramError::InvalidArgument);
+        }
+        if token_account.mint != super::msrm_token::ID || token_account.amount == 0 {
+            msg!("Invalid token account provided");
+            return Err(ProgramError::InvalidArgument);
+        }
+
         Ok(a)
     }
 }

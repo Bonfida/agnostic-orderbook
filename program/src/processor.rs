@@ -15,6 +15,13 @@ pub mod create_market;
 #[allow(missing_docs)]
 pub mod new_order;
 
+#[allow(missing_docs)]
+pub mod msrm_token {
+    use solana_program::declare_id;
+
+    declare_id!("MSRMcoVyrFxnSgo5uXwone5SKcGhT1KEJMFEkMEWf9L");
+}
+
 pub struct Processor {}
 
 impl Processor {

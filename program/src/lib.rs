@@ -51,6 +51,8 @@ pub mod critbit;
 #[doc(hidden)]
 pub mod error;
 
+pub use processor::msrm_token;
+
 pub(crate) mod orderbook;
 pub(crate) mod processor;
 pub(crate) mod utils;

@@ -39,12 +39,14 @@ pub enum AgnosticOrderbookInstruction {
     ///
     /// Required accounts
     ///
-    /// | index | writable | signer | description               |
-    /// |-------|----------|--------|---------------------------|
-    /// | 0     | ✅       | ❌     | The market account        |
-    /// | 1     | ✅       | ❌     | The event queue account   |
-    /// | 3     | ❌       | ✅     | The caller authority      |
-    /// | 4     | ✅       | ❌     | The reward target account |
+    /// | index | writable | signer | description                  |
+    /// |-------|----------|--------|------------------------------|
+    /// | 0     | ✅       | ❌     | The market account           |
+    /// | 1     | ✅       | ❌     | The event queue account      |
+    /// | 3     | ❌       | ✅     | The caller authority         |
+    /// | 4     | ✅       | ❌     | The reward target account    |
+    /// | 5     | ❌       | ❌     | The MSRM token account       |
+    /// | 6     | ❌       | ✅     | The MSRM token account owner |
     ConsumeEvents(consume_events::Params),
     /// Cancel an existing order in the orderbook.
     ///
@@ -160,12 +162,15 @@ pub fn cancel_order(
 }
 
 /// Pop a series of events off the event queue.
+#[allow(clippy::clippy::too_many_arguments)]
 pub fn consume_events(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,
     caller_authority: Pubkey,
     event_queue: Pubkey,
     reward_target: Pubkey,
+    msrm_token_account: Pubkey,
+    msrm_token_account_owner: Pubkey,
     consume_events_params: consume_events::Params,
 ) -> Instruction {
     let data = AgnosticOrderbookInstruction::ConsumeEvents(consume_events_params)
@@ -176,6 +181,8 @@ pub fn consume_events(
         AccountMeta::new(event_queue, false),
         AccountMeta::new_readonly(caller_authority, true),
         AccountMeta::new(reward_target, false),
+        AccountMeta::new_readonly(msrm_token_account, false),
+        AccountMeta::new_readonly(msrm_token_account_owner, true),
     ];
 
     Instruction {
