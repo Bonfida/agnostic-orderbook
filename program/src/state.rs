@@ -192,7 +192,8 @@ impl Event {
 pub struct EventQueueHeader {
     tag: AccountTag, // Initialized, EventQueue
     head: u64,
-    pub(crate) count: u64,
+    /// The current event queue length
+    pub count: u64,
     event_size: u64,
     seq_num: u64,
     register_size: u32,
