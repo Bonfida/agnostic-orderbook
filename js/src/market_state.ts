@@ -27,6 +27,7 @@ export class OrderbookState {
   eventQueue: PublicKey;
   bids: PublicKey;
   asks: PublicKey;
+  callBackIdLen: BN;
   callBackInfoLen: BN;
   feeBudget: BN;
   initialLamports: BN;
@@ -42,6 +43,7 @@ export class OrderbookState {
           ["eventQueue", [32]],
           ["bids", [32]],
           ["asks", [32]],
+          ["callBackIdLen", "u64"],
           ["callBackInfoLen", "u64"],
           ["feeBudget", "u64"],
           ["initialLamports", "u64"],
@@ -57,6 +59,7 @@ export class OrderbookState {
     bids: Uint8Array;
     asks: Uint8Array;
     callBackInfoLen: BN;
+    callBackIdLen: BN;
     feeBudget: BN;
     initialLamports: BN;
   }) {
@@ -66,6 +69,7 @@ export class OrderbookState {
     this.bids = new PublicKey(arg.bids);
     this.asks = new PublicKey(arg.asks);
     this.callBackInfoLen = arg.callBackInfoLen;
+    this.callBackIdLen = arg.callBackIdLen;
     this.feeBudget = arg.feeBudget;
     this.initialLamports = arg.initialLamports;
   }
