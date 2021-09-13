@@ -180,7 +180,7 @@ impl Event {
 
     /// An event queue is divided into slots. The size of these slots depend on the particular market's `callback_info_len` constant.
     pub fn compute_slot_size(callback_info_len: usize) -> usize {
-        33 + 2 * callback_info_len
+        1 + 33 + 2 * callback_info_len
     }
 }
 
@@ -196,7 +196,7 @@ pub struct EventQueueHeader {
     pub count: u64,
     event_size: u64,
     seq_num: u64,
-    register_size: u32,
+    register_size: u32, //TODO useful if constant?
 }
 
 #[allow(missing_docs)]
