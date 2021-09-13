@@ -131,6 +131,7 @@ impl Event {
                 maker_callback_info,
                 taker_callback_info,
             } => {
+                writer.write_all(&[0])?;
                 writer.write_all(&[taker_side.to_u8().unwrap()])?;
                 writer.write_all(&maker_order_id.to_le_bytes())?;
                 writer.write_all(&quote_size.to_le_bytes())?;
@@ -145,6 +146,7 @@ impl Event {
                 delete,
                 callback_info,
             } => {
+                writer.write_all(&[1])?;
                 writer.write_all(&[side.to_u8().unwrap()])?;
                 writer.write_all(&order_id.to_le_bytes())?;
                 writer.write_all(&asset_size.to_le_bytes())?;
