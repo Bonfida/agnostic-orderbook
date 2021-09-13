@@ -15,7 +15,7 @@ export enum AccountTag {
   Asks = 4,
 }
 
-export class MarketState {
+export class OrderbookState {
   tag: AccountTag;
   callerAuthority: PublicKey;
   eventQueue: PublicKey;
@@ -27,7 +27,7 @@ export class MarketState {
 
   static schema: Schema = new Map([
     [
-      MarketState,
+      OrderbookState,
       {
         kind: "struct",
         fields: [
@@ -71,9 +71,9 @@ export class MarketState {
     }
     return deserialize(
       this.schema,
-      MarketState,
+      OrderbookState,
       accountInfo.data
-    ) as MarketState;
+    ) as OrderbookState;
   }
 
   async loadBidsSlab(connection: Connection) {
