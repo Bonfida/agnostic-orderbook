@@ -91,6 +91,7 @@ pub async fn create_market_and_accounts(
         create_market::Params {
             caller_authority: caller_authority.pubkey(),
             callback_info_len: 32,
+            callback_id_len: 32,
         },
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])

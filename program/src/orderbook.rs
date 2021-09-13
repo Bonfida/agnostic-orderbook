@@ -32,6 +32,7 @@ pub const ORDER_SUMMARY_SIZE: u32 = 41;
 pub(crate) struct OrderBookState<'a> {
     bids: Slab<'a>,
     asks: Slab<'a>,
+    callback_id_len: usize,
 }
 
 impl<'ob> OrderBookState<'ob> {
@@ -39,13 +40,18 @@ impl<'ob> OrderBookState<'ob> {
         bids_account: &AccountInfo<'ob>,
         asks_account: &AccountInfo<'ob>,
         callback_info_len: usize,
+        callback_id_len: usize,
     ) -> Result<Self, ProgramError> {
         let bids = Slab::new_from_acc_info(bids_account, callback_info_len);
         let asks = Slab::new_from_acc_info(asks_account, callback_info_len);
         if !(bids.check(Side::Bid) && asks.check(Side::Ask)) {
             return Err(ProgramError::InvalidAccountData);
         }
-        Ok(Self { bids, asks })
+        Ok(Self {
+            bids,
+            asks,
+            callback_id_len,
+        })
     }
     fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
@@ -129,7 +135,8 @@ impl<'ob> OrderBookState<'ob> {
             }
 
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
-                let order_would_self_trade = callback_info == best_bo_ref.callback_info;
+                let order_would_self_trade = callback_info[..self.callback_id_len]
+                    == best_bo_ref.callback_info[..self.callback_id_len];
                 if order_would_self_trade {
                     let best_offer_id = best_bo_ref.order_id();
                     let cancelled_provide_asset_qty;

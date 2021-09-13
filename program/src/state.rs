@@ -63,6 +63,8 @@ pub struct MarketState {
     pub bids: Pubkey,
     /// The public key of the orderbook's asks account
     pub asks: Pubkey,
+    /// The length of an order actor's callback identifier.
+    pub callback_id_len: u64,
     /// The length of an order's callback metadata.
     pub callback_info_len: u64,
     /// The current budget of fees that have been collected.

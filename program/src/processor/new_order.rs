@@ -105,6 +105,7 @@ pub(crate) fn process(
         accounts.bids,
         accounts.asks,
         market_state.callback_info_len as usize,
+        market_state.callback_id_len as usize,
     )?;
 
     if params.callback_info.len() != callback_info_len {

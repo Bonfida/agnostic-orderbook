@@ -27,6 +27,8 @@ pub struct Params {
     /// An example of this would be to store a public key to uniquely identify the owner of a particular order.
     /// This example would thus require a value of 32
     pub callback_info_len: u64,
+    /// The prefix length of callback information which is used to identify self-trading
+    pub callback_id_len: u64,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -62,6 +64,7 @@ pub(crate) fn process(
     let Params {
         caller_authority,
         callback_info_len,
+        callback_id_len,
     } = params;
 
     if accounts.event_queue.owner != program_id {
@@ -89,6 +92,7 @@ pub(crate) fn process(
         bids: *accounts.bids.key,
         asks: *accounts.asks.key,
         callback_info_len,
+        callback_id_len,
         fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
     };
