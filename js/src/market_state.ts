@@ -15,6 +15,12 @@ export enum AccountTag {
   Asks = 4,
 }
 
+export enum SelfTradeBehavior {
+  DecrementTake = 0,
+  CancelProvide = 1,
+  AbortTransaction = 2,
+}
+
 export class OrderbookState {
   tag: AccountTag;
   callerAuthority: PublicKey;
