@@ -24,6 +24,20 @@ export class InnerNode {
   key: BN;
   children: number[];
 
+  static schema: Schema = new Map([
+    [
+      InnerNode,
+      {
+        kind: "struct",
+        fields: [
+          ["prefixLen", "u32"],
+          ["key", "u128"],
+          ["children", [2]],
+        ],
+      },
+    ],
+  ]);
+
   constructor(arg: { prefixLen: number; key: BN; children: number[] }) {
     this.prefixLen = arg.prefixLen;
     this.key = arg.key;
@@ -41,46 +55,24 @@ export class LeafNode {
     this.callBackInfo = arg.callBackInfo;
     this.assetQuantity = arg.assetQuantity;
   }
+  static deserialize(callbackInfoLen: number, data: Buffer) {
+    return new LeafNode({
+      key: new BN(
+        Number(data.slice(0, 8).readBigUInt64LE()) +
+          2 ** 64 * Number(data.slice(8, 16).readBigUInt64LE())
+      ),
+      callBackInfo: [...data.slice(16, 16 + callbackInfoLen)],
+      assetQuantity: new BN(
+        Number(data.slice(16 + callbackInfoLen, 24 + callbackInfoLen))
+      ),
+    });
+  }
 }
 
 export class FreeNode {
   next: number;
 
-  constructor(arg: { next: number }) {
-    this.next = arg.next;
-  }
-}
-
-export class Node {
-  inner?: InnerNode;
-  leaf?: LeafNode;
-  free?: FreeNode;
-  lastFree?: FreeNode;
-
-  // @ts-ignore
   static schema: Schema = new Map([
-    [
-      InnerNode,
-      {
-        kind: "struct",
-        fields: [
-          ["prefixLen", "u32"],
-          ["key", "u128"],
-          ["children", [2]],
-        ],
-      },
-    ],
-    [
-      LeafNode,
-      {
-        kind: "struct",
-        fields: [
-          ["key", "u128"],
-          ["callBackInfo", ["u8"]],
-          ["assetQuantity", "u64"],
-        ],
-      },
-    ],
     [
       FreeNode,
       {
@@ -88,48 +80,28 @@ export class Node {
         fields: [["next", "u32"]],
       },
     ],
-    [
-      Node,
-      {
-        kind: "enum",
-        values: [
-          ["uninitialized", [0]],
-          ["inner", InnerNode],
-          ["leaf", LeafNode],
-          ["free", FreeNode],
-          ["lastFree", FreeNode],
-        ],
-      },
-    ],
   ]);
 
-  constructor(arg: {
-    inner?: InnerNode;
-    leaf?: LeafNode;
-    free?: FreeNode;
-    lastFree?: FreeNode;
-  }) {
-    this.inner = arg.inner;
-    this.leaf = arg.leaf;
-    this.free = arg.free;
-    this.lastFree = arg.lastFree;
+  constructor(arg: { next: number }) {
+    this.next = arg.next;
   }
+}
 
-  getNode(): InnerNode | LeafNode | FreeNode {
-    if (!!this.inner) {
-      return this.inner;
-    }
-    if (!!this.leaf) {
-      return this.leaf;
-    }
-    if (!!this.free) {
-      return this.free;
-    }
-    return this.lastFree as FreeNode;
-  }
-
-  static parse(data: Buffer) {
-    return deserialize(this.schema, Node, data) as Node;
+export function parseNode(
+  callbackinfoLen: number,
+  data: Buffer
+): undefined | FreeNode | LeafNode | InnerNode {
+  switch (data[0]) {
+    case 0:
+      throw "node is unitialized";
+    case 1:
+      return deserialize(InnerNode.schema, InnerNode, data.slice(1));
+    case 2:
+      return LeafNode.deserialize(callbackinfoLen, data.slice(1));
+    case 3:
+      return deserialize(FreeNode.schema, FreeNode, data.slice(1));
+    case 4:
+      return deserialize(FreeNode.schema, FreeNode, data.slice(1));
   }
 }
 
@@ -163,7 +135,6 @@ export class SlabHeader {
 
 export class Slab {
   header: SlabHeader;
-  buffer: number[];
   callBackInfoLen: number;
   slotSize: number;
 
@@ -188,10 +159,7 @@ export class Slab {
       Slab,
       {
         kind: "struct",
-        values: [
-          ["header", SlabHeader],
-          ["buffer", BytesSlab],
-        ],
+        values: [["header", SlabHeader]],
       },
     ],
   ]);
@@ -203,7 +171,6 @@ export class Slab {
     slotSize: number;
   }) {
     this.header = arg.header;
-    this.buffer = arg.buffer;
     this.callBackInfoLen = arg.callBackInfoLen;
     this.slotSize = arg.slotSize;
   }

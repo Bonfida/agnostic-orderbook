@@ -2,7 +2,6 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { Schema, deserialize, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
-import { BytesSlab } from "./slab";
 
 ///////////////////////////////////////////////
 ////// Event Queue
@@ -18,22 +17,41 @@ export class EventQueueHeader {
   head: BN;
   count: BN;
   eventSize: BN;
-  register: number[];
   seqNum: BN;
+  registerSize: number;
+
+  static LEN: number = 37;
+
+  static schema: Schema = new Map([
+    [
+      EventQueueHeader,
+      {
+        kind: "struct",
+        fields: [
+          ["accountFlags", "u64"],
+          ["head", "u64"],
+          ["count", "u64"],
+          ["eventSize", "u64"],
+          ["seqNum", "u64"],
+          ["register", "u32"],
+        ],
+      },
+    ],
+  ]);
 
   constructor(arg: {
     tag: number;
     head: BN;
     count: BN;
     eventSize: BN;
-    register: number[];
+    registerSize: number;
     seqNum: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.head = arg.head;
     this.count = arg.count;
     this.eventSize = arg.eventSize;
-    this.register = arg.register;
+    this.registerSize = arg.registerSize;
     this.seqNum = arg.seqNum;
   }
 }
@@ -66,6 +84,22 @@ export class EventFill {
     this.makerCallbackInfo = arg.makerCallbackInfo;
     this.takerCallbackInfo = arg.takerCallbackInfo;
   }
+
+  static deserialize(callbackInfoLen: number, data: Buffer) {
+    return new EventFill({
+      takerSide: data.slice(1, 1).readInt8(),
+      makerOrderId: new BN(
+        Number(data.slice(2, 10).readBigUInt64LE()) +
+          2 ** 64 * Number(data.slice(10, 18).readBigUInt64LE())
+      ),
+      quoteSize: new BN(Number(data.slice(18, 26).readBigUInt64LE())),
+      assetSize: new BN(Number(data.slice(26, 34).readBigUInt64LE())),
+      makerCallbackInfo: [...data.slice(34, 34 + callbackInfoLen)],
+      takerCallbackInfo: [
+        ...data.slice(34 + callbackInfoLen, 34 + 2 * callbackInfoLen),
+      ],
+    });
+  }
 }
 
 export class EventOut {
@@ -88,6 +122,19 @@ export class EventOut {
     this.delete = arg.delete === 1;
     this.callBackInfo = arg.callBackInfo;
   }
+
+  static deserialize(callbackInfoLen: number, data: Buffer) {
+    return new EventOut({
+      side: data.slice(1, 1).readInt8(),
+      orderId: new BN(
+        Number(data.slice(2, 10).readBigUInt64LE()) +
+          2 ** 64 * Number(data.slice(10, 18).readBigUInt64LE())
+      ),
+      assetSize: new BN(Number(data.slice(18, 26).readBigUInt64LE())),
+      delete: data.slice(26).readUInt8(),
+      callBackInfo: [...data.slice(27, 27 + callbackInfoLen)],
+    });
+  }
 }
 
 export class EventQueue {
@@ -95,65 +142,8 @@ export class EventQueue {
   buffer: number[];
   callBackInfoLen: number;
 
-  static LEN_FILL = 1 + 16 + 8 + 8 + 1 + 1;
-  static LEN_OUT = 1 + 16 + 8 + 8 + 1;
-
-  // @ts-ignore
-  static schema: Schema = new Map([
-    [
-      EventQueue,
-      {
-        kind: "struct",
-        fields: [
-          ["header", EventQueueHeader],
-          ["buffer", BytesSlab],
-          ["callBackInfoLen", "u8"],
-        ],
-      },
-    ],
-    [
-      EventQueueHeader,
-      {
-        kind: "struct",
-        fields: [
-          ["accountFlags", "u64"],
-          ["head", "u64"],
-          ["count", "u64"],
-          ["eventSize", "u64"],
-          ["seqNum", "u64"],
-          ["register", ["u8"]],
-        ],
-      },
-    ],
-    [
-      EventFill,
-      {
-        kind: "struct",
-        fields: [
-          ["side", "u8"],
-          ["makerOrderId", "u128"],
-          ["quoteSize", "u64"],
-          ["assetSize", "u64"],
-          ["makerCallbackInfo", ["u8"]],
-          ["takerCallbackInfo", ["u8"]],
-        ],
-      },
-    ],
-    [
-      EventOut,
-      {
-        kind: "struct",
-        fields: [
-          ["side", "u8"],
-          ["orderId", "u128"],
-          ["quoteSize", "u64"],
-          ["assetSize", "u64"],
-          ["delete", "u8"],
-          ["callBackInfo", ["u8"]],
-        ],
-      },
-    ],
-  ]);
+  // static LEN_FILL = 1 + 16 + 8 + 8 + 1 + 1;
+  // static LEN_OUT = 1 + 16 + 8 + 8 + 1;
 
   constructor(arg: {
     header: EventQueueHeader;
@@ -165,36 +155,42 @@ export class EventQueue {
     this.callBackInfoLen = arg.callBackInfoLen;
   }
 
-  static parse(data: Buffer) {
-    return deserializeUnchecked(this.schema, EventQueue, data) as EventQueue;
+  static parse(callBackInfoLen: number, data: Buffer) {
+    return new EventQueue({
+      header: deserializeUnchecked(
+        EventQueueHeader.schema,
+        EventQueueHeader,
+        data
+      ) as EventQueueHeader,
+      buffer: [...data],
+      callBackInfoLen,
+    });
   }
 
-  static async load(connection: Connection, address: PublicKey) {
+  static async load(
+    connection: Connection,
+    address: PublicKey,
+    callBackInfoLen: number
+  ) {
     const accountInfo = await connection.getAccountInfo(address);
     if (!accountInfo?.data) {
       throw new Error("Invalid address provided");
     }
-    return this.parse(accountInfo.data);
+    return this.parse(callBackInfoLen, accountInfo.data);
   }
 
   parseEvent(idx: number) {
     let offset =
-      (idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
-      this.buffer.length;
+      EventQueueHeader.LEN +
+      this.header.registerSize +
+      ((idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
+        this.buffer.length);
     let data = Buffer.from(this.buffer.slice(offset));
     switch (data[0]) {
       case EventType.Fill:
-        return deserializeUnchecked(
-          EventQueue.schema,
-          EventFill,
-          data
-        ) as EventFill;
+        return EventFill.deserialize(this.callBackInfoLen, data) as EventFill;
       case EventType.Out:
-        return deserializeUnchecked(
-          EventQueue.schema,
-          EventOut,
-          data
-        ) as EventOut;
+        return EventOut.deserialize(this.callBackInfoLen, data) as EventOut;
       default:
         throw new Error("Invalid data provided");
     }
@@ -210,6 +206,17 @@ export class EventQueue {
   }
 
   static parseEventQueueHeader(data: Buffer) {
-    return deserialize(this.schema, EventQueueHeader, data) as EventQueueHeader;
+    return deserialize(
+      EventQueueHeader.schema,
+      EventQueueHeader,
+      data
+    ) as EventQueueHeader;
+  }
+
+  extractRegister(data: Buffer) {
+    return data.slice(
+      EventQueueHeader.LEN,
+      EventQueueHeader.LEN + this.header.registerSize
+    );
   }
 }
