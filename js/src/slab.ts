@@ -114,6 +114,8 @@ export class SlabHeader {
   leafCount: BN;
   marketAddress: PublicKey;
 
+  static LEN: number = 65;
+
   constructor(arg: {
     accountTag: number;
     bumpIndex: BN;

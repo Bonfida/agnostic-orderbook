@@ -21,7 +21,7 @@ export enum SelfTradeBehavior {
   AbortTransaction = 2,
 }
 
-export class OrderbookState {
+export class MarketState {
   tag: AccountTag;
   callerAuthority: PublicKey;
   eventQueue: PublicKey;
@@ -32,9 +32,11 @@ export class OrderbookState {
   feeBudget: BN;
   initialLamports: BN;
 
+  static LEN: number = 161;
+
   static schema: Schema = new Map([
     [
-      OrderbookState,
+      MarketState,
       {
         kind: "struct",
         fields: [
@@ -81,9 +83,9 @@ export class OrderbookState {
     }
     return deserialize(
       this.schema,
-      OrderbookState,
+      MarketState,
       accountInfo.data
-    ) as OrderbookState;
+    ) as MarketState;
   }
 
   async loadBidsSlab(connection: Connection) {

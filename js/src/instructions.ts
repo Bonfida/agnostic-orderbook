@@ -8,6 +8,7 @@ export class createMarketInstruction {
   tag: number;
   callerAuthority: PublicKey;
   callBackInfoLen: BN;
+  callBackIdLen: BN;
 
   static schema: Schema = new Map([
     [
@@ -18,15 +19,21 @@ export class createMarketInstruction {
           ["tag", "u8"],
           ["callerAuthority", [32]],
           ["callBackInfoLen", "u64"],
+          ["callBackIdLen", "u64"],
         ],
       },
     ],
   ]);
 
-  constructor(obj: { callerAuthority: Uint8Array; callBackInfoLen: BN }) {
+  constructor(obj: {
+    callerAuthority: Uint8Array;
+    callBackInfoLen: BN;
+    callBackIdLen: BN;
+  }) {
     this.tag = 0;
     this.callerAuthority = new PublicKey(obj.callerAuthority);
     this.callBackInfoLen = obj.callBackInfoLen;
+    this.callBackIdLen = obj.callBackIdLen;
   }
 
   serialize(): Uint8Array {
