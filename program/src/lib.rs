@@ -32,8 +32,12 @@ from the orderbook. The instruction only requires the `order_id`.
 
 ## Processing the queue
 
-On the caller program's side, the queue can be parsed as an [`EventQueue`][`state::EventQueue] object. Its [`peek_at`][`state::EventQueue::peek_at`] method can be used
+On the caller program's side, the queue can be parsed as an [`EventQueue`][`state::EventQueue`] object. Its [`peek_at`][`state::EventQueue::peek_at`] method can be used
 to retrieve particular events. Alternatively, the events can be iterated through with the object's `iter` method.
+
+An [`Event`][`state::Event`] object describes matching operations as well as purging of orders from the orderbook. Information about the matched parties is provided
+through the `callback_info` fields. An example of such information would be a user account or user wallet, enabling the caller program to perform a transfer of assets between
+those accounts. A prefix of len [`callback_id_len`][`state::MarketState`] of this information is also used by the program to detect matches which would result in self trading.
 
 Once event processing is over, it is essential to pop the processed events off the queue. This can be done through the [`consume_events`][`fn@instruction::consume_events`]
 primitive. In general, the event processing logic should be handled by a dedicated cranker on the caller program's side.
