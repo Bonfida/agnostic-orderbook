@@ -88,12 +88,9 @@ export class EventFill {
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventFill({
       takerSide: data.slice(1, 1).readInt8(),
-      makerOrderId: new BN(
-        Number(data.slice(2, 10).readBigUInt64LE()) +
-          2 ** 64 * Number(data.slice(10, 18).readBigUInt64LE())
-      ),
-      quoteSize: new BN(Number(data.slice(18, 26).readBigUInt64LE())),
-      assetSize: new BN(Number(data.slice(26, 34).readBigUInt64LE())),
+      makerOrderId: new BN(data.slice(2, 18), "le"),
+      quoteSize: new BN(data.slice(18, 26), "le"),
+      assetSize: new BN(data.slice(26, 34), "le"),
       makerCallbackInfo: [...data.slice(34, 34 + callbackInfoLen)],
       takerCallbackInfo: [
         ...data.slice(34 + callbackInfoLen, 34 + 2 * callbackInfoLen),
@@ -126,11 +123,8 @@ export class EventOut {
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventOut({
       side: data.slice(1, 1).readInt8(),
-      orderId: new BN(
-        Number(data.slice(2, 10).readBigUInt64LE()) +
-          2 ** 64 * Number(data.slice(10, 18).readBigUInt64LE())
-      ),
-      assetSize: new BN(Number(data.slice(18, 26).readBigUInt64LE())),
+      orderId: new BN(data.slice(2, 18), "le"),
+      assetSize: new BN(data.slice(18, 26), "le"),
       delete: data.slice(26).readUInt8(),
       callBackInfo: [...data.slice(27, 27 + callbackInfoLen)],
     });

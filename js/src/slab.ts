@@ -57,13 +57,11 @@ export class LeafNode {
   }
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new LeafNode({
-      key: new BN(
-        Number(data.slice(0, 8).readBigUInt64LE()) +
-          2 ** 64 * Number(data.slice(8, 16).readBigUInt64LE())
-      ),
+      key: new BN(data.slice(0, 16), "le"),
       callBackInfo: [...data.slice(16, 16 + callbackInfoLen)],
       assetQuantity: new BN(
-        Number(data.slice(16 + callbackInfoLen, 24 + callbackInfoLen))
+        data.slice(16 + callbackInfoLen, 24 + callbackInfoLen),
+        "le"
       ),
     });
   }
