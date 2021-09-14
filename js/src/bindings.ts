@@ -12,13 +12,16 @@ import { SlabHeader } from "./slab";
 import { createMarketInstruction } from "./instructions";
 import { PrimedTransaction } from "./types";
 
-const AAOB_ID = PublicKey.default;
+// Devnet
+const AAOB_ID = new PublicKey("2sgmVooraACQbzTABEzAr4k33FhUxBi8mkgfbFRKMWSX");
 
 export const createMarket = async (
   connection: Connection,
   callerAuthority: PublicKey,
   callBackInfoLen: BN,
   callBackIdLen: BN,
+  eventCapacity: number,
+  nodesCapacity: number,
   feePayer: PublicKey
 ): Promise<PrimedTransaction> => {
   let signers: Keypair[] = [];
@@ -26,28 +29,32 @@ export const createMarket = async (
 
   // Event queue account
   const eventQueue = new Keypair();
+  const eventQueueSize =
+    EventQueueHeader.LEN +
+    42 +
+    (1 + 33 + 2 * callBackInfoLen.toNumber()) * eventCapacity;
   const createEventQueueAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(
-      EventQueueHeader.LEN
+      eventQueueSize
     ),
     newAccountPubkey: eventQueue.publicKey,
     programId: AAOB_ID,
-    space: EventQueueHeader.LEN,
+    space: eventQueueSize,
   });
   signers.push(eventQueue);
   txInstructions.push(createEventQueueAccount);
 
   // Bids account
   const bids = new Keypair();
+  const nodeSize = Math.max(28, 24 + callBackInfoLen.toNumber());
+  const slabSize = SlabHeader.LEN + nodeSize * nodesCapacity;
   const createBidsAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
-    lamports: await connection.getMinimumBalanceForRentExemption(
-      SlabHeader.LEN
-    ),
+    lamports: await connection.getMinimumBalanceForRentExemption(slabSize),
     newAccountPubkey: bids.publicKey,
     programId: AAOB_ID,
-    space: SlabHeader.LEN,
+    space: slabSize,
   });
   signers.push(bids);
   txInstructions.push(createBidsAccount);
@@ -56,12 +63,10 @@ export const createMarket = async (
   const asks = new Keypair();
   const createAsksAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
-    lamports: await connection.getMinimumBalanceForRentExemption(
-      SlabHeader.LEN
-    ),
+    lamports: await connection.getMinimumBalanceForRentExemption(slabSize),
     newAccountPubkey: asks.publicKey,
     programId: AAOB_ID,
-    space: SlabHeader.LEN,
+    space: slabSize,
   });
   signers.push(asks);
   txInstructions.push(createAsksAccount);
