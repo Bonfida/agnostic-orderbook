@@ -6,7 +6,7 @@ import { SelfTradeBehavior } from "./market_state";
 
 export class createMarketInstruction {
   tag: number;
-  callerAuthority: PublicKey;
+  callerAuthority: Uint8Array;
   callBackInfoLen: BN;
   callBackIdLen: BN;
 
@@ -31,7 +31,7 @@ export class createMarketInstruction {
     callBackIdLen: BN;
   }) {
     this.tag = 0;
-    this.callerAuthority = new PublicKey(obj.callerAuthority);
+    this.callerAuthority = obj.callerAuthority;
     this.callBackInfoLen = obj.callBackInfoLen;
     this.callBackIdLen = obj.callBackIdLen;
   }

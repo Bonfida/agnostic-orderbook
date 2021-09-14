@@ -13,7 +13,9 @@ import { createMarketInstruction } from "./instructions";
 import { PrimedTransaction } from "./types";
 
 // Devnet
-const AAOB_ID = new PublicKey("2sgmVooraACQbzTABEzAr4k33FhUxBi8mkgfbFRKMWSX");
+export const AAOB_ID = new PublicKey(
+  "aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e"
+);
 
 export const createMarket = async (
   connection: Connection,
