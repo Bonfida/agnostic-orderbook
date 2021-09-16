@@ -1,5 +1,11 @@
 import { PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
+import {
+  Schema,
+  deserialize,
+  BinaryReader,
+  deserializeUnchecked,
+  serialize,
+} from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 
@@ -23,6 +29,8 @@ export class InnerNode {
   prefixLen: number;
   key: BN;
   children: number[];
+  static CHILD_OFFSET = 20;
+  static CHILD_SIZE = 4;
 
   static schema: Schema = new Map([
     [
@@ -197,6 +205,7 @@ export class Slab {
     this.slotSize = Math.max(arg.callBackInfoLen + 8 + 16 + 1, 32);
     this.data = arg.data;
   }
+
   // Get a specific node (i.e fetch 1 order)
   getNodeByKey(key: number) {
     let pointer = this.header.rootNode;
@@ -238,6 +247,105 @@ export class Slab {
       }
       if (node instanceof LeafNode) {
         return node;
+      }
+    }
+  }
+
+  // Get the atmost max_nb_nodes smallest or biggest
+  // nodes according to the critbit order
+  getMinMaxNodes(max: boolean, max_nb_nodes: number) {
+    let data_copy = Buffer.alloc(this.data.length);
+    this.data.copy(data_copy);
+
+    let minMaxNodes: LeafNode[] = [];
+
+    // Perform a minMax descent, keeping track of parent innner node
+    // and deleting found leafNode from the data_copy tree.
+    // Iterate max_nb_nodes times to find the minMaxnodes.
+    for (let i = 0; i++; i < max_nb_nodes) {
+      let parentPointer: number;
+      let parentNode: InnerNode;
+      let grandParentPointer = -1;
+
+      let pointer = this.header.rootNode;
+      let critBit = max ? 1 : 0;
+      let direction = critBit;
+      let gpre_direction = critBit; // grand parent direction
+
+      let offset = SlabHeader.LEN + pointer * this.slotSize;
+      // Parse root node
+      let node = parseNode(
+        this.callBackInfoLen,
+        this.data.slice(offset, offset + this.slotSize)
+      );
+
+      if (node instanceof LeafNode) {
+        minMaxNodes.push(node);
+        return minMaxNodes;
+      }
+
+      if (node instanceof InnerNode) {
+        parentNode = node;
+        parentPointer = pointer;
+
+        while (true) {
+          let offset = SlabHeader.LEN + pointer * this.slotSize;
+          let node = parseNode(
+            this.callBackInfoLen,
+            this.data.slice(offset, offset + this.slotSize)
+          );
+
+          if (node instanceof LeafNode) {
+            minMaxNodes.push(node);
+            // Cut the found leaf node from the tree
+            if (parentNode.children[(direction + 1) % 2] == 0) {
+              // Cutting the last child of an inner node
+              if (grandParentPointer === -1) {
+                // Cutting the last leaf child of the root
+                return minMaxNodes;
+              } else {
+                // Cutting the parent directly
+                let grandParentOffset =
+                  SlabHeader.LEN +
+                  grandParentPointer * this.slotSize +
+                  InnerNode.CHILD_OFFSET +
+                  InnerNode.CHILD_SIZE * gpre_direction;
+                data_copy.fill(
+                  0,
+                  grandParentOffset,
+                  grandParentOffset + InnerNode.CHILD_SIZE
+                );
+              }
+            } else {
+              // Cutting the leafnode
+              let parentOffset =
+                SlabHeader.LEN +
+                parentPointer * this.slotSize +
+                InnerNode.CHILD_OFFSET +
+                InnerNode.CHILD_SIZE * direction;
+              data_copy.fill(
+                0,
+                parentOffset,
+                parentOffset + InnerNode.CHILD_SIZE
+              );
+            }
+
+            break;
+          }
+
+          if (node instanceof InnerNode) {
+            gpre_direction = direction;
+            if (!pointer) {
+              direction = (critBit + 1) % 2;
+            } else {
+              direction = critBit;
+            }
+            pointer = node.children[direction];
+            grandParentPointer = parentPointer;
+            parentPointer = pointer;
+            parentNode = node;
+          }
+        }
       }
     }
   }
