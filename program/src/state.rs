@@ -204,7 +204,7 @@ pub struct EventQueueHeader {
 }
 
 #[allow(missing_docs)]
-pub const EVENT_QUEUE_HEADER_LEN: usize = size_of::<EventQueueHeader>();
+pub const EVENT_QUEUE_HEADER_LEN: usize = 37;
 
 impl EventQueueHeader {
     pub(crate) fn initialize(callback_info_len: usize) -> Self {

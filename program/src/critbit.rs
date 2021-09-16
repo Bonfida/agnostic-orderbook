@@ -186,8 +186,7 @@ struct SlabHeader {
     leaf_count: u64,
     market_address: Pubkey,
 }
-
-pub const SLAB_HEADER_LEN: usize = size_of::<SlabHeader>();
+pub const SLAB_HEADER_LEN: usize = 65;
 
 pub struct Slab<'a> {
     header: SlabHeader,
@@ -255,7 +254,7 @@ impl<'a> Slab<'a> {
         ((self.buffer.borrow().len() - SLAB_HEADER_LEN) / self.slot_size) as u64
     }
 
-    pub(crate) fn get_node(&self, key: u32) -> Option<Node> {
+    pub fn get_node(&self, key: u32) -> Option<Node> {
         let offset = SLAB_HEADER_LEN + (key as usize) * self.slot_size;
         // println!("key: {:?}, slot_size: {:?}", key, self.slot_size);
         let node = Node::deserialize(
@@ -331,7 +330,7 @@ impl<'a> Slab<'a> {
 
 // Critbit tree walks
 impl<'a> Slab<'a> {
-    fn root(&self) -> Option<NodeHandle> {
+    pub fn root(&self) -> Option<NodeHandle> {
         if self.header.leaf_count == 0 {
             return None;
         }
