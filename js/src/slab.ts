@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, BinaryReader } from "borsh";
+import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 
@@ -93,13 +93,13 @@ export function parseNode(
     case 0:
       throw new Error("node is unitialized");
     case 1:
-      return deserialize(InnerNode.schema, InnerNode, data.slice(1));
+      return deserializeUnchecked(InnerNode.schema, InnerNode, data.slice(1));
     case 2:
       return LeafNode.deserialize(callbackinfoLen, data.slice(1));
     case 3:
-      return deserialize(FreeNode.schema, FreeNode, data.slice(1));
+      return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(1));
     case 4:
-      return deserialize(FreeNode.schema, FreeNode, data.slice(1));
+      return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(1));
   }
 }
 
@@ -159,6 +159,7 @@ export class Slab {
   header: SlabHeader;
   callBackInfoLen: number;
   slotSize: number;
+  // data: Buffer;
 
   // @ts-ignore
   static schema: Schema = new Map([
@@ -194,5 +195,30 @@ export class Slab {
     this.header = arg.header;
     this.callBackInfoLen = arg.callBackInfoLen;
     this.slotSize = arg.slotSize;
+  }
+  // Get a specific node (i.e fetch 1 order)
+  getNodeByKey(slabBuffer: Buffer, key: number, callBackInfoLen: number) {
+    const slotSize = Math.max(callBackInfoLen + 8 + 16 + 1, 32);
+
+    let pointer = this.header.rootNode;
+    let offset = SlabHeader.LEN;
+
+    while (true) {
+      let node = parseNode(
+        callBackInfoLen,
+        slabBuffer.slice(
+          offset + pointer * slotSize,
+          offset + (pointer + 1) * slotSize
+        )
+      );
+      if (node instanceof InnerNode) {
+        const critBitMaks = (1 << 127) >> node.prefixLen;
+        let critBit = key & critBitMaks;
+        pointer = node.children[critBit];
+      }
+      if (node instanceof LeafNode) {
+        return node;
+      }
+    }
   }
 }

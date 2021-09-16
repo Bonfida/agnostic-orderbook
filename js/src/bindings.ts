@@ -49,7 +49,7 @@ export const createMarket = async (
 
   // Bids account
   const bids = new Keypair();
-  const nodeSize = Math.max(28, 24 + callBackInfoLen.toNumber());
+  const nodeSize = Math.max(32, 25 + callBackInfoLen.toNumber());
   const slabSize = SlabHeader.LEN + nodeSize * nodesCapacity;
   const createBidsAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
