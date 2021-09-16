@@ -91,7 +91,7 @@ export function parseNode(
 ): undefined | FreeNode | LeafNode | InnerNode {
   switch (data[0]) {
     case 0:
-      throw "node is unitialized";
+      throw new Error("node is unitialized");
     case 1:
       return deserialize(InnerNode.schema, InnerNode, data.slice(1));
     case 2:
