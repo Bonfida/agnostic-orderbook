@@ -222,7 +222,7 @@ impl<'a> Slab<'a> {
     }
 
     pub fn compute_slot_size(callback_info_len: usize) -> usize {
-        std::cmp::max(callback_info_len + 8 + 16 + 4, INNER_NODE_SIZE)
+        std::cmp::max(callback_info_len + 8 + 16 + 1, INNER_NODE_SIZE)
     }
 
     pub(crate) fn initialize(
