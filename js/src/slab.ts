@@ -159,7 +159,7 @@ export class Slab {
   header: SlabHeader;
   callBackInfoLen: number;
   slotSize: number;
-  // data: Buffer;
+  data: Buffer;
 
   // @ts-ignore
   static schema: Schema = new Map([
@@ -190,31 +190,51 @@ export class Slab {
   constructor(arg: {
     header: SlabHeader;
     callBackInfoLen: number;
-    slotSize: number;
+    data: Buffer;
   }) {
     this.header = arg.header;
     this.callBackInfoLen = arg.callBackInfoLen;
-    this.slotSize = arg.slotSize;
+    this.slotSize = Math.max(arg.callBackInfoLen + 8 + 16 + 1, 32);
+    this.data = arg.data;
   }
   // Get a specific node (i.e fetch 1 order)
-  getNodeByKey(slabBuffer: Buffer, key: number, callBackInfoLen: number) {
-    const slotSize = Math.max(callBackInfoLen + 8 + 16 + 1, 32);
-
+  getNodeByKey(key: number) {
     let pointer = this.header.rootNode;
     let offset = SlabHeader.LEN;
-
     while (true) {
       let node = parseNode(
-        callBackInfoLen,
-        slabBuffer.slice(
-          offset + pointer * slotSize,
-          offset + (pointer + 1) * slotSize
+        this.callBackInfoLen,
+        this.data.slice(
+          offset + pointer * this.slotSize,
+          offset + (pointer + 1) * this.slotSize
         )
       );
       if (node instanceof InnerNode) {
         const critBitMaks = (1 << 127) >> node.prefixLen;
         let critBit = key & critBitMaks;
         pointer = node.children[critBit];
+      }
+      if (node instanceof LeafNode) {
+        return node;
+      }
+    }
+  }
+
+  getMinMax(max: boolean) {
+    let pointer = this.header.rootNode;
+    let offset = SlabHeader.LEN;
+    let critBit = max ? 1 : 0;
+    while (true) {
+      let node = parseNode(
+        this.callBackInfoLen,
+        this.data.slice(
+          offset + pointer * this.slotSize,
+          offset + (pointer + 1) * this.slotSize
+        )
+      );
+      if (node instanceof InnerNode) {
+        pointer = node.children[critBit];
+        if (!pointer) pointer = node.children[(critBit + 1) % 2];
       }
       if (node instanceof LeafNode) {
         return node;
