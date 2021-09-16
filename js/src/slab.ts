@@ -114,6 +114,24 @@ export class SlabHeader {
 
   static LEN: number = 65;
 
+  static schema: Schema = new Map([
+    [
+      SlabHeader,
+      {
+        kind: "struct",
+        fields: [
+          ["accountTag", "u8"],
+          ["bumpIndex", "u64"],
+          ["freeListLen", "u64"],
+          ["freeListHead", "u32"],
+          ["rootNode", "u32"],
+          ["leafCount", "u64"],
+          ["marketAddress", [32]],
+        ],
+      },
+    ],
+  ]);
+
   constructor(arg: {
     accountTag: number;
     bumpIndex: BN;
@@ -131,6 +149,10 @@ export class SlabHeader {
     this.leafCount = arg.leafCount;
     this.marketAddress = new PublicKey(arg.marketAddress);
   }
+
+  static deserialize(data: Buffer) {
+    return deserialize(this.schema, SlabHeader, data);
+  }
 }
 
 export class Slab {
@@ -144,7 +166,7 @@ export class Slab {
       SlabHeader,
       {
         kind: "struct",
-        values: [
+        fields: [
           ["accountTag", "u8"],
           ["bumpIndex", "u64"],
           ["freeListLen", "u64"],
@@ -159,14 +181,13 @@ export class Slab {
       Slab,
       {
         kind: "struct",
-        values: [["header", SlabHeader]],
+        fields: [["header", SlabHeader]],
       },
     ],
   ]);
 
   constructor(arg: {
     header: SlabHeader;
-    buffer: number[];
     callBackInfoLen: number;
     slotSize: number;
   }) {
