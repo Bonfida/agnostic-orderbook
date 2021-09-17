@@ -50,10 +50,10 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         check_account_owner(a.event_queue, program_id).unwrap();
         check_signer(a.authority).unwrap();
         check_signer(a.msrm_token_account_owner).unwrap();
-        check_account_owner(a.msrm_token_account, &spl_token::ID).unwrap();
 
         #[cfg(not(feature = "permissionless-crank"))]
         {
+            check_account_owner(a.msrm_token_account, &spl_token::ID).unwrap();
             let token_account =
                 spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
             if &token_account.owner != a.msrm_token_account_owner.key {
