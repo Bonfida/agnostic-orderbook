@@ -1,11 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import {
-  Schema,
-  deserialize,
-  BinaryReader,
-  deserializeUnchecked,
-  serialize,
-} from "borsh";
+import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 import { getPriceFromKey } from "./utils";
