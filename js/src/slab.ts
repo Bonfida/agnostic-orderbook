@@ -8,6 +8,7 @@ import {
 } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
+import { getPriceFromKey } from "./utils";
 
 ///////////////////////////////////////////////
 ////// Nodes and Slab
@@ -251,102 +252,61 @@ export class Slab {
     }
   }
 
-  // Get the atmost max_nb_nodes smallest or biggest
-  // nodes according to the critbit order
-  getMinMaxNodes(max: boolean, max_nb_nodes: number) {
-    let data_copy = Buffer.alloc(this.data.length);
-    this.data.copy(data_copy);
-
-    let minMaxNodes: LeafNode[] = [];
-
-    // Perform a minMax descent, keeping track of parent innner node
-    // and deleting found leafNode from the data_copy tree.
-    // Iterate max_nb_nodes times to find the minMaxnodes.
-    for (let i = 0; i++; i < max_nb_nodes) {
-      let parentPointer: number;
-      let parentNode: InnerNode;
-      let grandParentPointer = -1;
-
-      let pointer = this.header.rootNode;
-      let critBit = max ? 1 : 0;
-      let direction = critBit;
-      let gpre_direction = critBit; // grand parent direction
-
+  // Descend into the tree following a given direction
+  *items(descending = false): Generator<{
+    key: BN;
+    callBackInfo: number[];
+    assetQuantity: BN;
+  }> {
+    if (this.header.leafCount.eq(new BN(0))) {
+      return;
+    }
+    const stack = [this.header.rootNode];
+    while (stack.length > 0) {
+      const pointer = stack.pop();
+      if (!pointer) throw "unreachable!";
       let offset = SlabHeader.LEN + pointer * this.slotSize;
-      // Parse root node
-      let node = parseNode(
+      const node = parseNode(
         this.callBackInfoLen,
         this.data.slice(offset, offset + this.slotSize)
       );
-
       if (node instanceof LeafNode) {
-        minMaxNodes.push(node);
-        return minMaxNodes;
-      }
-
-      if (node instanceof InnerNode) {
-        parentNode = node;
-        parentPointer = pointer;
-
-        while (true) {
-          let offset = SlabHeader.LEN + pointer * this.slotSize;
-          let node = parseNode(
-            this.callBackInfoLen,
-            this.data.slice(offset, offset + this.slotSize)
-          );
-
-          if (node instanceof LeafNode) {
-            minMaxNodes.push(node);
-            // Cut the found leaf node from the tree
-            if (parentNode.children[(direction + 1) % 2] == 0) {
-              // Cutting the last child of an inner node
-              if (grandParentPointer === -1) {
-                // Cutting the last leaf child of the root
-                return minMaxNodes;
-              } else {
-                // Cutting the parent directly
-                let grandParentOffset =
-                  SlabHeader.LEN +
-                  grandParentPointer * this.slotSize +
-                  InnerNode.CHILD_OFFSET +
-                  InnerNode.CHILD_SIZE * gpre_direction;
-                data_copy.fill(
-                  0,
-                  grandParentOffset,
-                  grandParentOffset + InnerNode.CHILD_SIZE
-                );
-              }
-            } else {
-              // Cutting the leafnode
-              let parentOffset =
-                SlabHeader.LEN +
-                parentPointer * this.slotSize +
-                InnerNode.CHILD_OFFSET +
-                InnerNode.CHILD_SIZE * direction;
-              data_copy.fill(
-                0,
-                parentOffset,
-                parentOffset + InnerNode.CHILD_SIZE
-              );
-            }
-
-            break;
-          }
-
-          if (node instanceof InnerNode) {
-            gpre_direction = direction;
-            if (!pointer) {
-              direction = (critBit + 1) % 2;
-            } else {
-              direction = critBit;
-            }
-            pointer = node.children[direction];
-            grandParentPointer = parentPointer;
-            parentPointer = pointer;
-            parentNode = node;
-          }
+        yield node;
+      } else if (node instanceof InnerNode) {
+        if (descending) {
+          stack.push(node.children[0], node.children[1]);
+        } else {
+          stack.push(node.children[1], node.children[0]);
         }
       }
     }
+  }
+
+  // Get the market order depth
+  getL2Depth(depth: number, max: boolean) {
+    const levels: [BN, BN][] = []; // (price, size)
+    for (const { key, assetQuantity } of this.items(!max)) {
+      const price = getPriceFromKey(key);
+      if (levels.length > 0 && levels[levels.length - 1][0].eq(price)) {
+        levels[levels.length - 1][1].iadd(assetQuantity);
+      } else if (levels.length === depth) {
+        break;
+      } else {
+        levels.push([price, assetQuantity]);
+      }
+    }
+    return levels;
+  }
+
+  // Get the atmost maxNbOrders present best or worst orders by price.
+  getMinMaxNodes(maxNbOrders: number, minOrMax: boolean) {
+    const minMaxOrders: LeafNode[] = [];
+    for (const leafNode of this.items(!minOrMax)) {
+      if (minMaxOrders.length === maxNbOrders) {
+        break;
+      }
+      minMaxOrders.push(leafNode);
+    }
+    return minMaxOrders;
   }
 }
