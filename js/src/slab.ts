@@ -2,7 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
-import { getPriceFromKey } from "./utils";
+import { Price } from "./types";
 import { find_max, find_min, find_l2_depth } from "dex-wasm";
 
 ///////////////////////////////////////////////
@@ -347,9 +347,4 @@ export class Slab {
   test(data: Buffer) {
     return find_max(data, BigInt(this.callBackInfoLen), BigInt(this.slotSize));
   }
-}
-
-export interface Price {
-  quantity: number;
-  price: number;
 }

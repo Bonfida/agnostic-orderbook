@@ -22,7 +22,7 @@ const test = async () => {
     callBackInfoLen: 33,
     data,
   });
-  console.log("Test", slab.test(data));
+  console.log("Test", slab.getL2Depth(10, false));
 };
 
 test();
