@@ -355,6 +355,63 @@ impl<'a> Slab<'a> {
         self.find_min_max(true)
     }
 
+    pub fn find_node_sequence(&self, depth: usize, increasing: bool) -> Vec<NodeHandle> {
+        let root = self.root();
+        if root.is_none() {
+            return vec![];
+        }
+        let mut result = Vec::with_capacity(depth);
+        let mut search_stack = vec![root.unwrap()];
+        while result.len() != depth {
+            let current = search_stack.pop();
+            if current.is_none() {
+                break;
+            }
+            let node = self.get_node(current.unwrap()).unwrap();
+            if let Node::Inner(ref inner) = node {
+                search_stack.push(inner.children[increasing as usize]);
+                search_stack.push(inner.children[1 - increasing as usize]);
+            } else {
+                result.push(current.unwrap());
+            }
+        }
+        result
+    }
+
+    pub fn find_l2_depth(&self, depth: usize, increasing: bool) -> Vec<u64> {
+        let root = self.root();
+        if root.is_none() {
+            return vec![];
+        }
+        let mut result = Vec::with_capacity(depth);
+        let mut search_stack = vec![root.unwrap()];
+        while result.len() != depth {
+            let current = search_stack.pop();
+            if current.is_none() {
+                break;
+            }
+            let node = self.get_node(current.unwrap()).unwrap();
+            match node {
+                Node::Inner(ref inner) => {
+                    search_stack.push(inner.children[increasing as usize]);
+                    search_stack.push(inner.children[1 - increasing as usize]);
+                }
+                Node::Leaf(ref leaf) => {
+                    let leaf_price = leaf.price();
+                    if result.last().map(|p| p == &leaf_price).unwrap_or(false) {
+                        let idx = result.len() - 2;
+                        result[idx] += leaf.asset_quantity;
+                    } else {
+                        result.push(leaf.asset_quantity);
+                        result.push(leaf_price);
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        result
+    }
+
     pub fn remove_by_key(&mut self, search_key: u128) -> Option<Node> {
         let mut parent_h = self.root()?;
         let mut child_h;

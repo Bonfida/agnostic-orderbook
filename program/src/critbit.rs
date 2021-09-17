@@ -5,7 +5,7 @@ use solana_program::account_info::AccountInfo;
 use solana_program::pubkey::Pubkey;
 use std::convert::TryInto;
 use std::io::Write;
-use std::{cell::RefCell, convert::identity, mem::size_of, rc::Rc};
+use std::{cell::RefCell, convert::identity, rc::Rc};
 // A Slab contains the data for a slab header and an array of nodes of a critbit tree
 // whose leafs contain the data referencing an order of the orderbook.
 
@@ -211,6 +211,19 @@ impl<'a> Slab<'a> {
             callback_info_len,
             slot_size,
             header: SlabHeader::deserialize(&mut (&acc_info.data.borrow() as &[u8])).unwrap(),
+        }
+    }
+
+    pub fn new(
+        buffer: Rc<RefCell<&'a mut [u8]>>,
+        callback_info_len: usize,
+        slot_size: usize,
+    ) -> Self {
+        Self {
+            header: SlabHeader::deserialize(&mut (&buffer.borrow() as &[u8])).unwrap(),
+            buffer: Rc::clone(&buffer),
+            callback_info_len,
+            slot_size,
         }
     }
 

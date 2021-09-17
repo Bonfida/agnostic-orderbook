@@ -3,6 +3,7 @@ import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 import { getPriceFromKey } from "./utils";
+import { find_max, find_min, find_l2_depth } from "dex-wasm";
 
 ///////////////////////////////////////////////
 ////// Nodes and Slab
@@ -240,25 +241,32 @@ export class Slab {
    * @returns Returns the min or max node of the Slab
    */
   getMinMax(max: boolean) {
-    let pointer = this.header.rootNode;
-    let offset = SlabHeader.LEN;
-    let critBit = max ? 1 : 0;
-    while (true) {
-      let node = parseNode(
-        this.callBackInfoLen,
-        this.data.slice(
-          offset + pointer * this.slotSize,
-          offset + (pointer + 1) * this.slotSize
-        )
+    let pointer;
+    if (max) {
+      pointer = find_max(
+        this.data,
+        BigInt(this.callBackInfoLen),
+        BigInt(this.slotSize)
       );
-      if (node instanceof InnerNode) {
-        pointer = node.children[critBit];
-        if (!pointer) pointer = node.children[(critBit + 1) % 2];
-      }
-      if (node instanceof LeafNode) {
-        return node;
-      }
+    } else {
+      pointer = find_min(
+        this.data,
+        BigInt(this.callBackInfoLen),
+        BigInt(this.slotSize)
+      );
     }
+    let offset = SlabHeader.LEN;
+    if (!pointer) {
+      throw new Error("Empty slab");
+    }
+    let node = parseNode(
+      this.callBackInfoLen,
+      this.data.slice(
+        offset + pointer * this.slotSize,
+        offset + (pointer + 1) * this.slotSize
+      )
+    );
+    return node;
   }
 
   /**
@@ -301,19 +309,22 @@ export class Slab {
    * @param max Boolean (false for asks and true for bids)
    * @returns Returns an array made of [price, size] elements
    */
-  getL2Depth(depth: number, max: boolean) {
-    const levels: [BN, BN][] = []; // (price, size)
-    for (const { key, assetQuantity } of this.items(!max)) {
-      const price = getPriceFromKey(key);
-      if (levels.length > 0 && levels[levels.length - 1][0].eq(price)) {
-        levels[levels.length - 1][1].iadd(assetQuantity);
-      } else if (levels.length === depth) {
-        break;
-      } else {
-        levels.push([price, assetQuantity]);
-      }
+  getL2Depth(depth: number, increasing: boolean): Price[] {
+    let raw = find_l2_depth(
+      this.data,
+      BigInt(this.callBackInfoLen),
+      BigInt(this.slotSize),
+      BigInt(depth),
+      increasing
+    );
+    let result: Price[] = [];
+    for (let i = 0; i < raw.length / 2; i++) {
+      result.push({
+        quantity: Number(raw[2 * i]),
+        price: Number(raw[2 * i + 1]) / 2 ** 32,
+      });
     }
-    return levels;
+    return result;
   }
 
   /**
@@ -332,4 +343,9 @@ export class Slab {
     }
     return minMaxOrders;
   }
+}
+
+export interface Price {
+  quantity: number;
+  price: number;
 }
