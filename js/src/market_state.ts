@@ -7,6 +7,7 @@ import BN from "bn.js";
 ////// Market State
 ///////////////////////////////////////////////
 
+/** @enum {number} */
 export enum AccountTag {
   Initialized = 0,
   Market = 1,
@@ -15,12 +16,16 @@ export enum AccountTag {
   Asks = 4,
 }
 
+/** @enum {number} */
 export enum SelfTradeBehavior {
   DecrementTake = 0,
   CancelProvide = 1,
   AbortTransaction = 2,
 }
 
+/**
+ * MarketState object
+ */
 export class MarketState {
   tag: AccountTag;
   callerAuthority: PublicKey;
@@ -76,6 +81,12 @@ export class MarketState {
     this.initialLamports = arg.initialLamports;
   }
 
+  /**
+   * Loads a market from its address
+   * @param connection The solana connection object to the RPC node
+   * @param market The address of the market to load
+   * @returns Returns a market state object
+   */
   static async retrieve(connection: Connection, market: PublicKey) {
     const accountInfo = await connection.getAccountInfo(market);
     if (!accountInfo?.data) {
@@ -88,6 +99,11 @@ export class MarketState {
     ) as MarketState;
   }
 
+  /**
+   * Loads the bids Slab associated to the market
+   * @param connection The solana connection object to the RPC node
+   * @returns Returns a Slab object
+   */
   async loadBidsSlab(connection: Connection) {
     const bidsInfo = await connection.getAccountInfo(this.bids);
     if (!bidsInfo?.data) {
@@ -96,6 +112,11 @@ export class MarketState {
     return deserialize(Slab.schema, Slab, bidsInfo.data) as Slab;
   }
 
+  /**
+   * Loads the asks Slab associated to the market
+   * @param connection The solana connection object to the RPC node
+   * @returns Returns a Slab object
+   */
   async loadAsksSlab(connection: Connection) {
     const asksInfo = await connection.getAccountInfo(this.asks);
     if (!asksInfo?.data) {

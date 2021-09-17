@@ -17,6 +17,19 @@ export const AAOB_ID = new PublicKey(
   "aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e"
 );
 
+/**
+ *
+ * @param connection The solana connection object to the RPC node
+ * @param callerAuthority The caller authority will be the required signer for all market instructions.
+ * Callback information can be used by the caller to attach specific information to all orders.
+ * In practice, it will almost always be a program-derived address.
+ * @param callBackInfoLen An example of this would be to store a public key to uniquely identify the owner of a particular order. This example would require a value of 32
+ * @param callBackIdLen The prefix length of callback information which is used to identify self-trading in this example
+ * @param eventCapacity The capacity of an event
+ * @param nodesCapacity The capacity of a node
+ * @param feePayer The fee payer of the transaction
+ * @returns
+ */
 export const createMarket = async (
   connection: Connection,
   callerAuthority: PublicKey,

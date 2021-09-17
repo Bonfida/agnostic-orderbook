@@ -88,6 +88,12 @@ export class FreeNode {
   }
 }
 
+/**
+ * Deserializes a node buffer
+ * @param callbackinfoLen Length of the callback info
+ * @param data Buffer to deserialize
+ * @returns Returns a node
+ */
 export function parseNode(
   callbackinfoLen: number,
   data: Buffer
@@ -201,7 +207,11 @@ export class Slab {
     this.data = arg.data;
   }
 
-  // Get a specific node (i.e fetch 1 order)
+  /**
+   * Returns a node by its key
+   * @param key Key of the node to fetch
+   * @returns A node LeafNode object
+   */
   getNodeByKey(key: number) {
     let pointer = this.header.rootNode;
     let offset = SlabHeader.LEN;
@@ -224,6 +234,11 @@ export class Slab {
     }
   }
 
+  /**
+   * Return min or max node of the critbit tree
+   * @param max Boolean (false for best asks and true for best bids)
+   * @returns Returns the min or max node of the Slab
+   */
   getMinMax(max: boolean) {
     let pointer = this.header.rootNode;
     let offset = SlabHeader.LEN;
@@ -246,7 +261,11 @@ export class Slab {
     }
   }
 
-  // Descend into the tree following a given direction
+  /**
+   * Walkdown the critbit tree
+   * @param descending
+   * @returns
+   */
   *items(descending = false): Generator<{
     key: BN;
     callBackInfo: number[];
@@ -276,7 +295,12 @@ export class Slab {
     }
   }
 
-  // Get the market order depth
+  /**
+   * Returns an array of [price, size] given a certain depth
+   * @param depth Depth to fetch
+   * @param max Boolean (false for asks and true for bids)
+   * @returns Returns an array made of [price, size] elements
+   */
   getL2Depth(depth: number, max: boolean) {
     const levels: [BN, BN][] = []; // (price, size)
     for (const { key, assetQuantity } of this.items(!max)) {
@@ -292,10 +316,15 @@ export class Slab {
     return levels;
   }
 
-  // Get the atmost maxNbOrders present best or worst orders by price.
-  getMinMaxNodes(maxNbOrders: number, minOrMax: boolean) {
+  /**
+   * Returns the top maxNbOrders (not aggregated by price)
+   * @param maxNbOrders
+   * @param max Boolean (false for asks and true for bids)
+   * @returns Returns an array of LeafNode object
+   */
+  getMinMaxNodes(maxNbOrders: number, max: boolean) {
     const minMaxOrders: LeafNode[] = [];
-    for (const leafNode of this.items(!minOrMax)) {
+    for (const leafNode of this.items(!max)) {
       if (minMaxOrders.length === maxNbOrders) {
         break;
       }

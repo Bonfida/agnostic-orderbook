@@ -3,15 +3,21 @@ import { Schema, deserialize, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 
-///////////////////////////////////////////////
-////// Event Queue
-///////////////////////////////////////////////
-
+/** @enum {number} */
 export enum EventType {
   Fill = 0,
   Out = 1,
 }
 
+/** @enum {number} */
+export enum Side {
+  Bid = 0,
+  Ask = 1,
+}
+
+/**
+ * Event queue header object
+ */
 export class EventQueueHeader {
   tag: AccountTag;
   head: BN;
@@ -56,11 +62,9 @@ export class EventQueueHeader {
   }
 }
 
-export enum Side {
-  Bid = 0,
-  Ask = 1,
-}
-
+/**
+ * Event fill object
+ */
 export class EventFill {
   takerSide: Side;
   makerOrderId: BN;
@@ -85,6 +89,12 @@ export class EventFill {
     this.takerCallbackInfo = arg.takerCallbackInfo;
   }
 
+  /**
+   * Deserialize a buffer into an EventFill object
+   * @param callbackInfoLen Length of the callback information
+   * @param data Buffer to deserialize
+   * @returns Returns an EventFill object
+   */
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventFill({
       takerSide: data.slice(1, 1).readInt8(),
@@ -99,6 +109,9 @@ export class EventFill {
   }
 }
 
+/**
+ * EventOut object
+ */
 export class EventOut {
   side: Side;
   orderId: BN;
@@ -120,6 +133,12 @@ export class EventOut {
     this.callBackInfo = arg.callBackInfo;
   }
 
+  /**
+   * Deserialize a buffer into an EventOut object
+   * @param callbackInfoLen Length of the callback information
+   * @param data Buffer to deserialize
+   * @returns Returns an EventOut object
+   */
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventOut({
       side: data.slice(1, 1).readInt8(),
@@ -131,13 +150,13 @@ export class EventOut {
   }
 }
 
+/**
+ * Event queue object
+ */
 export class EventQueue {
   header: EventQueueHeader;
   buffer: number[];
   callBackInfoLen: number;
-
-  // static LEN_FILL = 1 + 16 + 8 + 8 + 1 + 1;
-  // static LEN_OUT = 1 + 16 + 8 + 8 + 1;
 
   constructor(arg: {
     header: EventQueueHeader;
@@ -149,6 +168,12 @@ export class EventQueue {
     this.callBackInfoLen = arg.callBackInfoLen;
   }
 
+  /**
+   * Deserialize a buffer into an EventQueue object
+   * @param callBackInfoLen Length of the callback information
+   * @param data Buffer to deserialize
+   * @returns Returns an EventQueue object
+   */
   static parse(callBackInfoLen: number, data: Buffer) {
     return new EventQueue({
       header: deserializeUnchecked(
@@ -161,6 +186,13 @@ export class EventQueue {
     });
   }
 
+  /**
+   * Loads the event queue from its address
+   * @param connection The solana connection object to the RPC node
+   * @param address The address of the event queue
+   * @param callBackInfoLen The length of the callback information
+   * @returns Returns an EventQueue object
+   */
   static async load(
     connection: Connection,
     address: PublicKey,
@@ -173,6 +205,11 @@ export class EventQueue {
     return this.parse(callBackInfoLen, accountInfo.data);
   }
 
+  /**
+   * Returns an event from its index in the event queue
+   * @param idx Index of the event to parse
+   * @returns Returns an Event object
+   */
   parseEvent(idx: number) {
     let offset =
       EventQueueHeader.LEN +
@@ -190,6 +227,11 @@ export class EventQueue {
     }
   }
 
+  /**
+   * Returns fill events from the event queue
+   * @param limit Optional limit parameter
+   * @returns An array of EventFill
+   */
   parseFill(limit?: number) {
     const n = limit
       ? Math.min(limit, this.header.count.toNumber())
@@ -199,6 +241,11 @@ export class EventQueue {
       .filter((e) => e instanceof EventFill);
   }
 
+  /**
+   * Deserialize a buffer into an EventQueueHeader object
+   * @param data Buffer to deserialize
+   * @returns Returns an EventQueueHeader object
+   */
   static parseEventQueueHeader(data: Buffer) {
     return deserialize(
       EventQueueHeader.schema,
@@ -207,6 +254,11 @@ export class EventQueue {
     ) as EventQueueHeader;
   }
 
+  /**
+   * Extract the event queue registrar
+   * @param data Buffer to extract the registrar from
+   * @returns Returns the event queue registrar data as a buffer
+   */
   extractRegister(data: Buffer) {
     return data.slice(
       EventQueueHeader.LEN,

@@ -40,6 +40,15 @@ export class createMarketInstruction {
     return serialize(createMarketInstruction.schema, this);
   }
 
+  /**
+   * Returns a TransactionInstruction to create a market
+   * @param aaobId Program ID of the AAOB
+   * @param market Address of the market
+   * @param eventQueue Address of the event queue
+   * @param bids Address of the bids slab
+   * @param asks Address of asks slab
+   * @returns Returns a TransactionInstruction object
+   */
   getInstruction(
     aaobId: PublicKey,
     market: PublicKey,
@@ -143,6 +152,16 @@ export class newOrderInstruction {
     return serialize(newOrderInstruction.schema, this);
   }
 
+  /**
+   * Returns a TransactionInstruction to place an order
+   * @param aaobId Program ID of the AAOB
+   * @param market Address of the market
+   * @param eventQueue Address of the event queue
+   * @param bids Address of the bids slab
+   * @param asks Address of the asks slab
+   * @param authority Address of the market authority
+   * @returns Returns a TransactionInstruction object
+   */
   getInstruction(
     aaobId: PublicKey,
     market: PublicKey,
@@ -219,6 +238,15 @@ export class consumeEventInstruction {
     return serialize(consumeEventInstruction.schema, this);
   }
 
+  /**
+   * Returns a TransactionInstruction to consume events
+   * @param aaobId Program ID of the AAOB
+   * @param market Address of the market
+   * @param eventQueue Address of the event queue
+   * @param authority Address of the market authority
+   * @param rewardTarget Reward address of the cranker
+   * @returns Returns a TransactionInstruction object
+   */
   getInstruction(
     aaobId: PublicKey,
     market: PublicKey,
@@ -288,6 +316,16 @@ export class cancelOrderInstruction {
     return serialize(cancelOrderInstruction.schema, this);
   }
 
+  /**
+   * Returns a TransactionInstruction to cancel an order
+   * @param aaobId Program ID of the AAOB
+   * @param market Address of the market
+   * @param eventQueue Address of the event queue
+   * @param bids Address of the bids slab
+   * @param asks Address of the asks slab
+   * @param authority Address of the market authority
+   * @returns Returns a TransactionInstruction object
+   */
   getInstruction(
     aaobId: PublicKey,
     market: PublicKey,
