@@ -264,7 +264,7 @@ export class Slab {
     const stack = [this.header.rootNode];
     while (stack.length > 0) {
       const pointer = stack.pop();
-      if (!pointer) throw "unreachable!";
+      if (!pointer) throw new Error("unreachable!");
       let offset = SlabHeader.LEN + pointer * this.slotSize;
       const node = parseNode(
         this.callBackInfoLen,
