@@ -161,7 +161,7 @@ export class SlabHeader {
   }
 
   static deserialize(data: Buffer) {
-    return deserialize(this.schema, SlabHeader, data);
+    return deserialize(this.schema, SlabHeader, data) as SlabHeader;
   }
 }
 
@@ -342,6 +342,10 @@ export class Slab {
       minMaxOrders.push(leafNode);
     }
     return minMaxOrders;
+  }
+
+  test(data: Buffer) {
+    return find_max(data, BigInt(this.callBackInfoLen), BigInt(this.slotSize));
   }
 }
 
