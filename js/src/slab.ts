@@ -343,8 +343,4 @@ export class Slab {
     }
     return minMaxOrders;
   }
-
-  test(data: Buffer) {
-    return find_max(data, BigInt(this.callBackInfoLen), BigInt(this.slotSize));
-  }
 }
