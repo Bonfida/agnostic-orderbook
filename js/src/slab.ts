@@ -36,7 +36,7 @@ export class InnerNode {
         fields: [
           ["prefixLen", "u32"],
           ["key", "u128"],
-          ["children", [2]],
+          ["children", ["u32", 2]],
         ],
       },
     ],
@@ -283,11 +283,10 @@ export class Slab {
       return;
     }
     const stack = [this.header.rootNode];
-    let offset = SlabHeader.LEN;
     while (stack.length > 0) {
       const pointer = stack.pop();
       if (pointer === undefined) throw new Error("unreachable!");
-      offset += pointer * this.slotSize;
+      let offset = SlabHeader.LEN + pointer * this.slotSize;
       const node = parseNode(
         this.callBackInfoLen,
         this.data.slice(offset, offset + this.slotSize)
