@@ -34,12 +34,12 @@ export class EventQueueHeader {
       {
         kind: "struct",
         fields: [
-          ["accountFlags", "u64"],
+          ["tag", "u8"],
           ["head", "u64"],
           ["count", "u64"],
           ["eventSize", "u64"],
           ["seqNum", "u64"],
-          ["register", "u32"],
+          ["registerSize", "u32"],
         ],
       },
     ],
