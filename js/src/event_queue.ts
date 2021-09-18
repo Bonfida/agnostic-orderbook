@@ -97,7 +97,7 @@ export class EventFill {
    */
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventFill({
-      takerSide: data.slice(1, 1).readInt8(),
+      takerSide: data[1],
       makerOrderId: new BN(data.slice(2, 18), "le"),
       quoteSize: new BN(data.slice(18, 26), "le"),
       assetSize: new BN(data.slice(26, 34), "le"),
@@ -141,10 +141,10 @@ export class EventOut {
    */
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new EventOut({
-      side: data.slice(1, 1).readInt8(),
+      side: data[1],
       orderId: new BN(data.slice(2, 18), "le"),
       assetSize: new BN(data.slice(18, 26), "le"),
-      delete: data.slice(26).readUInt8(),
+      delete: data[26],
       callBackInfo: [...data.slice(27, 27 + callbackInfoLen)],
     });
   }
@@ -211,12 +211,14 @@ export class EventQueue {
    * @returns Returns an Event object
    */
   parseEvent(idx: number) {
+    let header_offset = EventQueueHeader.LEN + this.header.registerSize;
     let offset =
-      EventQueueHeader.LEN +
-      this.header.registerSize +
+      header_offset +
       ((idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
-        this.buffer.length);
-    let data = Buffer.from(this.buffer.slice(offset));
+        (this.buffer.length - header_offset));
+    let data = Buffer.from(
+      this.buffer.slice(offset, offset + this.header.eventSize.toNumber())
+    );
     switch (data[0]) {
       case EventType.Fill:
         return EventFill.deserialize(this.callBackInfoLen, data) as EventFill;
