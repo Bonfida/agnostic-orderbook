@@ -303,6 +303,10 @@ export class Slab {
     }
   }
 
+  [Symbol.iterator]() {
+    return this.items(false);
+  }
+
   /**
    * Returns an array of [price, size] given a certain depth
    * @param depth Depth to fetch
