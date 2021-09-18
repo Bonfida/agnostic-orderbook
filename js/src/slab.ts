@@ -1,5 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
-import { Schema, deserialize, BinaryReader, deserializeUnchecked } from "borsh";
+import { Schema, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 import { Price } from "./types";
@@ -161,7 +161,7 @@ export class SlabHeader {
   }
 
   static deserialize(data: Buffer) {
-    return deserialize(this.schema, SlabHeader, data) as SlabHeader;
+    return deserializeUnchecked(this.schema, SlabHeader, data) as SlabHeader;
   }
 }
 
@@ -283,10 +283,11 @@ export class Slab {
       return;
     }
     const stack = [this.header.rootNode];
+    let offset = SlabHeader.LEN;
     while (stack.length > 0) {
       const pointer = stack.pop();
-      if (!pointer) throw new Error("unreachable!");
-      let offset = SlabHeader.LEN + pointer * this.slotSize;
+      if (pointer === undefined) throw new Error("unreachable!");
+      offset += pointer * this.slotSize;
       const node = parseNode(
         this.callBackInfoLen,
         this.data.slice(offset, offset + this.slotSize)
