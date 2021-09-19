@@ -225,8 +225,8 @@ impl<'ob> OrderBookState<'ob> {
         ));
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         if let Err(AoError::SlabOutOfSpace) = insert_result {
-            // boot out the least aggressive bid
-            msg!("bids full! booting...");
+            // Boot out the least aggressive orders
+            msg!("Orderbook is full! booting lest aggressive orders...");
             let order = match side {
                 Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
                 Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
