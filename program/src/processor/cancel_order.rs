@@ -94,14 +94,14 @@ pub(crate) fn process(
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();
-    let total_asset_qty = leaf_node.asset_quantity;
-    let total_quote_qty = fp32_mul(leaf_node.asset_quantity, leaf_node.price());
+    let total_base_qty = leaf_node.base_quantity;
+    let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
 
     let order_summary = OrderSummary {
         posted_order_id: None,
-        total_asset_qty,
+        total_base_qty,
         total_quote_qty,
-        total_asset_qty_posted: 0,
+        total_base_qty_posted: 0,
     };
 
     event_queue.write_to_register(order_summary);

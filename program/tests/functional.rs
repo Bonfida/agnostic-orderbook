@@ -155,7 +155,7 @@ async fn test_agnostic_orderbook() {
         market_state.bids,
         market_state.asks,
         new_order::Params {
-            max_asset_qty: 1000,
+            max_base_qty: 1000,
             max_quote_qty: 1000,
             limit_price: 1000,
             side: Side::Bid,
@@ -197,7 +197,7 @@ async fn test_agnostic_orderbook() {
         market_state.bids,
         market_state.asks,
         new_order::Params {
-            max_asset_qty: 1000,
+            max_base_qty: 1000,
             max_quote_qty: 1000,
             limit_price: 1000,
             side: Side::Ask,

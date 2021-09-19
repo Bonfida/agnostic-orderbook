@@ -94,7 +94,7 @@ export class createMarketInstruction {
 
 export class newOrderInstruction {
   tag: number;
-  maxAssetQty: BN;
+  maxBaseQty: BN;
   maxQuoteQty: BN;
   limitPrice: BN;
   side: Side;
@@ -111,7 +111,7 @@ export class newOrderInstruction {
         kind: "struct",
         fields: [
           ["tag", "u8"],
-          ["maxAssetQty", "u64"],
+          ["maxBaseQty", "u64"],
           ["maxQuoteQty", "u64"],
           ["limitPrice", "u64"],
           ["side", "u8"],
@@ -126,7 +126,7 @@ export class newOrderInstruction {
   ]);
 
   constructor(obj: {
-    maxAssetQty: BN;
+    maxBaseQty: BN;
     maxQuoteQty: BN;
     limitPrice: BN;
     side: number;
@@ -137,7 +137,7 @@ export class newOrderInstruction {
     selfTradeBehavior: number;
   }) {
     this.tag = 1;
-    this.maxAssetQty = obj.maxAssetQty;
+    this.maxBaseQty = obj.maxBaseQty;
     this.maxQuoteQty = obj.maxQuoteQty;
     this.limitPrice = obj.limitPrice;
     this.side = obj.side as Side;

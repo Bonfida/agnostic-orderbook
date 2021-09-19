@@ -22,8 +22,8 @@ use crate::{
 The required arguments for a new_order instruction.
 */
 pub struct Params {
-    /// The maximum quantity of asset to be traded.
-    pub max_asset_qty: u64,
+    /// The maximum quantity of base to be traded.
+    pub max_base_qty: u64,
     /// The maximum quantity of quote to be traded.
     pub max_quote_qty: u64,
     /// The limit price of the order. This value is understood as a 32-bit fixed point number.

@@ -50,14 +50,14 @@ impl InnerNode {
 pub struct LeafNode {
     pub key: u128,
     pub callback_info: Vec<u8>,
-    pub asset_quantity: u64,
+    pub base_quantity: u64,
 }
 
 impl LeafNode {
     pub fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), IoError> {
         writer.write_all(&self.key.to_le_bytes())?;
         writer.write_all(&self.callback_info)?;
-        writer.write_all(&self.asset_quantity.to_le_bytes())?;
+        writer.write_all(&self.base_quantity.to_le_bytes())?;
         Ok(())
     }
 
@@ -68,7 +68,7 @@ impl LeafNode {
                 .map_err(|_| std::io::ErrorKind::InvalidData)?,
         );
         let callback_info = buf[16..callback_info_len + 16].to_owned();
-        let asset_quantity = u64::from_le_bytes(
+        let base_quantity = u64::from_le_bytes(
             buf[callback_info_len + 16..callback_info_len + 24]
                 .try_into()
                 .map_err(|_| std::io::ErrorKind::InvalidData)?,
@@ -76,7 +76,7 @@ impl LeafNode {
         Ok(Self {
             key,
             callback_info,
-            asset_quantity,
+            base_quantity,
         })
     }
 }
@@ -88,7 +88,7 @@ impl LeafNode {
         LeafNode {
             key,
             callback_info,
-            asset_quantity: quantity,
+            base_quantity: quantity,
         }
     }
 
@@ -100,8 +100,8 @@ impl LeafNode {
         self.key
     }
 
-    pub fn set_asset_quantity(&mut self, quantity: u64) {
-        self.asset_quantity = quantity;
+    pub fn set_base_quantity(&mut self, quantity: u64) {
+        self.base_quantity = quantity;
     }
 }
 
@@ -400,9 +400,9 @@ impl<'a> Slab<'a> {
                     let leaf_price = leaf.price();
                     if result.last().map(|p| p == &leaf_price).unwrap_or(false) {
                         let idx = result.len() - 2;
-                        result[idx] += leaf.asset_quantity;
+                        result[idx] += leaf.base_quantity;
                     } else {
-                        result.push(leaf.asset_quantity);
+                        result.push(leaf.base_quantity);
                         result.push(leaf_price);
                     }
                 }

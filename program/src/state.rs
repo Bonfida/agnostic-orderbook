@@ -99,8 +99,8 @@ pub enum Event {
         maker_order_id: u128,
         /// The total quote size of the transaction
         quote_size: u64,
-        /// The total asset size of the transaction
-        asset_size: u64,
+        /// The total base size of the transaction
+        base_size: u64,
         /// The callback information for the maker
         maker_callback_info: Vec<u8>,
         /// The callback information for the taker
@@ -113,7 +113,7 @@ pub enum Event {
         #[allow(missing_docs)]
         order_id: u128,
         #[allow(missing_docs)]
-        asset_size: u64,
+        base_size: u64,
         #[allow(missing_docs)]
         delete: bool,
         #[allow(missing_docs)]
@@ -129,7 +129,7 @@ impl Event {
                 taker_side,
                 maker_order_id,
                 quote_size,
-                asset_size,
+                base_size,
                 maker_callback_info,
                 taker_callback_info,
             } => {
@@ -137,21 +137,21 @@ impl Event {
                 writer.write_all(&[taker_side.to_u8().unwrap()])?;
                 writer.write_all(&maker_order_id.to_le_bytes())?;
                 writer.write_all(&quote_size.to_le_bytes())?;
-                writer.write_all(&asset_size.to_le_bytes())?;
+                writer.write_all(&base_size.to_le_bytes())?;
                 writer.write_all(&maker_callback_info)?;
                 writer.write_all(&taker_callback_info)?;
             }
             Event::Out {
                 side,
                 order_id,
-                asset_size,
+                base_size,
                 delete,
                 callback_info,
             } => {
                 writer.write_all(&[1])?;
                 writer.write_all(&[side.to_u8().unwrap()])?;
                 writer.write_all(&order_id.to_le_bytes())?;
-                writer.write_all(&asset_size.to_le_bytes())?;
+                writer.write_all(&base_size.to_le_bytes())?;
                 writer.write_all(&[(*delete as u8)])?;
                 writer.write_all(&callback_info)?;
             }
@@ -166,7 +166,7 @@ impl Event {
                 taker_side: Side::from_u8(buf[1]).unwrap(),
                 maker_order_id: u128::from_le_bytes(buf[2..18].try_into().unwrap()),
                 quote_size: u64::from_le_bytes(buf[18..26].try_into().unwrap()),
-                asset_size: u64::from_le_bytes(buf[26..34].try_into().unwrap()),
+                base_size: u64::from_le_bytes(buf[26..34].try_into().unwrap()),
                 maker_callback_info: buf[34..34 + callback_info_len].to_owned(),
                 taker_callback_info: buf[34 + callback_info_len..34 + (callback_info_len << 1)]
                     .to_owned(),
@@ -174,7 +174,7 @@ impl Event {
             1 => Event::Out {
                 side: Side::from_u8(buf[1]).unwrap(),
                 order_id: u128::from_le_bytes(buf[2..18].try_into().unwrap()),
-                asset_size: u64::from_le_bytes(buf[18..26].try_into().unwrap()),
+                base_size: u64::from_le_bytes(buf[18..26].try_into().unwrap()),
                 delete: buf[26] == 1,
                 callback_info: buf[27..27 + callback_info_len].to_owned(),
             },

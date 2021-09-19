@@ -52,18 +52,18 @@ export class InnerNode {
 export class LeafNode {
   key: BN;
   callBackInfo: number[];
-  assetQuantity: BN;
+  baseQuantity: BN;
 
-  constructor(arg: { key: BN; callBackInfo: number[]; assetQuantity: BN }) {
+  constructor(arg: { key: BN; callBackInfo: number[]; baseQuantity: BN }) {
     this.key = arg.key;
     this.callBackInfo = arg.callBackInfo;
-    this.assetQuantity = arg.assetQuantity;
+    this.baseQuantity = arg.baseQuantity;
   }
   static deserialize(callbackInfoLen: number, data: Buffer) {
     return new LeafNode({
       key: new BN(data.slice(0, 16), "le"),
       callBackInfo: [...data.slice(16, 16 + callbackInfoLen)],
-      assetQuantity: new BN(
+      baseQuantity: new BN(
         data.slice(16 + callbackInfoLen, 24 + callbackInfoLen),
         "le"
       ),
@@ -277,7 +277,7 @@ export class Slab {
   *items(descending = false): Generator<{
     key: BN;
     callBackInfo: number[];
-    assetQuantity: BN;
+    baseQuantity: BN;
   }> {
     if (this.header.leafCount.eq(new BN(0))) {
       return;

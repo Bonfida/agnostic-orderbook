@@ -19,11 +19,11 @@ pub struct OrderSummary {
     /// When applicable, the order id of the newly created order.
     pub posted_order_id: Option<u128>,
     #[allow(missing_docs)]
-    pub total_asset_qty: u64,
+    pub total_base_qty: u64,
     #[allow(missing_docs)]
     pub total_quote_qty: u64,
     #[allow(missing_docs)]
-    pub total_asset_qty_posted: u64,
+    pub total_base_qty_posted: u64,
 }
 
 /// The serialized size of an OrderSummary object.
@@ -78,7 +78,7 @@ impl<'ob> OrderBookState<'ob> {
         event_queue: &mut EventQueue,
     ) -> Result<OrderSummary, AoError> {
         let new_order::Params {
-            max_asset_qty,
+            max_base_qty,
             max_quote_qty,
             side,
             limit_price,
@@ -89,7 +89,7 @@ impl<'ob> OrderBookState<'ob> {
             mut match_limit,
         } = params;
 
-        let mut asset_qty_remaining = max_asset_qty;
+        let mut base_qty_remaining = max_base_qty;
         let mut quote_qty_remaining = max_quote_qty;
 
         // New bid
@@ -125,12 +125,12 @@ impl<'ob> OrderBookState<'ob> {
                 break;
             }
 
-            let offer_size = best_bo_ref.asset_quantity;
-            let asset_trade_qty = offer_size
-                .min(asset_qty_remaining)
+            let offer_size = best_bo_ref.base_quantity;
+            let base_trade_qty = offer_size
+                .min(base_qty_remaining)
                 .min(fp32_div(quote_qty_remaining, best_bo_ref.price()));
 
-            if asset_trade_qty == 0 {
+            if base_trade_qty == 0 {
                 break;
             }
 
@@ -139,24 +139,24 @@ impl<'ob> OrderBookState<'ob> {
                     == best_bo_ref.callback_info[..self.callback_id_len];
                 if order_would_self_trade {
                     let best_offer_id = best_bo_ref.order_id();
-                    let cancelled_provide_asset_qty;
+                    let cancelled_provide_base_qty;
 
                     match self_trade_behavior {
                         SelfTradeBehavior::CancelProvide => {
-                            cancelled_provide_asset_qty = best_bo_ref.asset_quantity;
+                            cancelled_provide_base_qty = best_bo_ref.base_quantity;
                         }
                         SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
                         SelfTradeBehavior::DecrementTake => unreachable!(),
                     };
 
-                    let remaining_provide_asset_qty =
-                        best_bo_ref.asset_quantity - cancelled_provide_asset_qty;
-                    let delete = remaining_provide_asset_qty == 0;
+                    let remaining_provide_base_qty =
+                        best_bo_ref.base_quantity - cancelled_provide_base_qty;
+                    let delete = remaining_provide_base_qty == 0;
                     let provide_out = Event::Out {
                         side: side.opposite(),
                         delete,
                         order_id: best_offer_id,
-                        asset_size: cancelled_provide_asset_qty,
+                        base_size: cancelled_provide_base_qty,
                         callback_info: best_bo_ref.callback_info.clone(),
                     };
                     event_queue
@@ -167,14 +167,14 @@ impl<'ob> OrderBookState<'ob> {
                             .remove_by_key(best_offer_id)
                             .unwrap();
                     } else {
-                        best_bo_ref.set_asset_quantity(remaining_provide_asset_qty);
+                        best_bo_ref.set_base_quantity(remaining_provide_base_qty);
                     }
 
                     continue;
                 }
             }
 
-            let quote_maker_qty = fp32_mul(asset_trade_qty, trade_price);
+            let quote_maker_qty = fp32_mul(base_trade_qty, trade_price);
 
             let maker_fill = Event::Fill {
                 taker_side: side,
@@ -182,17 +182,17 @@ impl<'ob> OrderBookState<'ob> {
                 taker_callback_info: callback_info.clone(),
                 maker_order_id: best_bo_ref.order_id(),
                 quote_size: quote_maker_qty,
-                asset_size: asset_trade_qty,
+                base_size: base_trade_qty,
             };
             event_queue
                 .push_back(maker_fill)
                 .map_err(|_| AoError::EventQueueFull)?;
 
-            best_bo_ref.set_asset_quantity(best_bo_ref.asset_quantity - asset_trade_qty);
-            asset_qty_remaining -= asset_trade_qty;
+            best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
+            base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
-            if best_bo_ref.asset_quantity == 0 {
+            if best_bo_ref.base_quantity == 0 {
                 let best_offer_id = best_bo_ref.order_id();
                 self.get_tree(side.opposite())
                     .remove_by_key(best_offer_id)
@@ -205,23 +205,23 @@ impl<'ob> OrderBookState<'ob> {
         if crossed || !post_allowed {
             return Ok(OrderSummary {
                 posted_order_id: None,
-                total_asset_qty: max_asset_qty - asset_qty_remaining,
+                total_base_qty: max_base_qty - base_qty_remaining,
                 total_quote_qty: max_quote_qty - quote_qty_remaining,
-                total_asset_qty_posted: 0,
+                total_base_qty_posted: 0,
             });
         }
-        let asset_qty_to_post = match side {
+        let base_qty_to_post = match side {
             Side::Bid => std::cmp::min(
                 fp32_div(quote_qty_remaining, limit_price),
-                asset_qty_remaining,
+                base_qty_remaining,
             ),
-            Side::Ask => asset_qty_remaining, // TODO: check accuracy
+            Side::Ask => base_qty_remaining, // TODO: check accuracy
         };
         let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
         let new_leaf = Node::Leaf(LeafNode::new(
             new_leaf_order_id,
             callback_info,
-            asset_qty_to_post,
+            base_qty_to_post,
         ));
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         if let Err(AoError::SlabOutOfSpace) = insert_result {
@@ -236,7 +236,7 @@ impl<'ob> OrderBookState<'ob> {
                 side: Side::Bid,
                 delete: true,
                 order_id: l.order_id(),
-                asset_size: l.asset_quantity,
+                base_size: l.base_quantity,
                 callback_info: l.callback_info.clone(),
             };
             event_queue
@@ -246,13 +246,13 @@ impl<'ob> OrderBookState<'ob> {
         } else {
             insert_result.unwrap();
         }
-        asset_qty_remaining -= asset_qty_to_post;
-        quote_qty_remaining -= fp32_mul(asset_qty_to_post, limit_price);
+        base_qty_remaining -= base_qty_to_post;
+        quote_qty_remaining -= fp32_mul(base_qty_to_post, limit_price);
         Ok(OrderSummary {
             posted_order_id: Some(new_leaf_order_id),
-            total_asset_qty: max_asset_qty - asset_qty_remaining,
+            total_base_qty: max_base_qty - base_qty_remaining,
             total_quote_qty: max_quote_qty - quote_qty_remaining,
-            total_asset_qty_posted: asset_qty_to_post,
+            total_base_qty_posted: base_qty_to_post,
         })
     }
 }

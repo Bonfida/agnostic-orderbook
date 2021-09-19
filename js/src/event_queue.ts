@@ -69,7 +69,7 @@ export class EventFill {
   takerSide: Side;
   makerOrderId: BN;
   quoteSize: BN;
-  assetSize: BN;
+  baseSize: BN;
   makerCallbackInfo: number[];
   takerCallbackInfo: number[];
 
@@ -77,14 +77,14 @@ export class EventFill {
     takerSide: number;
     makerOrderId: BN;
     quoteSize: BN;
-    assetSize: BN;
+    baseSize: BN;
     makerCallbackInfo: number[];
     takerCallbackInfo: number[];
   }) {
     this.takerSide = arg.takerSide as Side;
     this.makerOrderId = arg.makerOrderId;
     this.quoteSize = arg.quoteSize;
-    this.assetSize = arg.assetSize;
+    this.baseSize = arg.baseSize;
     this.makerCallbackInfo = arg.makerCallbackInfo;
     this.takerCallbackInfo = arg.takerCallbackInfo;
   }
@@ -100,7 +100,7 @@ export class EventFill {
       takerSide: data[1],
       makerOrderId: new BN(data.slice(2, 18), "le"),
       quoteSize: new BN(data.slice(18, 26), "le"),
-      assetSize: new BN(data.slice(26, 34), "le"),
+      baseSize: new BN(data.slice(26, 34), "le"),
       makerCallbackInfo: [...data.slice(34, 34 + callbackInfoLen)],
       takerCallbackInfo: [
         ...data.slice(34 + callbackInfoLen, 34 + 2 * callbackInfoLen),
@@ -115,20 +115,20 @@ export class EventFill {
 export class EventOut {
   side: Side;
   orderId: BN;
-  assetSize: BN;
+  baseSize: BN;
   delete: boolean;
   callBackInfo: number[];
 
   constructor(arg: {
     side: number;
     orderId: BN;
-    assetSize: BN;
+    baseSize: BN;
     delete: number;
     callBackInfo: number[];
   }) {
     this.side = arg.side as Side;
     this.orderId = arg.orderId;
-    this.assetSize = arg.assetSize;
+    this.baseSize = arg.baseSize;
     this.delete = arg.delete === 1;
     this.callBackInfo = arg.callBackInfo;
   }
@@ -143,7 +143,7 @@ export class EventOut {
     return new EventOut({
       side: data[1],
       orderId: new BN(data.slice(2, 18), "le"),
-      assetSize: new BN(data.slice(18, 26), "le"),
+      baseSize: new BN(data.slice(18, 26), "le"),
       delete: data[26],
       callBackInfo: [...data.slice(27, 27 + callbackInfoLen)],
     });
