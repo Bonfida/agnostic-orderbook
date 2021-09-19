@@ -383,9 +383,9 @@ impl<'a> Slab<'a> {
         if root.is_none() {
             return vec![];
         }
-        let mut result = Vec::with_capacity(depth);
+        let mut result = Vec::with_capacity(2 * depth);
         let mut search_stack = vec![root.unwrap()];
-        while result.len() != depth {
+        while result.len() != 2 * depth {
             let current = search_stack.pop();
             if current.is_none() {
                 break;
