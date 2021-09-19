@@ -121,7 +121,7 @@ impl<'ob> OrderBookState<'ob> {
                 Side::Ask => limit_price <= trade_price,
             };
 
-            if post_only {
+            if post_only || !crossed {
                 break;
             }
 
