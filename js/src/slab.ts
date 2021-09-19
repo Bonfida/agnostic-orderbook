@@ -324,7 +324,7 @@ export class Slab {
     let result: Price[] = [];
     for (let i = 0; i < raw.length / 2; i++) {
       result.push({
-        quantity: Number(raw[2 * i]),
+        size: Number(raw[2 * i]),
         price: Number(raw[2 * i + 1]) / 2 ** 32,
       });
     }
