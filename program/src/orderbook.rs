@@ -134,6 +134,8 @@ impl<'ob> OrderBookState<'ob> {
                 break;
             }
 
+            // The decrement take case can be handled by the caller program on event consumption, so no special logic
+            // is needed for it.
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
                 let order_would_self_trade = callback_info[..self.callback_id_len]
                     == best_bo_ref.callback_info[..self.callback_id_len];
