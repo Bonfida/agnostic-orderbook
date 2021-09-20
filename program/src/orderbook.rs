@@ -190,15 +190,28 @@ impl<'ob> OrderBookState<'ob> {
                 .push_back(maker_fill)
                 .map_err(|_| AoError::EventQueueFull)?;
 
+            let initial_best_bo_base_quantity = best_bo_ref.base_quantity;
+
             best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
             base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
             if best_bo_ref.base_quantity == 0 {
                 let best_offer_id = best_bo_ref.order_id();
-                self.get_tree(side.opposite())
+                let cur_side = side.opposite();
+                self.get_tree(cur_side)
                     .remove_by_key(best_offer_id)
                     .unwrap();
+                let out_event = Event::Out {
+                    side: cur_side,
+                    order_id: best_offer_id,
+                    base_size: initial_best_bo_base_quantity,
+                    callback_info: best_bo_ref.callback_info,
+                    delete: true,
+                };
+                event_queue
+                    .push_back(out_event)
+                    .map_err(|_| AoError::EventQueueFull)?;
             }
 
             match_limit -= 1;
@@ -212,13 +225,10 @@ impl<'ob> OrderBookState<'ob> {
                 total_base_qty_posted: 0,
             });
         }
-        let base_qty_to_post = match side {
-            Side::Bid => std::cmp::min(
-                fp32_div(quote_qty_remaining, limit_price),
-                base_qty_remaining,
-            ),
-            Side::Ask => base_qty_remaining, // TODO: check accuracy
-        };
+        let base_qty_to_post = std::cmp::min(
+            fp32_div(quote_qty_remaining, limit_price),
+            base_qty_remaining,
+        );
         let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
         let new_leaf = Node::Leaf(LeafNode::new(
             new_leaf_order_id,
