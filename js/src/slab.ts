@@ -36,7 +36,7 @@ export class InnerNode {
         fields: [
           ["prefixLen", "u32"],
           ["key", "u128"],
-          ["children", ["u32", 2]],
+          ["children", [8]],
         ],
       },
     ],
@@ -45,7 +45,10 @@ export class InnerNode {
   constructor(arg: { prefixLen: number; key: BN; children: number[] }) {
     this.prefixLen = arg.prefixLen;
     this.key = arg.key;
-    this.children = arg.children;
+    this.children = [
+      new BN(arg.children.slice(0, 4), "le").toNumber(),
+      new BN(arg.children.slice(4, 8), "le").toNumber(),
+    ];
   }
 }
 
@@ -110,6 +113,8 @@ export function parseNode(
       return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(1));
     case 4:
       return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(1));
+    default:
+      throw new Error("Invalid data");
   }
 }
 
