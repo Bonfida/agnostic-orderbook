@@ -36,7 +36,7 @@ export class InnerNode {
         fields: [
           ["prefixLen", "u32"],
           ["key", "u128"],
-          ["children", [8]],
+          ["children", ["u32", 2]],
         ],
       },
     ],
@@ -45,10 +45,7 @@ export class InnerNode {
   constructor(arg: { prefixLen: number; key: BN; children: number[] }) {
     this.prefixLen = arg.prefixLen;
     this.key = arg.key;
-    this.children = [
-      new BN(arg.children.slice(0, 4), "le").toNumber(),
-      new BN(arg.children.slice(4, 8), "le").toNumber(),
-    ];
+    this.children = arg.children;
   }
 }
 

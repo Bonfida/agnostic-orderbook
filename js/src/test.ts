@@ -10,6 +10,7 @@ import {
 } from "@solana/web3.js";
 // import { EventQueue } from "./event_queue";
 // import { deserialize } from "borsh";
+require("source-map-support").install();
 
 const URL = "https://api.devnet.solana.com";
 
@@ -33,6 +34,10 @@ const test = async () => {
       BigInt(bids_slab.slotSize)
     )
   );
+
+  for (let i of bids_slab.items(true)) {
+    console.log(i);
+  }
 
   // let eq_p = market.eventQueue;
   // let eq_data = await connection.getAccountInfo(eq_p);
