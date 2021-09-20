@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Schema, deserialize } from "borsh";
+import { Schema, deserializeUnchecked } from "borsh";
 import { Slab } from "./slab";
 import BN from "bn.js";
 
@@ -92,7 +92,7 @@ export class MarketState {
     if (!accountInfo?.data) {
       throw new Error("Invalid account provided");
     }
-    return deserialize(
+    return deserializeUnchecked(
       this.schema,
       MarketState,
       accountInfo.data
@@ -109,7 +109,11 @@ export class MarketState {
     if (!bidsInfo?.data) {
       throw new Error("Invalid bids account");
     }
-    return deserialize(Slab.schema, Slab, bidsInfo.data) as Slab;
+    let s = deserializeUnchecked(Slab.schema, Slab, bidsInfo.data) as Slab;
+    s.callBackInfoLen = this.callBackInfoLen.toNumber();
+    s.data = bidsInfo.data;
+    s.slotSize = Math.max(s.callBackInfoLen + 8 + 16 + 1, 32);
+    return s;
   }
 
   /**
@@ -122,6 +126,10 @@ export class MarketState {
     if (!asksInfo?.data) {
       throw new Error("Invalid asks account");
     }
-    return deserialize(Slab.schema, Slab, asksInfo.data) as Slab;
+    let s = deserializeUnchecked(Slab.schema, Slab, asksInfo.data) as Slab;
+    s.callBackInfoLen = this.callBackInfoLen.toNumber();
+    s.data = asksInfo.data;
+    s.slotSize = Math.max(s.callBackInfoLen + 8 + 16 + 1, 32);
+    return s;
   }
 }
