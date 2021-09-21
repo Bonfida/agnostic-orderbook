@@ -278,7 +278,7 @@ impl<'a> Slab<'a> {
         Some(node)
     }
 
-    fn write_node(&mut self, node: &Node, key: u32) -> Result<(), IoError> {
+    pub fn write_node(&mut self, node: &Node, key: u32) -> Result<(), IoError> {
         let offset = SLAB_HEADER_LEN + (key as usize) * self.slot_size;
         node.serialize(&mut &mut self.buffer.borrow_mut()[offset..])
     }

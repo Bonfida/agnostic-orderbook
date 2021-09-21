@@ -170,6 +170,9 @@ impl<'ob> OrderBookState<'ob> {
                             .unwrap();
                     } else {
                         best_bo_ref.set_base_quantity(remaining_provide_base_qty);
+                        self.get_tree(side.opposite())
+                            .write_node(&Node::Leaf(best_bo_ref), best_bo_h)
+                            .unwrap();
                     }
 
                     continue;
@@ -212,6 +215,10 @@ impl<'ob> OrderBookState<'ob> {
                 event_queue
                     .push_back(out_event)
                     .map_err(|_| AoError::EventQueueFull)?;
+            } else {
+                self.get_tree(side.opposite())
+                    .write_node(&Node::Leaf(best_bo_ref), best_bo_h)
+                    .unwrap();
             }
 
             match_limit -= 1;
