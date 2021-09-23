@@ -47,6 +47,7 @@ impl PrintProgramError for AoError {
             AoError::SlabOutOfSpace => msg!("Error: The market's memory is full."),
             AoError::FeeNotPayed => msg!("Error: The fee was not correctly payed."),
             AoError::NoOperations => msg!("Error: This instruction is a No-op."),
+            AoError::MarketStillActive => msg!("Error: The market is still active"),
         }
     }
 }

@@ -30,6 +30,8 @@ pub enum AoError {
     FeeNotPayed,
     #[error("This instruction is a No-op.")]
     NoOperations,
+    #[error("The market is still active")]
+    MarketStillActive,
 }
 
 impl From<AoError> for ProgramError {

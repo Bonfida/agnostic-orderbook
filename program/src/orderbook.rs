@@ -53,7 +53,7 @@ impl<'ob> OrderBookState<'ob> {
             callback_id_len,
         })
     }
-    fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
+    pub fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
             Side::Bid => self.bids.find_max(),
             Side::Ask => self.asks.find_min(),

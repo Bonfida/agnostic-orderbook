@@ -9,6 +9,8 @@ use crate::instruction::AgnosticOrderbookInstruction;
 #[allow(missing_docs)]
 pub mod cancel_order;
 #[allow(missing_docs)]
+pub mod close_market;
+#[allow(missing_docs)]
 pub mod consume_events;
 #[allow(missing_docs)]
 pub mod create_market;
@@ -51,6 +53,10 @@ impl Processor {
             AgnosticOrderbookInstruction::CancelOrder(params) => {
                 msg!("Instruction: Cancel Order");
                 cancel_order::process(program_id, accounts, params)?;
+            }
+            AgnosticOrderbookInstruction::CloseMarket(params) => {
+                msg!("Instruction: Close Market");
+                close_market::process(program_id, accounts, params)?;
             }
         }
         Ok(())
