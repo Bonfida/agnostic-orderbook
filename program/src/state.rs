@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-use std::{cell::RefCell, convert::TryInto, io::Write, mem::size_of, rc::Rc};
+use std::{cell::RefCell, convert::TryInto, io::Write, rc::Rc};
 
 use crate::critbit::IoError;
 

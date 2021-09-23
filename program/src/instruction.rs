@@ -4,7 +4,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub use crate::processor::{cancel_order, consume_events, create_market, new_order};
+pub use crate::processor::{cancel_order, close_market, consume_events, create_market, new_order};
 #[derive(BorshDeserialize, BorshSerialize)]
 /// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
@@ -60,6 +60,19 @@ pub enum AgnosticOrderbookInstruction {
     /// | 3     | ✅       | ❌     | The asks account        |
     /// | 4     | ❌       | ✅     | The caller authority    |
     CancelOrder(cancel_order::Params),
+    /// Close and existing market.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer   | description                 |
+    /// |-------|----------|----------|-----------------------------|
+    /// | 0     | ✅        | ❌      | The market account          |
+    /// | 1     | ✅        | ❌      | The event queue account     |
+    /// | 2     | ✅        | ❌      | The bids account            |
+    /// | 3     | ✅        | ❌      | The asks account            |
+    /// | 4     | ❌        | ✅      | The caller authority        |
+    /// | 5     | ✅        | ❌      | The lamports target account |
+    CloseMarket(close_market::Params),
 }
 
 /**
@@ -183,6 +196,37 @@ pub fn consume_events(
         AccountMeta::new(reward_target, false),
         AccountMeta::new_readonly(msrm_token_account, false),
         AccountMeta::new_readonly(msrm_token_account_owner, true),
+    ];
+
+    Instruction {
+        program_id: agnostic_orderbook_program_id,
+        accounts,
+        data,
+    }
+}
+
+/// Close and existing market.
+#[allow(clippy::clippy::too_many_arguments)]
+pub fn close_market(
+    agnostic_orderbook_program_id: Pubkey,
+    market: Pubkey,
+    event_queue: Pubkey,
+    bids: Pubkey,
+    asks: Pubkey,
+    authority: Pubkey,
+    lamports_target_account: Pubkey,
+    close_market_params: close_market::Params,
+) -> Instruction {
+    let data = AgnosticOrderbookInstruction::CloseMarket(close_market_params)
+        .try_to_vec()
+        .unwrap();
+    let accounts = vec![
+        AccountMeta::new(market, false),
+        AccountMeta::new(event_queue, false),
+        AccountMeta::new(bids, false),
+        AccountMeta::new(asks, false),
+        AccountMeta::new_readonly(authority, true),
+        AccountMeta::new(lamports_target_account, false),
     ];
 
     Instruction {
