@@ -1,7 +1,7 @@
 use crate::{
     error::AoError,
     orderbook::OrderBookState,
-    state::{AccountTag, EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
+    state::{AccountTag, EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -73,9 +73,7 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
         market_state.callback_id_len as usize,
     )
     .unwrap();
-    if orderbook_state.find_bbo(Side::Bid).is_some()
-        || orderbook_state.find_bbo(Side::Ask).is_some()
-    {
+    if !orderbook_state.is_empty() {
         msg!("The orderbook must be empty");
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
