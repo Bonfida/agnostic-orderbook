@@ -72,7 +72,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 3     | ✅        | ❌      | The asks account            |
     /// | 4     | ❌        | ✅      | The caller authority        |
     /// | 5     | ✅        | ❌      | The lamports target account |
-    CloseMarket(close_market::Params),
+    CloseMarket,
 }
 
 /**
@@ -215,9 +215,8 @@ pub fn close_market(
     asks: Pubkey,
     authority: Pubkey,
     lamports_target_account: Pubkey,
-    close_market_params: close_market::Params,
 ) -> Instruction {
-    let data = AgnosticOrderbookInstruction::CloseMarket(close_market_params)
+    let data = AgnosticOrderbookInstruction::CloseMarket
         .try_to_vec()
         .unwrap();
     let accounts = vec![

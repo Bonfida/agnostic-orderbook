@@ -17,12 +17,7 @@ use solana_program::{
 /**
 The required arguments for a close_market instruction.
 */
-pub struct Params {
-    // The length of the callback information
-    pub callback_info_len: u64,
-    // The lenght of the callback id
-    pub callback_id_len: usize,
-}
+pub struct Params {}
 
 struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
@@ -53,17 +48,8 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub(crate) fn process(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    params: Params,
-) -> ProgramResult {
+pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
-
-    let Params {
-        callback_id_len,
-        callback_info_len,
-    } = params;
 
     let mut market_state = {
         let mut market_data: &[u8] = &accounts.market.data.borrow();
@@ -83,8 +69,8 @@ pub(crate) fn process(
     let orderbook_state = OrderBookState::new_safe(
         accounts.bids,
         accounts.asks,
-        callback_info_len as usize,
-        callback_id_len,
+        market_state.callback_info_len as usize,
+        market_state.callback_id_len as usize,
     )
     .unwrap();
     if orderbook_state.find_bbo(Side::Bid).is_some()
@@ -110,11 +96,9 @@ pub(crate) fn process(
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
 
-
     market_state.tag = AccountTag::Uninitialized;
     let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
     market_state.serialize(&mut market_state_data).unwrap();
-
 
     let mut market_lamports = accounts.market.lamports.borrow_mut();
     let mut bids_lamports = accounts.bids.lamports.borrow_mut();
