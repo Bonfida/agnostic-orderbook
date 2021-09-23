@@ -1,7 +1,7 @@
 use crate::{
     error::AoError,
     orderbook::OrderBookState,
-    state::{EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
+    state::{AccountTag, EventQueue, EventQueueHeader, MarketState, Side, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -48,9 +48,6 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             lamports_target_account: next_account_info(accounts_iter)?,
         };
         check_account_owner(a.market, program_id)?;
-        check_account_owner(a.event_queue, program_id)?;
-        check_account_owner(a.bids, program_id)?;
-        check_account_owner(a.asks, program_id)?;
         check_signer(a.authority)?;
         Ok(a)
     }
@@ -68,10 +65,12 @@ pub(crate) fn process(
         callback_info_len,
     } = params;
 
-    let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data)
-        .unwrap()
-        .check()?;
+    let mut market_state = {
+        let mut market_data: &[u8] = &accounts.market.data.borrow();
+        MarketState::deserialize(&mut market_data)
+            .unwrap()
+            .check()?
+    };
 
     check_account_key(accounts.event_queue, &market_state.event_queue)
         .map_err(|_| AoError::WrongEventQueueAccount)?;
@@ -110,6 +109,12 @@ pub(crate) fn process(
         msg!("The event queue needs to be empty");
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
+
+
+    market_state.tag = AccountTag::Uninitialized;
+    let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
+    market_state.serialize(&mut market_state_data).unwrap();
+
 
     let mut market_lamports = accounts.market.lamports.borrow_mut();
     let mut bids_lamports = accounts.bids.lamports.borrow_mut();
