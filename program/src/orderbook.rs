@@ -274,4 +274,8 @@ impl<'ob> OrderBookState<'ob> {
             total_base_qty_posted: base_qty_to_post,
         })
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.asks.root().is_none() && self.bids.root().is_none()
+    }
 }
