@@ -54,9 +54,9 @@ impl Processor {
                 msg!("Instruction: Cancel Order");
                 cancel_order::process(program_id, accounts, params)?;
             }
-            AgnosticOrderbookInstruction::CloseMarket(params) => {
+            AgnosticOrderbookInstruction::CloseMarket => {
                 msg!("Instruction: Close Market");
-                close_market::process(program_id, accounts, params)?;
+                close_market::process(program_id, accounts)?;
             }
         }
         Ok(())
