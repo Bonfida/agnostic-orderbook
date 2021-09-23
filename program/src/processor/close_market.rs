@@ -1,7 +1,7 @@
 use crate::{
     error::AoError,
     orderbook::OrderBookState,
-    state::{AccountTag, EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
+    state::{AccountTag, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -84,12 +84,7 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let event_queue = EventQueue::new_safe(
-        header,
-        accounts.event_queue,
-        market_state.callback_info_len as usize,
-    )?;
-    if event_queue.header.count != 0 {
+    if header.count != 0 {
         msg!("The event queue needs to be empty");
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
