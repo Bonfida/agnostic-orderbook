@@ -224,7 +224,12 @@ impl<'ob> OrderBookState<'ob> {
             match_limit -= 1;
         }
 
-        if crossed || !post_allowed {
+        let base_qty_to_post = std::cmp::min(
+            fp32_div(quote_qty_remaining, limit_price),
+            base_qty_remaining,
+        );
+
+        if crossed || !post_allowed || base_qty_to_post == 0 {
             return Ok(OrderSummary {
                 posted_order_id: None,
                 total_base_qty: max_base_qty - base_qty_remaining,
@@ -232,10 +237,7 @@ impl<'ob> OrderBookState<'ob> {
                 total_base_qty_posted: 0,
             });
         }
-        let base_qty_to_post = std::cmp::min(
-            fp32_div(quote_qty_remaining, limit_price),
-            base_qty_remaining,
-        );
+
         let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
         let new_leaf = Node::Leaf(LeafNode::new(
             new_leaf_order_id,

@@ -32,6 +32,8 @@ pub enum AoError {
     NoOperations,
     #[error("The market is still active")]
     MarketStillActive,
+    #[error("The base quantity must be > 0")]
+    InvalidBaseQuantity,
 }
 
 impl From<AoError> for ProgramError {

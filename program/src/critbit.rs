@@ -378,6 +378,9 @@ impl<'a> Slab<'a> {
         new_leaf_node: &Node,
     ) -> Result<(NodeHandle, Option<Node>), AoError> {
         let new_leaf = new_leaf_node.as_leaf().unwrap();
+        if new_leaf.base_quantity == 0 {
+            return Err(AoError::InvalidBaseQuantity);
+        }
         let mut root: NodeHandle = match self.root() {
             Some(h) => h,
             None => {
