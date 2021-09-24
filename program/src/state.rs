@@ -74,6 +74,8 @@ pub struct MarketState {
     pub fee_budget: u64,
     /// The amount of lamports the market account was created with.
     pub initial_lamports: u64,
+    /// The minimum order size that can be inserted into the orderbook after matching.
+    pub min_base_order_size: u64,
     //TODO cranked_accs
 }
 

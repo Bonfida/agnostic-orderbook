@@ -92,6 +92,7 @@ pub async fn create_market_and_accounts(
             caller_authority: caller_authority.pubkey(),
             callback_info_len: 32,
             callback_id_len: 32,
+            min_base_order_size: 10,
         },
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])

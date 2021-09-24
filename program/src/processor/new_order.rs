@@ -122,7 +122,11 @@ pub(crate) fn process(
     };
     let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
 
-    let order_summary = order_book.new_order(params, &mut &mut event_queue)?;
+    let order_summary = order_book.new_order(
+        params,
+        &mut &mut event_queue,
+        market_state.min_base_order_size,
+    )?;
     msg!("Order summary : {:?}", order_summary);
     event_queue.write_to_register(order_summary);
 

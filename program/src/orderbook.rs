@@ -76,6 +76,7 @@ impl<'ob> OrderBookState<'ob> {
         &mut self,
         params: new_order::Params,
         event_queue: &mut EventQueue,
+        min_base_order_size: u64,
     ) -> Result<OrderSummary, AoError> {
         let new_order::Params {
             max_base_qty,
@@ -229,7 +230,7 @@ impl<'ob> OrderBookState<'ob> {
             base_qty_remaining,
         );
 
-        if crossed || !post_allowed || base_qty_to_post == 0 {
+        if crossed || !post_allowed || base_qty_to_post <= min_base_order_size {
             return Ok(OrderSummary {
                 posted_order_id: None,
                 total_base_qty: max_base_qty - base_qty_remaining,

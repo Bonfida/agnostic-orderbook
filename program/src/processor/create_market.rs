@@ -29,6 +29,8 @@ pub struct Params {
     pub callback_info_len: u64,
     /// The prefix length of callback information which is used to identify self-trading
     pub callback_id_len: u64,
+    /// The minimum order size that can be inserted into the orderbook after matching.
+    pub min_base_order_size: u64,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -65,6 +67,7 @@ pub(crate) fn process(
         caller_authority,
         callback_info_len,
         callback_id_len,
+        min_base_order_size,
     } = params;
 
     if accounts.event_queue.owner != program_id {
@@ -95,6 +98,7 @@ pub(crate) fn process(
         callback_id_len,
         fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
+        min_base_order_size,
     };
 
     let event_queue_header = EventQueueHeader::initialize(params.callback_info_len as usize);

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use agnostic_orderbook::instruction::{cancel_order, consume_events, new_order};
+use agnostic_orderbook::instruction::{cancel_order, close_market, consume_events, new_order};
 use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
 use agnostic_orderbook::state::{MarketState, OrderSummary};
 use agnostic_orderbook::{msrm_token, CRANKER_REWARD};
@@ -197,7 +197,7 @@ async fn test_agnostic_orderbook() {
         market_state.bids,
         market_state.asks,
         new_order::Params {
-            max_base_qty: 1000,
+            max_base_qty: 1100,
             max_quote_qty: 1000,
             limit_price: 1000,
             side: Side::Ask,
@@ -291,13 +291,31 @@ async fn test_agnostic_orderbook() {
         msrm_token_account,
         msrm_token_account_owner.pubkey(),
         consume_events::Params {
-            number_of_entries_to_consume: 1,
+            number_of_entries_to_consume: 10,
         },
     );
     sign_send_instructions(
         &mut prg_test_ctx,
         vec![consume_events_instruction],
         vec![&caller_authority, &msrm_token_account_owner],
+    )
+    .await
+    .unwrap();
+
+    // Close Market
+    let close_market_instruction = close_market(
+        agnostic_orderbook_program_id,
+        market_account,
+        market_state.event_queue,
+        market_state.bids,
+        market_state.asks,
+        market_state.caller_authority,
+        reward_target.pubkey(),
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![close_market_instruction],
+        vec![&caller_authority],
     )
     .await
     .unwrap();

@@ -36,6 +36,7 @@ export class MarketState {
   callBackInfoLen: BN;
   feeBudget: BN;
   initialLamports: BN;
+  minOrderSize: BN;
 
   static LEN: number = 161;
 
@@ -54,6 +55,7 @@ export class MarketState {
           ["callBackInfoLen", "u64"],
           ["feeBudget", "u64"],
           ["initialLamports", "u64"],
+          ["minOrderSize", "u64"],
         ],
       },
     ],
@@ -69,6 +71,7 @@ export class MarketState {
     callBackIdLen: BN;
     feeBudget: BN;
     initialLamports: BN;
+    minOrderSize: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.callerAuthority = new PublicKey(arg.callerAuthority);
@@ -79,6 +82,7 @@ export class MarketState {
     this.callBackIdLen = arg.callBackIdLen;
     this.feeBudget = arg.feeBudget;
     this.initialLamports = arg.initialLamports;
+    this.minOrderSize = arg.minOrderSize;
   }
 
   /**
