@@ -37,6 +37,7 @@ export const createMarket = async (
   callBackIdLen: BN,
   eventCapacity: number,
   nodesCapacity: number,
+  minOrderSize: BN,
   feePayer: PublicKey
 ): Promise<PrimedTransaction> => {
   let signers: Keypair[] = [];
@@ -105,6 +106,7 @@ export const createMarket = async (
     callerAuthority: callerAuthority.toBuffer(),
     callBackInfoLen,
     callBackIdLen,
+    minOrderSize,
   }).getInstruction(
     AAOB_ID,
     market.publicKey,
