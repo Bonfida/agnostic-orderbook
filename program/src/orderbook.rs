@@ -194,13 +194,11 @@ impl<'ob> OrderBookState<'ob> {
                 .push_back(maker_fill)
                 .map_err(|_| AoError::EventQueueFull)?;
 
-            let initial_best_bo_base_quantity = best_bo_ref.base_quantity;
-
             best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
             base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
-            if best_bo_ref.base_quantity == 0 {
+            if best_bo_ref.base_quantity <= min_base_order_size {
                 let best_offer_id = best_bo_ref.order_id();
                 let cur_side = side.opposite();
                 self.get_tree(cur_side)
@@ -209,7 +207,7 @@ impl<'ob> OrderBookState<'ob> {
                 let out_event = Event::Out {
                     side: cur_side,
                     order_id: best_offer_id,
-                    base_size: initial_best_bo_base_quantity,
+                    base_size: base_trade_qty,
                     callback_info: best_bo_ref.callback_info,
                     delete: true,
                 };
