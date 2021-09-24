@@ -38,7 +38,7 @@ export class MarketState {
   initialLamports: BN;
   minOrderSize: BN;
 
-  static LEN: number = 161;
+  static LEN: number = 169;
 
   static schema: Schema = new Map([
     [
