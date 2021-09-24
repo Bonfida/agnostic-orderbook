@@ -207,7 +207,7 @@ impl<'ob> OrderBookState<'ob> {
                 let out_event = Event::Out {
                     side: cur_side,
                     order_id: best_offer_id,
-                    base_size: base_trade_qty,
+                    base_size: best_bo_ref.base_quantity,
                     callback_info: best_bo_ref.callback_info,
                     delete: true,
                 };
