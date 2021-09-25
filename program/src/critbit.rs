@@ -443,6 +443,7 @@ impl<'a> Slab<'a> {
             self.write_node(&Node::Inner(root_node), root).unwrap();
 
             self.header.leaf_count += 1;
+            self.write_header();
             return Ok((new_leaf_handle, None));
         }
     }
