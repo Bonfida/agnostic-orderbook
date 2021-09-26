@@ -4,6 +4,7 @@ import BN from "bn.js";
 import { AccountTag } from "./market_state";
 import { Price } from "./types";
 import { find_max, find_min, find_l2_depth } from "dex-wasm";
+import { getPriceFromKey } from "./utils";
 
 ///////////////////////////////////////////////
 ////// Nodes and Slab
@@ -348,5 +349,44 @@ export class Slab {
       minMaxOrders.push(leafNode);
     }
     return minMaxOrders;
+  }
+
+  getL2DepthJS(depth: number, increasing: boolean): Price[] {
+    if (this.header.leafCount.eq(new BN(0))) {
+      return [];
+    }
+    let raw: number[] = [];
+    let stack = [this.header.rootNode];
+    while (raw.length !== 2 * depth) {
+      const current = stack.pop();
+      if (current === undefined) break;
+      let offset = SlabHeader.LEN + current * this.slotSize;
+      const node = parseNode(
+        this.callBackInfoLen,
+        this.data.slice(offset, offset + this.slotSize)
+      );
+      if (node instanceof LeafNode) {
+        const leafPrice = getPriceFromKey(node.key);
+        if (raw[raw.length - 1] === leafPrice.toNumber()) {
+          const idx = raw.length - 2;
+          raw[idx] += node.baseQuantity.toNumber();
+        } else {
+          raw.push(node.baseQuantity.toNumber());
+          raw.push(leafPrice.toNumber());
+        }
+      }
+      if (node instanceof InnerNode) {
+        stack.push(node.children[increasing ? 1 : 0]);
+        stack.push(node.children[increasing ? 0 : 1]);
+      }
+    }
+    let result: Price[] = [];
+    for (let i = 0; i < raw.length / 2; i++) {
+      result.push({
+        size: Number(raw[2 * i]),
+        price: Number(raw[2 * i + 1]) / 2 ** 32,
+      });
+    }
+    return result;
   }
 }
