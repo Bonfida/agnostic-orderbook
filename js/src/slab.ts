@@ -3,7 +3,8 @@ import { Schema, BinaryReader, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
 import { Price } from "./types";
-import { find_max, find_min, find_l2_depth } from "dex-wasm";
+// Uncomment to use WebAssembly for OB deserialization
+// import { find_max, find_min, find_l2_depth } from "dex-wasm";
 import { getPriceFromKey } from "./utils";
 
 ///////////////////////////////////////////////
@@ -238,39 +239,40 @@ export class Slab {
     }
   }
 
-  /**
-   * Return min or max node of the critbit tree
-   * @param max Boolean (false for best asks and true for best bids)
-   * @returns Returns the min or max node of the Slab
-   */
-  getMinMax(max: boolean) {
-    let pointer;
-    if (max) {
-      pointer = find_max(
-        this.data,
-        BigInt(this.callBackInfoLen),
-        BigInt(this.slotSize)
-      );
-    } else {
-      pointer = find_min(
-        this.data,
-        BigInt(this.callBackInfoLen),
-        BigInt(this.slotSize)
-      );
-    }
-    let offset = SlabHeader.LEN;
-    if (!pointer) {
-      throw new Error("Empty slab");
-    }
-    let node = parseNode(
-      this.callBackInfoLen,
-      this.data.slice(
-        offset + pointer * this.slotSize,
-        offset + (pointer + 1) * this.slotSize
-      )
-    );
-    return node;
-  }
+  // Uncomment if you are using webassembly
+  // /**
+  //  * Return min or max node of the critbit tree
+  //  * @param max Boolean (false for best asks and true for best bids)
+  //  * @returns Returns the min or max node of the Slab
+  //  */
+  // getMinMax(max: boolean) {
+  //   let pointer;
+  //   if (max) {
+  //     pointer = find_max(
+  //       this.data,
+  //       BigInt(this.callBackInfoLen),
+  //       BigInt(this.slotSize)
+  //     );
+  //   } else {
+  //     pointer = find_min(
+  //       this.data,
+  //       BigInt(this.callBackInfoLen),
+  //       BigInt(this.slotSize)
+  //     );
+  //   }
+  //   let offset = SlabHeader.LEN;
+  //   if (!pointer) {
+  //     throw new Error("Empty slab");
+  //   }
+  //   let node = parseNode(
+  //     this.callBackInfoLen,
+  //     this.data.slice(
+  //       offset + pointer * this.slotSize,
+  //       offset + (pointer + 1) * this.slotSize
+  //     )
+  //   );
+  //   return node;
+  // }
 
   /**
    * Walkdown the critbit tree
@@ -310,29 +312,30 @@ export class Slab {
     return this.items(false);
   }
 
-  /**
-   * Returns an array of [price, size] given a certain depth
-   * @param depth Depth to fetch
-   * @param max Boolean (false for asks and true for bids)
-   * @returns Returns an array made of [price, size] elements
-   */
-  getL2Depth(depth: number, increasing: boolean): Price[] {
-    let raw = find_l2_depth(
-      this.data,
-      BigInt(this.callBackInfoLen),
-      BigInt(this.slotSize),
-      BigInt(depth),
-      increasing
-    );
-    let result: Price[] = [];
-    for (let i = 0; i < raw.length / 2; i++) {
-      result.push({
-        size: Number(raw[2 * i]),
-        price: Number(raw[2 * i + 1]) / 2 ** 32,
-      });
-    }
-    return result;
-  }
+  // Uncomment if you are using webassembly
+  // /**
+  //  * Returns an array of [price, size] given a certain depth
+  //  * @param depth Depth to fetch
+  //  * @param max Boolean (false for asks and true for bids)
+  //  * @returns Returns an array made of [price, size] elements
+  //  */
+  // getL2Depth(depth: number, increasing: boolean): Price[] {
+  //   let raw = find_l2_depth(
+  //     this.data,
+  //     BigInt(this.callBackInfoLen),
+  //     BigInt(this.slotSize),
+  //     BigInt(depth),
+  //     increasing
+  //   );
+  //   let result: Price[] = [];
+  //   for (let i = 0; i < raw.length / 2; i++) {
+  //     result.push({
+  //       size: Number(raw[2 * i]),
+  //       price: Number(raw[2 * i + 1]) / 2 ** 32,
+  //     });
+  //   }
+  //   return result;
+  // }
 
   /**
    * Returns the top maxNbOrders (not aggregated by price)
