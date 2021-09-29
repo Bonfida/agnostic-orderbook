@@ -53,12 +53,7 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
 
     let mut market_state = MarketState::get(&accounts.market)?;
 
-    check_account_key(accounts.event_queue, &market_state.event_queue)
-        .map_err(|_| AoError::WrongEventQueueAccount)?;
-    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
-    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
-    check_account_key(accounts.authority, &market_state.caller_authority)
-        .map_err(|_| AoError::WrongCallerAuthority)?;
+    check_accounts(&accounts, &market_state)?;
 
     // Check if there are still orders in the book
     let orderbook_state = OrderBookState::new_safe(
@@ -100,6 +95,17 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
     **bids_lamports = 0;
     **asks_lamports = 0;
     **event_queue_lamports = 0;
+
+    Ok(())
+}
+
+fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+    check_account_key(accounts.event_queue, &market_state.event_queue)
+        .map_err(|_| AoError::WrongEventQueueAccount)?;
+    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
+    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
+    check_account_key(accounts.authority, &market_state.caller_authority)
+        .map_err(|_| AoError::WrongCallerAuthority)?;
 
     Ok(())
 }

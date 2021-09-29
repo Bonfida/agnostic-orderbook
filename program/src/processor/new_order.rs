@@ -87,12 +87,7 @@ pub(crate) fn process(
     let accounts = Accounts::parse(program_id, accounts)?;
     let mut market_state = MarketState::get(&accounts.market)?;
 
-    check_account_key(accounts.event_queue, &market_state.event_queue)
-        .map_err(|_| AoError::WrongEventQueueAccount)?;
-    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
-    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
-    check_account_key(accounts.authority, &market_state.caller_authority)
-        .map_err(|_| AoError::WrongCallerAuthority)?;
+    check_accounts(&accounts, &market_state)?;
 
     let callback_info_len = market_state.callback_info_len as usize;
 
@@ -141,6 +136,17 @@ pub(crate) fn process(
         return Err(AoError::FeeNotPayed.into());
     }
     market_state.fee_budget = accounts.market.lamports() - market_state.initial_lamports;
+
+    Ok(())
+}
+
+fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+    check_account_key(accounts.event_queue, &market_state.event_queue)
+        .map_err(|_| AoError::WrongEventQueueAccount)?;
+    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
+    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
+    check_account_key(accounts.authority, &market_state.caller_authority)
+        .map_err(|_| AoError::WrongCallerAuthority)?;
 
     Ok(())
 }

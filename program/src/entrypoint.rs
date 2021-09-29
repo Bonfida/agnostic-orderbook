@@ -51,6 +51,15 @@ impl PrintProgramError for AoError {
             AoError::NoOperations => msg!("Error: This instruction is a No-op."),
             AoError::MarketStillActive => msg!("Error: The market is still active"),
             AoError::InvalidBaseQuantity => msg!("Error: The base quantity must be > 0"),
+            AoError::WrongEventQueueOwner => {
+                msg!("Error: The event queue should be owned by the AO program")
+            }
+            AoError::WrongBidsOwner => {
+                msg!("Error: The bids account should be owned by the AO program")
+            }
+            AoError::WrongAsksOwner => {
+                msg!("Error: The asks account should be owned by the AO program")
+            }
         }
     }
 }

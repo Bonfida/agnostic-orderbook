@@ -79,13 +79,7 @@ pub(crate) fn process(
 
     let mut market_state = MarketState::get(&accounts.market)?;
 
-    check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
-    check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
-
-    if market_state.event_queue != accounts.event_queue.key.to_bytes() {
-        msg!("Invalid event queue for current market");
-        return Err(ProgramError::InvalidArgument);
-    }
+    check_accounts(&accounts, &market_state)?;
 
     let header = {
         let mut event_queue_data: &[u8] =
@@ -123,5 +117,15 @@ pub(crate) fn process(
         capped_number_of_entries_consumed
     );
 
+    Ok(())
+}
+
+fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+    check_account_key(accounts.event_queue, &market_state.event_queue)
+        .map_err(|_| AoError::WrongEventQueueAccount)?;
+    check_account_key(accounts.authority, &market_state.caller_authority)
+        .map_err(|_| AoError::WrongCallerAuthority)?;
+    check_account_key(accounts.event_queue, &market_state.event_queue)
+        .map_err(|_| AoError::WrongEventQueueAccount)?;
     Ok(())
 }

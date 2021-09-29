@@ -2,15 +2,15 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
 
 use crate::{
     critbit::Slab,
+    error::AoError,
     state::{AccountTag, EventQueueHeader, MarketState},
-    utils::check_unitialized,
+    utils::{check_account_owner, check_unitialized},
 };
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -42,17 +42,24 @@ struct Accounts<'a, 'b: 'a> {
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
     pub fn parse(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &'a [AccountInfo<'b>],
     ) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
 
-        Ok(Self {
+        let a = Self {
             market: next_account_info(accounts_iter)?,
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
-        })
+        };
+
+        check_account_owner(a.event_queue, program_id)
+            .map_err(|_| AoError::WrongEventQueueOwner)?;
+        check_account_owner(a.bids, program_id).map_err(|_| AoError::WrongBidsOwner)?;
+        check_account_owner(a.asks, program_id).map_err(|_| AoError::WrongAsksOwner)?;
+
+        Ok(a)
     }
 }
 
@@ -69,19 +76,6 @@ pub(crate) fn process(
         callback_id_len,
         min_base_order_size,
     } = params;
-
-    if accounts.event_queue.owner != program_id {
-        msg!("The event queue should be owned by the AO program");
-        return Err(ProgramError::InvalidArgument);
-    }
-    if accounts.bids.owner != program_id {
-        msg!("The bids account should be owned by the AO program");
-        return Err(ProgramError::InvalidArgument);
-    }
-    if accounts.asks.owner != program_id {
-        msg!("The asks account should be owned by the AO program");
-        return Err(ProgramError::InvalidArgument);
-    }
 
     check_unitialized(accounts.event_queue)?;
     check_unitialized(accounts.bids)?;

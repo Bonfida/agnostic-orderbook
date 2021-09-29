@@ -34,6 +34,12 @@ pub enum AoError {
     MarketStillActive,
     #[error("The base quantity must be > 0")]
     InvalidBaseQuantity,
+    #[error("The event queue should be owned by the AO program")]
+    WrongEventQueueOwner,
+    #[error("The bids account should be owned by the AO program")]
+    WrongBidsOwner,
+    #[error("The asks account should be owned by the AO program")]
+    WrongAsksOwner,
 }
 
 impl From<AoError> for ProgramError {
