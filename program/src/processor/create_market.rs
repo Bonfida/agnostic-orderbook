@@ -54,10 +54,13 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             asks: next_account_info(accounts_iter)?,
         };
 
-        check_account_owner(a.event_queue, program_id)
-            .map_err(|_| AoError::WrongEventQueueOwner)?;
-        check_account_owner(a.bids, program_id).map_err(|_| AoError::WrongBidsOwner)?;
-        check_account_owner(a.asks, program_id).map_err(|_| AoError::WrongAsksOwner)?;
+        check_account_owner(
+            a.event_queue,
+            &program_id.to_bytes(),
+            AoError::WrongEventQueueOwner,
+        )?;
+        check_account_owner(a.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
+        check_account_owner(a.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
 
         Ok(a)
     }

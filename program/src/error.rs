@@ -40,6 +40,16 @@ pub enum AoError {
     WrongBidsOwner,
     #[error("The asks account should be owned by the AO program")]
     WrongAsksOwner,
+    #[error("The market account should be owned by the AO program")]
+    WrongMarketOwner,
+    #[error("The MSRM token account should be owned by the cranker")]
+    WrongMsrmOwner,
+    #[error("An invalid MSRM mint has been provided")]
+    WrongMsrmMint,
+    #[error("The MSRM token account does not have enough balances")]
+    WrongMsrmBalance,
+    #[error("Illegal MSRM token account owner")]
+    IllegalMsrmOwner,
 }
 
 impl From<AoError> for ProgramError {

@@ -42,7 +42,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             authority: next_account_info(accounts_iter)?,
             lamports_target_account: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes())?;
+        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
         check_signer(a.authority)?;
         Ok(a)
     }
@@ -100,12 +100,18 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
 }
 
 fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
-    check_account_key(accounts.event_queue, &market_state.event_queue)
-        .map_err(|_| AoError::WrongEventQueueAccount)?;
-    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
-    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
-    check_account_key(accounts.authority, &market_state.caller_authority)
-        .map_err(|_| AoError::WrongCallerAuthority)?;
+    check_account_key(
+        accounts.event_queue,
+        &market_state.event_queue,
+        AoError::WrongEventQueueAccount,
+    )?;
+    check_account_key(accounts.bids, &market_state.bids, AoError::WrongBidsAccount)?;
+    check_account_key(accounts.asks, &market_state.asks, AoError::WrongAsksAccount)?;
+    check_account_key(
+        accounts.authority,
+        &market_state.caller_authority,
+        AoError::WrongCallerAuthority,
+    )?;
 
     Ok(())
 }

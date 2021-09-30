@@ -60,6 +60,21 @@ impl PrintProgramError for AoError {
             AoError::WrongAsksOwner => {
                 msg!("Error: The asks account should be owned by the AO program")
             }
+            AoError::WrongMarketOwner => {
+                msg!("Error: The market account should be owned by the AO program")
+            }
+            AoError::WrongMsrmOwner => {
+                msg!("Error: The MSRM token account should be owned by the cranker")
+            }
+            AoError::WrongMsrmMint => {
+                msg!("Error: An invalid MSRM mint has been provided")
+            }
+            AoError::WrongMsrmBalance => {
+                msg!("Error: The MSRM token account does not have enough balances")
+            }
+            AoError::IllegalMsrmOwner => {
+                msg!("Error: Illegal MSRM token account owner")
+            }
         }
     }
 }

@@ -13,16 +13,20 @@ unsafe fn invariant(check: bool) {
 }
 
 // Safety verification functions
-pub fn check_account_key(account: &AccountInfo, key: &[u8]) -> ProgramResult {
+pub fn check_account_key(account: &AccountInfo, key: &[u8], error: AoError) -> Result<(), AoError> {
     if account.key.to_bytes() != key {
-        return Err(ProgramError::InvalidArgument);
+        return Err(error);
     }
     Ok(())
 }
 
-pub fn check_account_owner(account: &AccountInfo, owner: &[u8]) -> ProgramResult {
+pub fn check_account_owner(
+    account: &AccountInfo,
+    owner: &[u8],
+    error: AoError,
+) -> Result<(), AoError> {
     if account.owner.to_bytes() != owner {
-        return Err(ProgramError::InvalidArgument);
+        return Err(error);
     }
     Ok(())
 }
