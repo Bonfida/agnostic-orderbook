@@ -108,5 +108,8 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
     **asks_lamports = 0;
     **event_queue_lamports = 0;
 
+    msg!("u128 : {:?}", std::mem::align_of_val(&1u128));
+    msg!("u64 : {:?}", std::mem::align_of_val(&1u128));
+
     Ok(())
 }
