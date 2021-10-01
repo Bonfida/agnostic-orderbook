@@ -262,7 +262,7 @@ impl<'a> EventQueue<'a> {
     /// use std::rc::Rc;
     /// let a: AccountInfo;
     ///
-    /// let event_queue_header = EventQueueHeader::deserialize(&mut &a.data.borrow()[..EVENT_QUEUE_HEADER_LEN]).unwrap()
+    /// let event_queue_header = EventQueueHeader::deserialize(&mut &a.data.borrow()[..EVENT_QUEUE_HEADER_LEN]).unwrap();
     /// let event_queue = EventQueue::new(event_queue_header, Rc::clone(&a.data), callback_info_len);
     ///
     /// ```

@@ -106,7 +106,12 @@ pub(crate) fn process(
         .serialize(&mut (&mut accounts.event_queue.data.borrow_mut() as &mut [u8]))
         .unwrap();
 
-    Slab::initialize(accounts.bids, accounts.asks, *accounts.market.key);
+    Slab::initialize(
+        accounts.bids,
+        accounts.asks,
+        *accounts.market.key,
+        callback_info_len as usize,
+    );
 
     let mut market_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
     market_state.serialize(&mut market_data).unwrap();
