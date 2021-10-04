@@ -202,11 +202,11 @@ pub struct EventQueueHeader {
     pub count: u64,
     event_size: u64,
     seq_num: u64,
-    register_size: u32, //TODO useful if constant?
 }
-
 #[allow(missing_docs)]
 pub const EVENT_QUEUE_HEADER_LEN: usize = 37;
+#[allow(missing_docs)]
+pub const REGISTER_SIZE: usize = ORDER_SUMMARY_SIZE as usize + 1; // Option<OrderSummary>
 
 impl EventQueueHeader {
     pub(crate) fn initialize(callback_info_len: usize) -> Self {
@@ -215,7 +215,6 @@ impl EventQueueHeader {
             head: 0,
             count: 0,
             event_size: Event::compute_slot_size(callback_info_len) as u64,
-            register_size: ORDER_SUMMARY_SIZE + 1,
             seq_num: 0,
         }
     }
@@ -298,12 +297,11 @@ impl<'a> EventQueue<'a> {
     }
 
     pub(crate) fn get_buf_len(&self) -> usize {
-        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (self.header.register_size as usize)
+        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (REGISTER_SIZE)
     }
 
     pub(crate) fn full(&self) -> bool {
         self.header.count as usize == (self.get_buf_len() / (self.header.event_size as usize))
-        //TODO check
     }
 
     pub(crate) fn push_back(&mut self, event: Event) -> Result<(), Event> {
@@ -311,7 +309,7 @@ impl<'a> EventQueue<'a> {
             return Err(event);
         }
         let offset = EVENT_QUEUE_HEADER_LEN
-            + (self.header.register_size as usize)
+            + (REGISTER_SIZE)
             + (((self.header.head + self.header.count * self.header.event_size) as usize)
                 % self.get_buf_len());
         let mut queue_event_data =
@@ -330,7 +328,7 @@ impl<'a> EventQueue<'a> {
             return None;
         }
 
-        let header_offset = EVENT_QUEUE_HEADER_LEN + self.header.register_size as usize;
+        let header_offset = EVENT_QUEUE_HEADER_LEN + REGISTER_SIZE;
         let offset = ((self.header.head + index * self.header.event_size) as usize
             % self.get_buf_len())
             + header_offset;
@@ -351,13 +349,13 @@ impl<'a> EventQueue<'a> {
 
     pub(crate) fn write_to_register<T: BorshSerialize + BorshDeserialize>(&self, object: T) {
         let mut register = &mut self.buffer.borrow_mut()
-            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (REGISTER_SIZE)];
         Register::Some(object).serialize(&mut register).unwrap();
     }
 
     pub(crate) fn clear_register(&self) {
         let mut register = &mut self.buffer.borrow_mut()
-            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (REGISTER_SIZE)];
         Register::<u8>::None.serialize(&mut register).unwrap();
     }
 
@@ -367,8 +365,8 @@ impl<'a> EventQueue<'a> {
     pub fn read_register<T: BorshSerialize + BorshDeserialize>(
         &self,
     ) -> Result<Register<T>, IoError> {
-        let mut register = &self.buffer.borrow()
-            [EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (self.header.register_size as usize)];
+        let mut register =
+            &self.buffer.borrow()[EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + (REGISTER_SIZE)];
         Register::deserialize(&mut register)
     }
 
@@ -381,10 +379,22 @@ impl<'a> EventQueue<'a> {
             current_index: self.header.head as usize,
             callback_info_len: self.callback_info_len,
             buffer_length: self.get_buf_len(),
-            header_offset: EVENT_QUEUE_HEADER_LEN + self.header.register_size as usize,
+            header_offset: EVENT_QUEUE_HEADER_LEN + REGISTER_SIZE,
             remaining: self.header.count,
         }
     }
+}
+
+/// This method is used to deserialize the event queue's register
+/// without constructing an EventQueue instance
+///
+/// The nature of the serialized object should be deductible from caller context
+pub fn read_register<T: BorshSerialize + BorshDeserialize>(
+    event_q_acc: &AccountInfo,
+) -> Result<Register<T>, IoError> {
+    let mut register =
+        &event_q_acc.data.borrow()[EVENT_QUEUE_HEADER_LEN..EVENT_QUEUE_HEADER_LEN + REGISTER_SIZE];
+    Register::deserialize(&mut register)
 }
 
 #[cfg(feature = "no-entrypoint")]

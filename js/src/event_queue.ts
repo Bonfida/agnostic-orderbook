@@ -24,9 +24,9 @@ export class EventQueueHeader {
   count: BN;
   eventSize: BN;
   seqNum: BN;
-  registerSize: number;
 
   static LEN: number = 37;
+  static REGISTER_SIZE: number = 42;
 
   static schema: Schema = new Map([
     [
@@ -39,7 +39,6 @@ export class EventQueueHeader {
           ["count", "u64"],
           ["eventSize", "u64"],
           ["seqNum", "u64"],
-          ["registerSize", "u32"],
         ],
       },
     ],
@@ -50,14 +49,12 @@ export class EventQueueHeader {
     head: BN;
     count: BN;
     eventSize: BN;
-    registerSize: number;
     seqNum: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.head = arg.head;
     this.count = arg.count;
     this.eventSize = arg.eventSize;
-    this.registerSize = arg.registerSize;
     this.seqNum = arg.seqNum;
   }
 }
@@ -211,7 +208,7 @@ export class EventQueue {
    * @returns Returns an Event object
    */
   parseEvent(idx: number) {
-    let header_offset = EventQueueHeader.LEN + this.header.registerSize;
+    let header_offset = EventQueueHeader.LEN + EventQueueHeader.REGISTER_SIZE;
     let offset =
       header_offset +
       ((idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
@@ -264,7 +261,7 @@ export class EventQueue {
   extractRegister(data: Buffer) {
     return data.slice(
       EventQueueHeader.LEN,
-      EventQueueHeader.LEN + this.header.registerSize
+      EventQueueHeader.LEN + EventQueueHeader.REGISTER_SIZE
     );
   }
 }
