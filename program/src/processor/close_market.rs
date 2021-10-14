@@ -42,7 +42,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             authority: next_account_info(accounts_iter)?,
             lamports_target_account: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, program_id)?;
+        check_account_owner(a.market, &program_id.to_bytes())?;
         check_signer(a.authority)?;
         Ok(a)
     }
@@ -51,12 +51,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
-    let mut market_state = {
-        let mut market_data: &[u8] = &accounts.market.data.borrow();
-        MarketState::deserialize(&mut market_data)
-            .unwrap()
-            .check()?
-    };
+    let mut market_state = MarketState::get(&accounts.market)?;
 
     check_account_key(accounts.event_queue, &market_state.event_queue)
         .map_err(|_| AoError::WrongEventQueueAccount)?;
@@ -89,9 +84,7 @@ pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramR
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
 
-    market_state.tag = AccountTag::Uninitialized;
-    let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
-    market_state.serialize(&mut market_state_data).unwrap();
+    market_state.tag = AccountTag::Uninitialized as u64;
 
     let mut market_lamports = accounts.market.lamports.borrow_mut();
     let mut bids_lamports = accounts.bids.lamports.borrow_mut();

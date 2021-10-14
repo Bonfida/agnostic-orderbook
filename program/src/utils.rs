@@ -1,6 +1,5 @@
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-    pubkey::Pubkey,
 };
 
 use crate::error::{AoError, AoResult};
@@ -14,15 +13,15 @@ unsafe fn invariant(check: bool) {
 }
 
 // Safety verification functions
-pub fn check_account_key(account: &AccountInfo, key: &Pubkey) -> ProgramResult {
-    if account.key != key {
+pub fn check_account_key(account: &AccountInfo, key: &[u8]) -> ProgramResult {
+    if account.key.to_bytes() != key {
         return Err(ProgramError::InvalidArgument);
     }
     Ok(())
 }
 
-pub fn check_account_owner(account: &AccountInfo, owner: &Pubkey) -> ProgramResult {
-    if account.owner != owner {
+pub fn check_account_owner(account: &AccountInfo, owner: &[u8]) -> ProgramResult {
+    if account.owner.to_bytes() != owner {
         return Err(ProgramError::InvalidArgument);
     }
     Ok(())

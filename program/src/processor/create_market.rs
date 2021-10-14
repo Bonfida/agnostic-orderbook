@@ -88,12 +88,14 @@ pub(crate) fn process(
     check_unitialized(accounts.asks)?;
     check_unitialized(accounts.market)?;
 
-    let market_state = MarketState {
-        tag: AccountTag::Market,
-        caller_authority,
-        event_queue: *accounts.event_queue.key,
-        bids: *accounts.bids.key,
-        asks: *accounts.asks.key,
+    let mut market_state = MarketState::get_unchecked(accounts.market);
+
+    *market_state = MarketState {
+        tag: AccountTag::Market as u64,
+        caller_authority: caller_authority.to_bytes(),
+        event_queue: accounts.event_queue.key.to_bytes(),
+        bids: accounts.bids.key.to_bytes(),
+        asks: accounts.asks.key.to_bytes(),
         callback_info_len,
         callback_id_len,
         fee_budget: 0,
@@ -112,9 +114,6 @@ pub(crate) fn process(
         *accounts.market.key,
         callback_info_len as usize,
     );
-
-    let mut market_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
-    market_state.serialize(&mut market_data).unwrap();
 
     Ok(())
 }

@@ -2,10 +2,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use agnostic_orderbook::instruction::{cancel_order, close_market, consume_events, new_order};
-use agnostic_orderbook::state::{EventQueue, EventQueueHeader, SelfTradeBehavior, Side};
+use agnostic_orderbook::state::{
+    EventQueue, EventQueueHeader, SelfTradeBehavior, Side, MARKET_STATE_LEN,
+};
 use agnostic_orderbook::state::{MarketState, OrderSummary};
 use agnostic_orderbook::{msrm_token, CRANKER_REWARD};
 use borsh::BorshDeserialize;
+use bytemuck::try_from_bytes_mut;
 use solana_program::program_option::COption;
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
@@ -123,13 +126,14 @@ async fn test_agnostic_orderbook() {
     )
     .await;
 
-    let market_state_data = prg_test_ctx
+    let mut market_state_data = prg_test_ctx
         .banks_client
         .get_account(market_account)
         .await
         .unwrap()
         .unwrap();
-    let market_state = MarketState::deserialize(&mut &market_state_data.data[..]).unwrap();
+    let market_state =
+        try_from_bytes_mut::<MarketState>(&mut market_state_data.data[..MARKET_STATE_LEN]).unwrap();
     println!("{:?}", market_state);
 
     // Transfer the cranking fee
@@ -150,10 +154,10 @@ async fn test_agnostic_orderbook() {
     let new_order_instruction = new_order(
         agnostic_orderbook_program_id,
         market_account,
-        market_state.caller_authority,
-        market_state.event_queue,
-        market_state.bids,
-        market_state.asks,
+        Pubkey::new_from_array(market_state.caller_authority),
+        Pubkey::new_from_array(market_state.event_queue),
+        Pubkey::new_from_array(market_state.bids),
+        Pubkey::new_from_array(market_state.asks),
         new_order::Params {
             max_base_qty: 1000,
             max_quote_qty: 1000,
@@ -192,10 +196,10 @@ async fn test_agnostic_orderbook() {
     let new_order_instruction = new_order(
         agnostic_orderbook_program_id,
         market_account,
-        market_state.caller_authority,
-        market_state.event_queue,
-        market_state.bids,
-        market_state.asks,
+        Pubkey::new_from_array(market_state.caller_authority),
+        Pubkey::new_from_array(market_state.event_queue),
+        Pubkey::new_from_array(market_state.bids),
+        Pubkey::new_from_array(market_state.asks),
         new_order::Params {
             max_base_qty: 1100,
             max_quote_qty: 1000,
@@ -216,21 +220,19 @@ async fn test_agnostic_orderbook() {
     .await
     .unwrap();
 
-    let market_state = MarketState::deserialize(
-        &mut &prg_test_ctx
-            .banks_client
-            .get_account(market_account)
-            .await
-            .unwrap()
-            .unwrap()
-            .data[..],
-    )
-    .unwrap();
+    let mut market_data = prg_test_ctx
+        .banks_client
+        .get_account(market_account)
+        .await
+        .unwrap()
+        .unwrap();
+    let market_state =
+        try_from_bytes_mut::<MarketState>(&mut market_data.data[..MARKET_STATE_LEN]).unwrap();
     println!("{:?}", market_state);
 
     let mut event_queue_acc = prg_test_ctx
         .banks_client
-        .get_account(market_state.event_queue)
+        .get_account(Pubkey::new_from_array(market_state.event_queue))
         .await
         .unwrap()
         .unwrap();
@@ -248,10 +250,10 @@ async fn test_agnostic_orderbook() {
     let cancel_order_instruction = cancel_order(
         agnostic_orderbook_program_id,
         market_account,
-        market_state.caller_authority,
-        market_state.event_queue,
-        market_state.bids,
-        market_state.asks,
+        Pubkey::new_from_array(market_state.caller_authority),
+        Pubkey::new_from_array(market_state.event_queue),
+        Pubkey::new_from_array(market_state.bids),
+        Pubkey::new_from_array(market_state.asks),
         cancel_order::Params {
             order_id: order_summary.posted_order_id.unwrap(),
         },
@@ -285,8 +287,8 @@ async fn test_agnostic_orderbook() {
     let consume_events_instruction = consume_events(
         agnostic_orderbook_program_id,
         market_account,
-        market_state.caller_authority,
-        market_state.event_queue,
+        Pubkey::new_from_array(market_state.caller_authority),
+        Pubkey::new_from_array(market_state.event_queue),
         reward_target.pubkey(),
         msrm_token_account,
         msrm_token_account_owner.pubkey(),
@@ -306,10 +308,10 @@ async fn test_agnostic_orderbook() {
     let close_market_instruction = close_market(
         agnostic_orderbook_program_id,
         market_account,
-        market_state.event_queue,
-        market_state.bids,
-        market_state.asks,
-        market_state.caller_authority,
+        Pubkey::new_from_array(market_state.event_queue),
+        Pubkey::new_from_array(market_state.bids),
+        Pubkey::new_from_array(market_state.asks),
+        Pubkey::new_from_array(market_state.caller_authority),
         reward_target.pubkey(),
     );
     sign_send_instructions(

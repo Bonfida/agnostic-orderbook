@@ -45,10 +45,10 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             asks: next_account_info(accounts_iter)?,
             authority: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, program_id)?;
-        check_account_owner(a.event_queue, program_id)?;
-        check_account_owner(a.bids, program_id)?;
-        check_account_owner(a.asks, program_id)?;
+        check_account_owner(a.market, &program_id.to_bytes())?;
+        check_account_owner(a.event_queue, &program_id.to_bytes())?;
+        check_account_owner(a.bids, &program_id.to_bytes())?;
+        check_account_owner(a.asks, &program_id.to_bytes())?;
         check_signer(a.authority)?;
         Ok(a)
     }
@@ -61,10 +61,7 @@ pub(crate) fn process(
 ) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
-    let mut market_data: &[u8] = &accounts.market.data.borrow();
-    let market_state = MarketState::deserialize(&mut market_data)
-        .unwrap()
-        .check()?;
+    let market_state = MarketState::get(&accounts.market)?;
 
     check_account_key(accounts.event_queue, &market_state.event_queue)
         .map_err(|_| AoError::WrongEventQueueAccount)?;

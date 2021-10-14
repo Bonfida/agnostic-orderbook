@@ -46,14 +46,14 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             msrm_token_account: next_account_info(&mut accounts_iter)?,
             msrm_token_account_owner: next_account_info(&mut accounts_iter)?,
         };
-        check_account_owner(a.market, program_id).unwrap();
-        check_account_owner(a.event_queue, program_id).unwrap();
+        check_account_owner(a.market, &program_id.to_bytes()).unwrap();
+        check_account_owner(a.event_queue, &program_id.to_bytes()).unwrap();
         check_signer(a.authority).unwrap();
         check_signer(a.msrm_token_account_owner).unwrap();
 
         #[cfg(not(feature = "permissionless-crank"))]
         {
-            check_account_owner(a.msrm_token_account, &spl_token::ID).unwrap();
+            check_account_owner(a.msrm_token_account, &spl_token::ID.to_bytes()).unwrap();
             let token_account =
                 spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
             if &token_account.owner != a.msrm_token_account_owner.key {
@@ -77,17 +77,12 @@ pub(crate) fn process(
 ) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
 
-    let mut market_state = {
-        let mut market_data: &[u8] = &accounts.market.data.borrow();
-        MarketState::deserialize(&mut market_data)
-            .unwrap()
-            .check()?
-    };
+    let mut market_state = MarketState::get(&accounts.market)?;
 
     check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
     check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
 
-    if &market_state.event_queue != accounts.event_queue.key {
+    if market_state.event_queue != accounts.event_queue.key.to_bytes() {
         msg!("Invalid event queue for current market");
         return Err(ProgramError::InvalidArgument);
     }
@@ -117,9 +112,6 @@ pub(crate) fn process(
     **accounts.market.try_borrow_mut_lamports().unwrap() = accounts.market.lamports() - reward;
     **accounts.reward_target.try_borrow_mut_lamports().unwrap() =
         accounts.reward_target.lamports() + reward;
-
-    let mut market_state_data: &mut [u8] = &mut accounts.market.data.borrow_mut();
-    market_state.serialize(&mut market_state_data).unwrap();
 
     // Pop Events
     event_queue.pop_n(params.number_of_entries_to_consume);

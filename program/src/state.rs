@@ -1,15 +1,23 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{try_from_bytes_mut, Pod, Zeroable};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-use std::{cell::RefCell, convert::TryInto, io::Write, rc::Rc};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError};
+use std::{
+    cell::{RefCell, RefMut},
+    convert::TryInto,
+    io::Write,
+    mem::size_of,
+    rc::Rc,
+};
 
 use crate::critbit::IoError;
 
 pub use crate::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Copy, Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
+#[repr(u8)]
 pub enum AccountTag {
     Uninitialized,
     Market,
@@ -50,19 +58,20 @@ pub enum SelfTradeBehavior {
     AbortTransaction,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+#[repr(C)]
 /// The orderbook market's central state
 pub struct MarketState {
     /// Identifies the account as a [`MarketState`] object.
-    pub tag: AccountTag,
+    pub tag: u64,
     /// The required signer for all market operations.
-    pub caller_authority: Pubkey,
+    pub caller_authority: [u8; 32],
     /// The public key of the orderbook's event queue account
-    pub event_queue: Pubkey,
+    pub event_queue: [u8; 32],
     /// The public key of the orderbook's bids account
-    pub bids: Pubkey,
+    pub bids: [u8; 32],
     /// The public key of the orderbook's asks account
-    pub asks: Pubkey,
+    pub asks: [u8; 32],
     /// The length of an order actor's callback identifier.
     pub callback_id_len: u64,
     /// The length of an order's callback metadata.
@@ -79,12 +88,24 @@ pub struct MarketState {
     //TODO cranked_accs
 }
 
+pub const MARKET_STATE_LEN: usize = size_of::<MarketState>(); //TODO check
+
 impl MarketState {
-    pub(crate) fn check(self) -> Result<Self, ProgramError> {
-        if self.tag != AccountTag::Market {
+    pub(crate) fn get<'a, 'b: 'a>(
+        account_info: &'a AccountInfo<'b>,
+    ) -> Result<RefMut<'a, Self>, ProgramError> {
+        let a = Self::get_unchecked(account_info);
+        if a.tag != AccountTag::Market as u64 {
             return Err(ProgramError::InvalidAccountData);
         };
-        Ok(self)
+        Ok(a)
+    }
+
+    pub(crate) fn get_unchecked<'a, 'b: 'a>(account_info: &'a AccountInfo<'b>) -> RefMut<'a, Self> {
+        let a = RefMut::map(account_info.data.borrow_mut(), |s| {
+            try_from_bytes_mut::<Self>(&mut s[0..MARKET_STATE_LEN]).unwrap()
+        });
+        a
     }
 }
 
@@ -227,7 +248,7 @@ impl EventQueueHeader {
     }
 }
 
-/// The event queue account contains a serialized header
+/// The event queue account contains a serialized header, a register
 /// and a circular buffer of serialized events.
 ///
 /// This struct is used at runtime but doesn't represent a serialized event queue
