@@ -37,8 +37,8 @@ pub(crate) struct OrderBookState<'a> {
 
 impl<'ob> OrderBookState<'ob> {
     pub(crate) fn new_safe(
-        bids_account: &AccountInfo<'ob>,
-        asks_account: &AccountInfo<'ob>,
+        bids_account: &'ob AccountInfo,
+        asks_account: &'ob AccountInfo,
         callback_info_len: usize,
         callback_id_len: usize,
     ) -> Result<Self, ProgramError> {
@@ -65,11 +65,6 @@ impl<'ob> OrderBookState<'ob> {
             Side::Bid => &mut self.bids,
             Side::Ask => &mut self.asks,
         }
-    }
-
-    pub(crate) fn commit_changes(&self) {
-        self.bids.write_header();
-        self.asks.write_header();
     }
 
     pub(crate) fn new_order(

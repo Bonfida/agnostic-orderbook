@@ -46,7 +46,7 @@ impl Side {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive)]
 /// Describes what happens when two order with identical callback informations are matched together
 pub enum SelfTradeBehavior {
     /// The orders are matched together
@@ -88,10 +88,12 @@ pub struct MarketState {
     //TODO cranked_accs
 }
 
+/// The size in bytes of the MarketState object
 pub const MARKET_STATE_LEN: usize = size_of::<MarketState>(); //TODO check
 
 impl MarketState {
-    pub(crate) fn get<'a, 'b: 'a>(
+    /// Casts the MarketState object from an AccountInfo object. Checks the account tag.
+    pub fn get<'a, 'b: 'a>(
         account_info: &'a AccountInfo<'b>,
     ) -> Result<RefMut<'a, Self>, ProgramError> {
         let a = Self::get_unchecked(account_info);

@@ -108,7 +108,6 @@ pub(crate) fn process(
         .header
         .serialize(&mut event_queue_header_data)
         .unwrap();
-    order_book.commit_changes();
 
     Ok(())
 }
