@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, Commitment } from "@solana/web3.js";
 import { Schema, deserializeUnchecked } from "borsh";
 import { Slab } from "./slab";
 import BN from "bn.js";
@@ -38,7 +38,7 @@ export class MarketState {
   initialLamports: BN;
   minOrderSize: BN;
 
-  static LEN: number = 169;
+  static LEN: number = 176;
 
   static schema: Schema = new Map([
     [
@@ -46,7 +46,7 @@ export class MarketState {
       {
         kind: "struct",
         fields: [
-          ["accountFlags", "u8"],
+          ["tag", "u64"],
           ["callerAuthority", [32]],
           ["eventQueue", [32]],
           ["bids", [32]],
@@ -91,8 +91,8 @@ export class MarketState {
    * @param market The address of the market to load
    * @returns Returns a market state object
    */
-  static async retrieve(connection: Connection, market: PublicKey) {
-    const accountInfo = await connection.getAccountInfo(market);
+  static async retrieve(connection: Connection, market: PublicKey, commitment?: Commitment) {
+    const accountInfo = await connection.getAccountInfo(market, commitment);
     if (!accountInfo?.data) {
       throw new Error("Invalid account provided");
     }
@@ -108,16 +108,12 @@ export class MarketState {
    * @param connection The solana connection object to the RPC node
    * @returns Returns a Slab object
    */
-  async loadBidsSlab(connection: Connection) {
-    const bidsInfo = await connection.getAccountInfo(this.bids);
+  async loadBidsSlab(connection: Connection, commitment?: Commitment) {
+    const bidsInfo = await connection.getAccountInfo(this.bids, commitment);
     if (!bidsInfo?.data) {
       throw new Error("Invalid bids account");
     }
-    let s = deserializeUnchecked(Slab.schema, Slab, bidsInfo.data) as Slab;
-    s.callBackInfoLen = this.callBackInfoLen.toNumber();
-    s.data = bidsInfo.data;
-    s.slotSize = Math.max(s.callBackInfoLen + 8 + 16 + 1, 32);
-    return s;
+    return Slab.deserialize(bidsInfo.data, this.callBackInfoLen);
   }
 
   /**
@@ -125,15 +121,11 @@ export class MarketState {
    * @param connection The solana connection object to the RPC node
    * @returns Returns a Slab object
    */
-  async loadAsksSlab(connection: Connection) {
-    const asksInfo = await connection.getAccountInfo(this.asks);
+  async loadAsksSlab(connection: Connection, commitment?: Commitment) {
+    const asksInfo = await connection.getAccountInfo(this.asks, commitment);
     if (!asksInfo?.data) {
       throw new Error("Invalid asks account");
     }
-    let s = deserializeUnchecked(Slab.schema, Slab, asksInfo.data) as Slab;
-    s.callBackInfoLen = this.callBackInfoLen.toNumber();
-    s.data = asksInfo.data;
-    s.slotSize = Math.max(s.callBackInfoLen + 8 + 16 + 1, 32);
-    return s;
+    return Slab.deserialize(asksInfo.data, this.callBackInfoLen);
   }
 }
