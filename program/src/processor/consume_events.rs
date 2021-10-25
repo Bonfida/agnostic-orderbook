@@ -46,23 +46,42 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             msrm_token_account: next_account_info(&mut accounts_iter)?,
             msrm_token_account_owner: next_account_info(&mut accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes()).unwrap();
-        check_account_owner(a.event_queue, &program_id.to_bytes()).unwrap();
-        check_signer(a.authority).unwrap();
-        check_signer(a.msrm_token_account_owner).unwrap();
+        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
+        check_account_owner(
+            a.event_queue,
+            &program_id.to_bytes(),
+            AoError::WrongEventQueueOwner,
+        )?;
+        check_signer(a.authority).map_err(|e| {
+            msg!("The market authority should be a signer for this instruction!");
+            e
+        })?;
+        check_signer(a.msrm_token_account_owner).map_err(|e| {
+            msg!("The MSRM token account owner should be a signer for this instruction!");
+            e
+        })?;
 
         #[cfg(not(feature = "permissionless-crank"))]
         {
-            check_account_owner(a.msrm_token_account, &spl_token::ID.to_bytes()).unwrap();
+            check_account_owner(
+                a.msrm_token_account,
+                &spl_token::ID.to_bytes(),
+                AoError::IllegalMsrmOwner,
+            )?;
             let token_account =
-                spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow()).unwrap();
-            if &token_account.owner != a.msrm_token_account_owner.key {
-                msg!("Invalid token account owner");
-                return Err(ProgramError::InvalidArgument);
+                spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow())?;
+
+            check_account_key(
+                &a.msrm_token_account_owner,
+                &token_account.owner.to_bytes(),
+                AoError::WrongMsrmOwner,
+            )?;
+
+            if token_account.mint != super::msrm_token::ID {
+                return Err(ProgramError::from(AoError::WrongMsrmMint));
             }
-            if token_account.mint != super::msrm_token::ID || token_account.amount == 0 {
-                msg!("Invalid token account provided");
-                return Err(ProgramError::InvalidArgument);
+            if token_account.amount == 0 {
+                return Err(ProgramError::from(AoError::WrongMsrmBalance));
             }
         }
 
@@ -79,13 +98,7 @@ pub(crate) fn process(
 
     let mut market_state = MarketState::get(&accounts.market)?;
 
-    check_account_key(accounts.event_queue, &market_state.event_queue).unwrap();
-    check_account_key(accounts.authority, &market_state.caller_authority).unwrap();
-
-    if market_state.event_queue != accounts.event_queue.key.to_bytes() {
-        msg!("Invalid event queue for current market");
-        return Err(ProgramError::InvalidArgument);
-    }
+    check_accounts(&accounts, &market_state)?;
 
     let header = {
         let mut event_queue_data: &[u8] =
@@ -123,5 +136,24 @@ pub(crate) fn process(
         capped_number_of_entries_consumed
     );
 
+    Ok(())
+}
+
+fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+    check_account_key(
+        accounts.event_queue,
+        &market_state.event_queue,
+        AoError::WrongEventQueueAccount,
+    )?;
+    check_account_key(
+        accounts.authority,
+        &market_state.caller_authority,
+        AoError::WrongCallerAuthority,
+    )?;
+    check_account_key(
+        accounts.event_queue,
+        &market_state.event_queue,
+        AoError::WrongEventQueueAccount,
+    )?;
     Ok(())
 }

@@ -34,6 +34,22 @@ pub enum AoError {
     MarketStillActive,
     #[error("The base quantity must be > 0")]
     InvalidBaseQuantity,
+    #[error("The event queue should be owned by the AO program")]
+    WrongEventQueueOwner,
+    #[error("The bids account should be owned by the AO program")]
+    WrongBidsOwner,
+    #[error("The asks account should be owned by the AO program")]
+    WrongAsksOwner,
+    #[error("The market account should be owned by the AO program")]
+    WrongMarketOwner,
+    #[error("The MSRM token account should be owned by the cranker")]
+    WrongMsrmOwner,
+    #[error("An invalid MSRM mint has been provided")]
+    WrongMsrmMint,
+    #[error("The MSRM token account does not have enough balances")]
+    WrongMsrmBalance,
+    #[error("Illegal MSRM token account owner")]
+    IllegalMsrmOwner,
 }
 
 impl From<AoError> for ProgramError {

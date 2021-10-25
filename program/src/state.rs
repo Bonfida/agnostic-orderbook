@@ -88,8 +88,7 @@ pub struct MarketState {
     //TODO cranked_accs
 }
 
-pub const MARKET_STATE_LEN: usize = size_of::<MarketState>(); //TODO check
-
+pub const MARKET_STATE_LEN: usize = size_of::<MarketState>();
 impl MarketState {
     pub(crate) fn get<'a, 'b: 'a>(
         account_info: &'a AccountInfo<'b>,

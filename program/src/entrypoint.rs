@@ -51,6 +51,30 @@ impl PrintProgramError for AoError {
             AoError::NoOperations => msg!("Error: This instruction is a No-op."),
             AoError::MarketStillActive => msg!("Error: The market is still active"),
             AoError::InvalidBaseQuantity => msg!("Error: The base quantity must be > 0"),
+            AoError::WrongEventQueueOwner => {
+                msg!("Error: The event queue should be owned by the AO program")
+            }
+            AoError::WrongBidsOwner => {
+                msg!("Error: The bids account should be owned by the AO program")
+            }
+            AoError::WrongAsksOwner => {
+                msg!("Error: The asks account should be owned by the AO program")
+            }
+            AoError::WrongMarketOwner => {
+                msg!("Error: The market account should be owned by the AO program")
+            }
+            AoError::WrongMsrmOwner => {
+                msg!("Error: The MSRM token account should be owned by the cranker")
+            }
+            AoError::WrongMsrmMint => {
+                msg!("Error: An invalid MSRM mint has been provided")
+            }
+            AoError::WrongMsrmBalance => {
+                msg!("Error: The MSRM token account does not have enough balances")
+            }
+            AoError::IllegalMsrmOwner => {
+                msg!("Error: Illegal MSRM token account owner")
+            }
         }
     }
 }

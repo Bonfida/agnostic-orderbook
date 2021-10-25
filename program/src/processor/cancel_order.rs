@@ -45,10 +45,14 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             asks: next_account_info(accounts_iter)?,
             authority: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes())?;
-        check_account_owner(a.event_queue, &program_id.to_bytes())?;
-        check_account_owner(a.bids, &program_id.to_bytes())?;
-        check_account_owner(a.asks, &program_id.to_bytes())?;
+        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
+        check_account_owner(
+            a.event_queue,
+            &program_id.to_bytes(),
+            AoError::WrongEventQueueOwner,
+        )?;
+        check_account_owner(a.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
+        check_account_owner(a.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
         check_signer(a.authority)?;
         Ok(a)
     }
@@ -63,12 +67,7 @@ pub(crate) fn process(
 
     let market_state = MarketState::get(&accounts.market)?;
 
-    check_account_key(accounts.event_queue, &market_state.event_queue)
-        .map_err(|_| AoError::WrongEventQueueAccount)?;
-    check_account_key(accounts.bids, &market_state.bids).map_err(|_| AoError::WrongBidsAccount)?;
-    check_account_key(accounts.asks, &market_state.asks).map_err(|_| AoError::WrongAsksAccount)?;
-    check_account_key(accounts.authority, &market_state.caller_authority)
-        .map_err(|_| AoError::WrongCallerAuthority)?;
+    check_accounts(&accounts, &market_state)?;
 
     let callback_info_len = market_state.callback_info_len as usize;
 
@@ -109,6 +108,23 @@ pub(crate) fn process(
         .serialize(&mut event_queue_header_data)
         .unwrap();
     order_book.commit_changes();
+
+    Ok(())
+}
+
+fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+    check_account_key(
+        accounts.event_queue,
+        &market_state.event_queue,
+        AoError::WrongEventQueueAccount,
+    )?;
+    check_account_key(accounts.bids, &market_state.bids, AoError::WrongBidsAccount)?;
+    check_account_key(accounts.asks, &market_state.asks, AoError::WrongAsksAccount)?;
+    check_account_key(
+        accounts.authority,
+        &market_state.caller_authority,
+        AoError::WrongCallerAuthority,
+    )?;
 
     Ok(())
 }
