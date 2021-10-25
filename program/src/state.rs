@@ -88,7 +88,9 @@ pub struct MarketState {
     //TODO cranked_accs
 }
 
+#[allow(missing_docs)]
 pub const MARKET_STATE_LEN: usize = size_of::<MarketState>();
+
 impl MarketState {
     pub(crate) fn get<'a, 'b: 'a>(
         account_info: &'a AccountInfo<'b>,
@@ -349,7 +351,13 @@ impl<'a> EventQueue<'a> {
         }
 
         let header_offset = EVENT_QUEUE_HEADER_LEN + REGISTER_SIZE;
-        let offset = ((self.header.head + index * self.header.event_size) as usize
+        let offset = ((self
+            .header
+            .head
+            .checked_add(index)
+            .unwrap()
+            .checked_mul(self.header.event_size)
+            .unwrap()) as usize
             % self.get_buf_len())
             + header_offset;
         let mut event_data =
@@ -357,7 +365,7 @@ impl<'a> EventQueue<'a> {
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
     }
 
-    /// Returns the effective number of entries that were popped.
+    /// Pop n entries from the event queue
     pub(crate) fn pop_n(&mut self, number_of_entries_to_pop: u64) {
         let capped_number_of_entries_to_pop =
             std::cmp::min(self.header.count, number_of_entries_to_pop);

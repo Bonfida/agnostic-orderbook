@@ -148,7 +148,8 @@ impl<'ob> OrderBookState<'ob> {
 
                     match self_trade_behavior {
                         SelfTradeBehavior::CancelProvide => {
-                            cancelled_provide_base_qty = best_bo_ref.base_quantity;
+                            cancelled_provide_base_qty =
+                                std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity);
                         }
                         SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
                         SelfTradeBehavior::DecrementTake => unreachable!(),
