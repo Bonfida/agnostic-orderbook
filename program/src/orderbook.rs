@@ -60,6 +60,19 @@ impl<'ob> OrderBookState<'ob> {
         }
     }
 
+    #[cfg(feature = "no-entrypoint")]
+    pub fn get_spread(&self) -> (Option<u64>, Option<u64>) {
+        let best_bid_price = self
+            .bids
+            .find_max()
+            .map(|h| self.bids.get_node(h).unwrap().as_leaf().unwrap().price());
+        let best_ask_price = self
+            .asks
+            .find_max()
+            .map(|h| self.asks.get_node(h).unwrap().as_leaf().unwrap().price());
+        (best_bid_price, best_ask_price)
+    }
+
     pub fn get_tree(&mut self, side: Side) -> &mut Slab<'ob> {
         match side {
             Side::Bid => &mut self.bids,

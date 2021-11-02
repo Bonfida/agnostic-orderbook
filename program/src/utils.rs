@@ -4,6 +4,9 @@ use solana_program::{
 
 use crate::error::{AoError, AoResult};
 
+#[cfg(feature = "no-entrypoint")]
+use crate::{orderbook::OrderBookState, state::MarketState};
+
 #[cfg(not(debug_assertions))]
 #[inline(always)]
 unsafe fn invariant(check: bool) {
@@ -43,6 +46,24 @@ pub fn check_unitialized(account: &AccountInfo) -> AoResult {
         return Err(AoError::AlreadyInitialized);
     }
     Ok(())
+}
+
+#[cfg(feature = "no-entrypoint")]
+/// This util is used to return the orderbook's spread (best_bid_price, best_ask_price) with both values in FP32 format
+pub fn get_spread<'ob>(
+    market_state_account: &AccountInfo<'ob>,
+    bids_account: &AccountInfo<'ob>,
+    asks_account: &AccountInfo<'ob>,
+) -> (Option<u64>, Option<u64>) {
+    let market_state = MarketState::get(market_state_account).unwrap();
+    let orderbook = OrderBookState::new_safe(
+        bids_account,
+        asks_account,
+        market_state.callback_info_len as usize,
+        market_state.callback_id_len as usize,
+    )
+    .unwrap();
+    orderbook.get_spread()
 }
 
 /// a is fp0, b is fp32 and result is a/b fp0
