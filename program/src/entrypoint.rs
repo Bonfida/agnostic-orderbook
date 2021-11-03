@@ -3,7 +3,7 @@ use crate::processor::Processor;
 use num_traits::FromPrimitive;
 use solana_program::{
     account_info::AccountInfo, decode_error::DecodeError, entrypoint::ProgramResult,
-    log::sol_log_compute_units, msg, program_error::PrintProgramError, pubkey::Pubkey,
+    msg, program_error::PrintProgramError, pubkey::Pubkey,
 };
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -17,8 +17,6 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("AFTER");
-    sol_log_compute_units();
     msg!("Entrypoint");
     if let Err(error) = Processor::process_instruction(program_id, accounts, instruction_data) {
         // catch the error so we can print it

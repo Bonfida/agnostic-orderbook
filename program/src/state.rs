@@ -48,7 +48,7 @@ impl Side {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive)]
 /// Describes what happens when two order with identical callback informations are matched together
 pub enum SelfTradeBehavior {
     /// The orders are matched together
@@ -94,7 +94,8 @@ pub struct MarketState {
 pub const MARKET_STATE_LEN: usize = size_of::<MarketState>();
 
 impl MarketState {
-    pub(crate) fn get<'a, 'b: 'a>(
+    #[allow(missing_docs)]
+    pub fn get<'a, 'b: 'a>(
         account_info: &'a AccountInfo<'b>,
     ) -> Result<RefMut<'a, Self>, ProgramError> {
         let a = Self::get_unchecked(account_info);
@@ -104,7 +105,8 @@ impl MarketState {
         Ok(a)
     }
 
-    pub(crate) fn get_unchecked<'a, 'b: 'a>(account_info: &'a AccountInfo<'b>) -> RefMut<'a, Self> {
+    #[allow(missing_docs)]
+    pub fn get_unchecked<'a, 'b: 'a>(account_info: &'a AccountInfo<'b>) -> RefMut<'a, Self> {
         let a = RefMut::map(account_info.data.borrow_mut(), |s| {
             try_from_bytes_mut::<Self>(&mut s[0..MARKET_STATE_LEN]).unwrap()
         });
