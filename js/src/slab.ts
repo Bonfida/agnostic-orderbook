@@ -99,13 +99,29 @@ export function parseNode(
     case 0:
       throw new Error("node is unitialized");
     case 1:
-      return deserializeUnchecked(InnerNode.schema, InnerNode, data.slice(Slab.NODE_TAG_SIZE));
+      return deserializeUnchecked(
+        InnerNode.schema,
+        InnerNode,
+        data.slice(Slab.NODE_TAG_SIZE)
+      );
     case 2:
-      return deserializeUnchecked(LeafNode.schema, LeafNode, data.slice(Slab.NODE_TAG_SIZE));
+      return deserializeUnchecked(
+        LeafNode.schema,
+        LeafNode,
+        data.slice(Slab.NODE_TAG_SIZE)
+      );
     case 3:
-      return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(Slab.NODE_TAG_SIZE));
+      return deserializeUnchecked(
+        FreeNode.schema,
+        FreeNode,
+        data.slice(Slab.NODE_TAG_SIZE)
+      );
     case 4:
-      return deserializeUnchecked(FreeNode.schema, FreeNode, data.slice(Slab.NODE_TAG_SIZE));
+      return deserializeUnchecked(
+        FreeNode.schema,
+        FreeNode,
+        data.slice(Slab.NODE_TAG_SIZE)
+      );
     default:
       throw new Error("Invalid data");
   }
@@ -199,8 +215,9 @@ export class Slab {
     const capacity = new BN(this.buffer.length - SlabHeader.PADDED_LEN);
     const size = this.callBackInfoLen.addn(Slab.SLOT_SIZE * 2);
     this.orderCapacity = Math.floor(capacity.div(size).toNumber());
-    this.callbackMemoryOffset = 
-        (new BN(this.orderCapacity).muln(2 * Slab.SLOT_SIZE)).addn(SlabHeader.PADDED_LEN);
+    this.callbackMemoryOffset = new BN(this.orderCapacity)
+      .muln(2 * Slab.SLOT_SIZE)
+      .addn(SlabHeader.PADDED_LEN);
   }
 
   static deserialize(data: Buffer, callBackInfoLen: BN) {
@@ -220,12 +237,7 @@ export class Slab {
     let pointer = this.header.rootNode;
     while (true) {
       const offset = SlabHeader.PADDED_LEN + pointer * Slab.SLOT_SIZE;
-      let node = parseNode(
-        this.buffer.slice(
-          offset,
-          offset + Slab.SLOT_SIZE,
-        )
-      );
+      let node = parseNode(this.buffer.slice(offset, offset + Slab.SLOT_SIZE));
       if (node instanceof InnerNode) {
         const critBitMaks = (1 << 127) >> node.prefixLen.toNumber();
         let critBit = key & critBitMaks;
@@ -401,11 +413,12 @@ export class Slab {
   /**
    * @param callBackInfoPt a leaf node's callBackInfoPt that gives the offset to
    * the info in the appropriate Slab.
-   * @returns the raw binary callback info for the node 
+   * @returns the raw binary callback info for the node
    */
   getCallBackInfo(callBackInfoPt: BN) {
-    return this.buffer.slice(callBackInfoPt.toNumber(), 
-                             callBackInfoPt.add(this.callBackInfoLen)
-                             .toNumber());
+    return this.buffer.slice(
+      callBackInfoPt.toNumber(),
+      callBackInfoPt.add(this.callBackInfoLen).toNumber()
+    );
   }
 }

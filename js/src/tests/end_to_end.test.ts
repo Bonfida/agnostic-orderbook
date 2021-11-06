@@ -1,13 +1,18 @@
-import {afterAll, beforeAll, expect, jest, test} from '@jest/globals';
-import * as web3 from '@solana/web3.js';
-import BN from 'bn.js';
-import {ChildProcess} from 'child_process';
+import { afterAll, beforeAll, expect, jest, test } from "@jest/globals";
+import * as web3 from "@solana/web3.js";
+import BN from "bn.js";
+import { ChildProcess } from "child_process";
 
-import {createMarket} from '../bindings';
-import {newOrderInstruction} from '../instructions';
-import {MarketState} from '../market_state';
+import { createMarket } from "../bindings";
+import { newOrderInstruction } from "../instructions";
+import { MarketState } from "../market_state";
 
-import {airdropPayer, deployProgram, initializePayer, spawnLocalSolana} from './test_utils';
+import {
+  airdropPayer,
+  deployProgram,
+  initializePayer,
+  spawnLocalSolana,
+} from "./test_utils";
 
 // Global state initialized once in test startup and cleaned up at test
 // teardown.
@@ -19,7 +24,7 @@ let programId: web3.PublicKey;
 
 beforeAll(async () => {
   solana = await spawnLocalSolana();
-  connection = new web3.Connection('http://localhost:8899');
+  connection = new web3.Connection("http://localhost:8899");
   [feePayer, payerKeyFile] = initializePayer();
   await airdropPayer(connection, feePayer.publicKey);
   programId = deployProgram(payerKeyFile);
@@ -36,71 +41,99 @@ afterAll(() => {
 });
 
 jest.setTimeout(200000);
-test('create bids', async () => {
+test("create bids", async () => {
   const callerAuthority = new web3.Keypair();
   const [[eventQueue, bids, asks, market], instructions] = await createMarket(
-      connection, callerAuthority.publicKey, new BN(10), new BN(5), 100, 50,
-      new BN(20), feePayer.publicKey, programId);
+    connection,
+    callerAuthority.publicKey,
+    new BN(10),
+    new BN(5),
+    100,
+    50,
+    new BN(20),
+    feePayer.publicKey,
+    programId
+  );
 
   // Create market and confirm creation.
   {
-    const tx = new web3.Transaction({feePayer: feePayer.publicKey});
+    const tx = new web3.Transaction({ feePayer: feePayer.publicKey });
     tx.add(...instructions);
     let signers = [eventQueue, bids, asks, market];
     signers.unshift(feePayer);
-    const createMarketSignature =
-        await connection.sendTransaction(tx, signers, {skipPreflight: true});
-    await connection.confirmTransaction(createMarketSignature, 'finalized');
+    const createMarketSignature = await connection.sendTransaction(
+      tx,
+      signers,
+      { skipPreflight: true }
+    );
+    await connection.confirmTransaction(createMarketSignature, "finalized");
 
-    const marketState =
-        await MarketState.retrieve(connection, market.publicKey, 'finalized');
-    const bidsSlab = await marketState.loadBidsSlab(connection, 'finalized');
-    const asksSlab = await marketState.loadAsksSlab(connection, 'finalized');
-    expect(marketState.eventQueue.toString())
-        .toBe(eventQueue.publicKey.toString());
+    const marketState = await MarketState.retrieve(
+      connection,
+      market.publicKey,
+      "finalized"
+    );
+    const bidsSlab = await marketState.loadBidsSlab(connection, "finalized");
+    const asksSlab = await marketState.loadAsksSlab(connection, "finalized");
+    expect(marketState.eventQueue.toString()).toBe(
+      eventQueue.publicKey.toString()
+    );
     expect(marketState.bids.toString()).toBe(bids.publicKey.toString());
     expect(marketState.asks.toString()).toBe(asks.publicKey.toString());
-    expect(marketState.callBackInfoLen.toString()).toBe('10');
-    expect(marketState.callBackIdLen.toString()).toBe('5');
-    expect(marketState.minOrderSize.toString()).toBe('20');
-    expect(marketState.feeBudget.toString()).toBe('0');
+    expect(marketState.callBackInfoLen.toString()).toBe("10");
+    expect(marketState.callBackIdLen.toString()).toBe("5");
+    expect(marketState.minOrderSize.toString()).toBe("20");
+    expect(marketState.feeBudget.toString()).toBe("0");
     expect(bidsSlab.callBackInfoLen.toNumber()).toBe(10);
-    expect(bidsSlab.header.marketAddress.toString())
-        .toBe(market.publicKey.toString());
+    expect(bidsSlab.header.marketAddress.toString()).toBe(
+      market.publicKey.toString()
+    );
     expect(asksSlab.callBackInfoLen.toNumber()).toBe(10);
-    expect(asksSlab.header.marketAddress.toString())
-        .toBe(market.publicKey.toString());
+    expect(asksSlab.header.marketAddress.toString()).toBe(
+      market.publicKey.toString()
+    );
   }
 
-  const sendBid =
-      async (args: {
-    maxBaseQty: BN; maxQuoteQty: BN; limitPrice: BN; side: number;
+  const sendBid = async (args: {
+    maxBaseQty: BN;
+    maxQuoteQty: BN;
+    limitPrice: BN;
+    side: number;
     matchLimit: BN;
     callBackInfo: Uint8Array;
     postOnly: number;
     postAllowed: number;
-    selfTradeBehavior: number
+    selfTradeBehavior: number;
   }) => {
     await airdropPayer(connection, market.publicKey);
-    const tx = new web3.Transaction({feePayer: feePayer.publicKey});
-    tx.add(new newOrderInstruction({
-             maxBaseQty: args.maxBaseQty,
-             maxQuoteQty: args.maxQuoteQty,
-             limitPrice: args.limitPrice,
-             side: args.side,
-             matchLimit: args.matchLimit,
-             callBackInfo: args.callBackInfo,
-             postOnly: args.postOnly,
-             postAllowed: args.postAllowed,
-             selfTradeBehavior: args.selfTradeBehavior,
-           })
-               .getInstruction(
-                   programId, market.publicKey, eventQueue.publicKey,
-                   bids.publicKey, asks.publicKey, callerAuthority.publicKey));
+    const tx = new web3.Transaction({ feePayer: feePayer.publicKey });
+    tx.add(
+      new newOrderInstruction({
+        maxBaseQty: args.maxBaseQty,
+        maxQuoteQty: args.maxQuoteQty,
+        limitPrice: args.limitPrice,
+        side: args.side,
+        matchLimit: args.matchLimit,
+        callBackInfo: args.callBackInfo,
+        postOnly: args.postOnly,
+        postAllowed: args.postAllowed,
+        selfTradeBehavior: args.selfTradeBehavior,
+      }).getInstruction(
+        programId,
+        market.publicKey,
+        eventQueue.publicKey,
+        bids.publicKey,
+        asks.publicKey,
+        callerAuthority.publicKey
+      )
+    );
     const sendOrderSignature = await connection.sendTransaction(
-        tx, [feePayer, callerAuthority], {skipPreflight: true});
-    await connection.confirmTransaction(sendOrderSignature, 'finalized');
-  }
+      tx,
+      [feePayer, callerAuthority],
+      { skipPreflight: true }
+    );
+    await connection.confirmTransaction(sendOrderSignature, "finalized");
+  };
 
   await sendBid({
     maxBaseQty: new BN(1000),
@@ -144,9 +177,12 @@ test('create bids', async () => {
   // $100: 3000
   // Assert iteration order on the bids.
   {
-    const marketState =
-        await MarketState.retrieve(connection, market.publicKey, 'finalized');
-    const bidsSlab = await marketState.loadBidsSlab(connection, 'finalized');
+    const marketState = await MarketState.retrieve(
+      connection,
+      market.publicKey,
+      "finalized"
+    );
+    const bidsSlab = await marketState.loadBidsSlab(connection, "finalized");
     let prices: number[] = [];
     let quantities: number[] = [];
     let infos: Uint8Array[] = [];
@@ -162,7 +198,7 @@ test('create bids', async () => {
       Buffer.from([2, 0, 0, 0, 0, 0, 0, 0, 0, 2]),
       Buffer.from([3, 0, 0, 0, 0, 0, 0, 0, 0, 3]),
       Buffer.from([1, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
-    ])
+    ]);
 
     const bestOrder = bidsSlab.getMinMaxNodes(1, true);
     expect(bestOrder.length).toBe(1);
@@ -184,14 +220,16 @@ test('create bids', async () => {
   });
 
   {
-    const marketState =
-        await MarketState.retrieve(connection, market.publicKey, 'finalized');
-    const bidsSlab = await marketState.loadBidsSlab(connection, 'finalized');
+    const marketState = await MarketState.retrieve(
+      connection,
+      market.publicKey,
+      "finalized"
+    );
+    const bidsSlab = await marketState.loadBidsSlab(connection, "finalized");
     const depth = bidsSlab.getL2DepthJS(1, false);
 
     expect(depth.length).toBe(1);
     expect(depth[0].price).toBe(300);
     expect(depth[0].size).toBe(2000);
   }
-
-})
+});

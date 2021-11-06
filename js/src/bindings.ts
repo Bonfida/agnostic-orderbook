@@ -40,7 +40,7 @@ export const createMarket = async (
   nodesCapacity: number,
   minOrderSize: BN,
   feePayer: PublicKey,
-  programId?: PublicKey,
+  programId?: PublicKey
 ): Promise<PrimedTransaction> => {
   if (programId === undefined) {
     programId = AAOB_ID;
@@ -53,7 +53,9 @@ export const createMarket = async (
   const eventQueueSize =
     EventQueueHeader.LEN +
     EventQueueHeader.REGISTER_SIZE +
-    EventQueueHeader.computeSlotSize(callBackInfoLen).muln(eventCapacity).toNumber();
+    EventQueueHeader.computeSlotSize(callBackInfoLen)
+      .muln(eventCapacity)
+      .toNumber();
   const createEventQueueAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(

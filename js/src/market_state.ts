@@ -91,7 +91,11 @@ export class MarketState {
    * @param market The address of the market to load
    * @returns Returns a market state object
    */
-  static async retrieve(connection: Connection, market: PublicKey, commitment?: Commitment) {
+  static async retrieve(
+    connection: Connection,
+    market: PublicKey,
+    commitment?: Commitment
+  ) {
     const accountInfo = await connection.getAccountInfo(market, commitment);
     if (!accountInfo?.data) {
       throw new Error("Invalid account provided");
