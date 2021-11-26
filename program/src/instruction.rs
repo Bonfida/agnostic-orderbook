@@ -58,7 +58,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 3     | ✅       | ❌     | The asks account        |
     /// | 4     | ❌       | ✅     | The caller authority    |
     CancelOrder(cancel_order::Params),
-    /// Close and existing market.
+    /// Close an existing market.
     ///
     /// Required accounts
     ///

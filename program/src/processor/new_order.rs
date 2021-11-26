@@ -89,12 +89,15 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 pub(crate) fn process(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    params: Params,
+    mut params: Params,
 ) -> ProgramResult {
     let accounts = Accounts::parse(program_id, accounts)?;
     let mut market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
+
+    // Floor price to nearest valid price tick
+    params.limit_price &= market_state.price_bitmask;
 
     let callback_info_len = market_state.callback_info_len as usize;
 
