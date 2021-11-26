@@ -2,6 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -89,6 +90,11 @@ pub(crate) fn process(
     check_unitialized(accounts.market)?;
 
     let mut market_state = MarketState::get_unchecked(accounts.market);
+
+    if price_bitmask.leading_ones() + price_bitmask.trailing_zeros() != 64 {
+        msg!("The provided bitmask is invalid");
+        return Err(ProgramError::InvalidArgument);
+    }
 
     *market_state = MarketState {
         tag: AccountTag::Market as u64,
