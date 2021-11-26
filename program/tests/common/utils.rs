@@ -94,6 +94,7 @@ pub async fn create_market_and_accounts(
             callback_id_len: 32,
             min_base_order_size: 10,
             price_bitmask: u64::MAX,
+            cranker_reward: 0,
         },
     );
     sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])

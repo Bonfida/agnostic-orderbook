@@ -62,13 +62,4 @@ pub(crate) mod orderbook;
 pub(crate) mod processor;
 pub(crate) mod utils;
 
-////////////////////////////////////////////////////////////
-// Constants
-
-/// The minimum fee that is payed for opening an order.
-/// Fees are payed out to consume event crankers.
-pub const CRANKER_REWARD: u64 = 1_000;
-
-////////////////////////////////////////////////////////////
-
 declare_id!("aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e");
