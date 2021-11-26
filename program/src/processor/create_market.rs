@@ -1,3 +1,4 @@
+//! Create and initialize a new orderbook market
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -38,18 +39,20 @@ pub struct Params {
     pub cranker_reward: u64,
 }
 
+/// The required accounts for a create_market instruction.
 pub struct Accounts<'a, 'b: 'a> {
-    market: &'a AccountInfo<'b>,
-    event_queue: &'a AccountInfo<'b>,
-    bids: &'a AccountInfo<'b>,
-    asks: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub market: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub event_queue: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub bids: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub asks: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
-    pub fn parse(
-        program_id: &Pubkey,
-        accounts: &'a [AccountInfo<'b>],
-    ) -> Result<Self, ProgramError> {
+    pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
 
         let a = Self {
@@ -59,19 +62,24 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             asks: next_account_info(accounts_iter)?,
         };
 
+        Ok(a)
+    }
+
+    pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
-            a.event_queue,
+            self.event_queue,
             &program_id.to_bytes(),
             AoError::WrongEventQueueOwner,
         )?;
-        check_account_owner(a.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
-        check_account_owner(a.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
-
-        Ok(a)
+        check_account_owner(self.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
+        check_account_owner(self.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
+        Ok(())
     }
 }
 
-pub(crate) fn process(accounts: Accounts, params: Params) -> ProgramResult {
+/// Apply the create_market instruction to the provided accounts
+pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
+    accounts.perform_checks(program_id)?;
     let Params {
         caller_authority,
         callback_info_len,

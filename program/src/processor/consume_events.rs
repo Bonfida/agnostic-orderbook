@@ -1,3 +1,4 @@
+//! Pop a series of events off the event queue.
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -22,18 +23,20 @@ pub struct Params {
     pub number_of_entries_to_consume: u64,
 }
 
+/// The required accounts for a consume_events instruction.
 pub struct Accounts<'a, 'b: 'a> {
-    market: &'a AccountInfo<'b>,
-    event_queue: &'a AccountInfo<'b>,
-    authority: &'a AccountInfo<'b>,
-    reward_target: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub market: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub event_queue: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub authority: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub reward_target: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
-    pub fn parse(
-        program_id: &Pubkey,
-        accounts: &'a [AccountInfo<'b>],
-    ) -> Result<Self, ProgramError> {
+    pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let mut accounts_iter = accounts.iter();
         let a = Self {
             market: next_account_info(&mut accounts_iter)?,
@@ -41,22 +44,33 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             authority: next_account_info(&mut accounts_iter)?,
             reward_target: next_account_info(&mut accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
+
+        Ok(a)
+    }
+
+    pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
-            a.event_queue,
+            self.market,
+            &program_id.to_bytes(),
+            AoError::WrongMarketOwner,
+        )?;
+        check_account_owner(
+            self.event_queue,
             &program_id.to_bytes(),
             AoError::WrongEventQueueOwner,
         )?;
-        check_signer(a.authority).map_err(|e| {
+        check_signer(self.authority).map_err(|e| {
             msg!("The market authority should be a signer for this instruction!");
             e
         })?;
 
-        Ok(a)
+        Ok(())
     }
 }
 
-pub(crate) fn process(accounts: Accounts, params: Params) -> ProgramResult {
+/// Apply the consume_events instruction to the provided accounts
+pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
+    accounts.perform_checks(program_id)?;
     let mut market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;

@@ -1,3 +1,5 @@
+//! Cancel an existing order in the orderbook.
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -23,19 +25,22 @@ pub struct Params {
     pub order_id: u128,
 }
 
+/// The required accounts for a cancel_order instruction.
 pub struct Accounts<'a, 'b: 'a> {
-    market: &'a AccountInfo<'b>,
-    event_queue: &'a AccountInfo<'b>,
-    bids: &'a AccountInfo<'b>,
-    asks: &'a AccountInfo<'b>,
-    authority: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub market: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub event_queue: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub bids: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub asks: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub authority: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
-    pub fn parse(
-        program_id: &Pubkey,
-        accounts: &'a [AccountInfo<'b>],
-    ) -> Result<Self, ProgramError> {
+    pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
 
         let a = Self {
@@ -45,20 +50,30 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             asks: next_account_info(accounts_iter)?,
             authority: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
+        Ok(a)
+    }
+
+    /// Perform basic security checks on the accounts
+    pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
-            a.event_queue,
+            self.market,
+            &program_id.to_bytes(),
+            AoError::WrongMarketOwner,
+        )?;
+        check_account_owner(
+            self.event_queue,
             &program_id.to_bytes(),
             AoError::WrongEventQueueOwner,
         )?;
-        check_account_owner(a.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
-        check_account_owner(a.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
-        check_signer(a.authority)?;
-        Ok(a)
+        check_account_owner(self.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
+        check_account_owner(self.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
+        check_signer(self.authority)?;
+        Ok(())
     }
 }
-
-pub(crate) fn process(accounts: Accounts, params: Params) -> ProgramResult {
+/// Apply the cancel_order instruction to the provided accounts
+pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
+    accounts.perform_checks(program_id)?;
     let market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
