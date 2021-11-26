@@ -14,7 +14,6 @@ use crate::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
     },
     utils::{check_account_key, check_account_owner, check_signer},
-    CRANKER_REWARD,
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -140,7 +139,10 @@ pub(crate) fn process(
     //Verify that fees were transfered. Fees are expected to be transfered by the caller program in order
     // to reduce the CPI call stack depth.
     if accounts.market.lamports() - market_state.initial_lamports
-        < market_state.fee_budget + CRANKER_REWARD
+        < market_state
+            .fee_budget
+            .checked_add(market_state.cranker_reward)
+            .unwrap()
     {
         msg!("Fees were not correctly payed during caller runtime.");
         return Err(AoError::FeeNotPayed.into());

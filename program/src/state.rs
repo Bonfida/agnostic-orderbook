@@ -89,6 +89,8 @@ pub struct MarketState {
     pub min_base_order_size: u64,
     /// Enables the limiting of price precision on the orderbook (price ticks)
     pub price_bitmask: u64,
+    /// Cranker reward (in lamports)
+    pub cranker_reward: u64,
 }
 
 /// Expected size in bytes of MarketState

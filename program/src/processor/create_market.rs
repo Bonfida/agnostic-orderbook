@@ -34,6 +34,8 @@ pub struct Params {
     pub min_base_order_size: u64,
     /// Enables the limiting of price precision on the orderbook (price ticks)
     pub price_bitmask: u64,
+    /// Fixed fee for every new order operation. A higher fee increases incentives for cranking.
+    pub cranker_reward: u64,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -82,6 +84,7 @@ pub(crate) fn process(
         callback_id_len,
         min_base_order_size,
         price_bitmask,
+        cranker_reward,
     } = params;
 
     check_unitialized(accounts.event_queue)?;
@@ -108,6 +111,7 @@ pub(crate) fn process(
         initial_lamports: accounts.market.lamports(),
         min_base_order_size,
         price_bitmask,
+        cranker_reward,
     };
 
     let event_queue_header = EventQueueHeader::initialize(params.callback_info_len as usize);
