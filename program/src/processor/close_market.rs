@@ -19,7 +19,7 @@ The required arguments for a close_market instruction.
 */
 pub struct Params {}
 
-struct Accounts<'a, 'b: 'a> {
+pub struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
@@ -48,9 +48,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    let accounts = Accounts::parse(program_id, accounts)?;
-
+pub(crate) fn process(accounts: Accounts) -> ProgramResult {
     let mut market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;

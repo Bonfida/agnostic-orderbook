@@ -22,7 +22,7 @@ pub struct Params {
     pub number_of_entries_to_consume: u64,
 }
 
-struct Accounts<'a, 'b: 'a> {
+pub struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
     authority: &'a AccountInfo<'b>,
@@ -56,13 +56,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub(crate) fn process(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    params: Params,
-) -> ProgramResult {
-    let accounts = Accounts::parse(program_id, accounts)?;
-
+pub(crate) fn process(accounts: Accounts, params: Params) -> ProgramResult {
     let mut market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;

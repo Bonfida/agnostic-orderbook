@@ -40,23 +40,28 @@ impl Processor {
         match instruction {
             AgnosticOrderbookInstruction::CreateMarket(params) => {
                 msg!("Instruction: Create Market");
-                create_market::process(program_id, accounts, params)?;
+                let accounts = create_market::Accounts::parse(program_id, accounts)?;
+                create_market::process(accounts, params)?;
             }
             AgnosticOrderbookInstruction::NewOrder(params) => {
                 msg!("Instruction: New Order");
-                new_order::process(program_id, accounts, params)?;
+                let accounts = new_order::Accounts::parse(program_id, accounts)?;
+                new_order::process(accounts, params)?;
             }
             AgnosticOrderbookInstruction::ConsumeEvents(params) => {
                 msg!("Instruction: Consume Events");
-                consume_events::process(program_id, accounts, params)?;
+                let accounts = consume_events::Accounts::parse(program_id, accounts)?;
+                consume_events::process(accounts, params)?;
             }
             AgnosticOrderbookInstruction::CancelOrder(params) => {
                 msg!("Instruction: Cancel Order");
-                cancel_order::process(program_id, accounts, params)?;
+                let accounts = cancel_order::Accounts::parse(program_id, accounts)?;
+                cancel_order::process(accounts, params)?;
             }
             AgnosticOrderbookInstruction::CloseMarket => {
                 msg!("Instruction: Close Market");
-                close_market::process(program_id, accounts)?;
+                let accounts = close_market::Accounts::parse(program_id, accounts)?;
+                close_market::process(accounts)?;
             }
         }
         Ok(())

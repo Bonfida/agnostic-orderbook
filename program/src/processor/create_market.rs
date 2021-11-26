@@ -38,7 +38,7 @@ pub struct Params {
     pub cranker_reward: u64,
 }
 
-struct Accounts<'a, 'b: 'a> {
+pub struct Accounts<'a, 'b: 'a> {
     market: &'a AccountInfo<'b>,
     event_queue: &'a AccountInfo<'b>,
     bids: &'a AccountInfo<'b>,
@@ -71,13 +71,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 
-pub(crate) fn process(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    params: Params,
-) -> ProgramResult {
-    let accounts = Accounts::parse(program_id, accounts)?;
-
+pub(crate) fn process(accounts: Accounts, params: Params) -> ProgramResult {
     let Params {
         caller_authority,
         callback_info_len,
