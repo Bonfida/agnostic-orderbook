@@ -31,6 +31,8 @@ pub struct Params {
     pub callback_id_len: u64,
     /// The minimum order size that can be inserted into the orderbook after matching.
     pub min_base_order_size: u64,
+    /// Enables the limiting of price precision on the orderbook (price ticks)
+    pub price_bitmask: u64,
 }
 
 struct Accounts<'a, 'b: 'a> {
@@ -78,6 +80,7 @@ pub(crate) fn process(
         callback_info_len,
         callback_id_len,
         min_base_order_size,
+        price_bitmask,
     } = params;
 
     check_unitialized(accounts.event_queue)?;
@@ -98,6 +101,7 @@ pub(crate) fn process(
         fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
         min_base_order_size,
+        price_bitmask,
     };
 
     let event_queue_header = EventQueueHeader::initialize(params.callback_info_len as usize);
