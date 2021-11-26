@@ -91,7 +91,7 @@ pub(crate) fn process(
 
     let mut market_state = MarketState::get_unchecked(accounts.market);
     // Checks that the bitmask is of the form 1111...11100...00 (all ones then all zeros)
-    if price_bitmask.leading_ones() + price_bitmask.trailing_zeros() != 64 {
+    if u64::MAX << price_bitmask.trailing_zeros() != price_bitmask {
         msg!("The provided bitmask is invalid");
         return Err(ProgramError::InvalidArgument);
     }
