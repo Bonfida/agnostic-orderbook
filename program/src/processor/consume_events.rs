@@ -4,7 +4,6 @@ use solana_program::{
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
 };
 
@@ -28,8 +27,6 @@ struct Accounts<'a, 'b: 'a> {
     event_queue: &'a AccountInfo<'b>,
     authority: &'a AccountInfo<'b>,
     reward_target: &'a AccountInfo<'b>,
-    msrm_token_account: &'a AccountInfo<'b>,
-    msrm_token_account_owner: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
@@ -43,8 +40,6 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             event_queue: next_account_info(&mut accounts_iter)?,
             authority: next_account_info(&mut accounts_iter)?,
             reward_target: next_account_info(&mut accounts_iter)?,
-            msrm_token_account: next_account_info(&mut accounts_iter)?,
-            msrm_token_account_owner: next_account_info(&mut accounts_iter)?,
         };
         check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
         check_account_owner(
@@ -56,34 +51,6 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             msg!("The market authority should be a signer for this instruction!");
             e
         })?;
-        check_signer(a.msrm_token_account_owner).map_err(|e| {
-            msg!("The MSRM token account owner should be a signer for this instruction!");
-            e
-        })?;
-
-        #[cfg(not(feature = "permissionless-crank"))]
-        {
-            check_account_owner(
-                a.msrm_token_account,
-                &spl_token::ID.to_bytes(),
-                AoError::IllegalMsrmOwner,
-            )?;
-            let token_account =
-                spl_token::state::Account::unpack(&a.msrm_token_account.data.borrow())?;
-
-            check_account_key(
-                &a.msrm_token_account_owner,
-                &token_account.owner.to_bytes(),
-                AoError::WrongMsrmOwner,
-            )?;
-
-            if token_account.mint != super::msrm_token::ID {
-                return Err(ProgramError::from(AoError::WrongMsrmMint));
-            }
-            if token_account.amount == 0 {
-                return Err(ProgramError::from(AoError::WrongMsrmBalance));
-            }
-        }
 
         Ok(a)
     }
