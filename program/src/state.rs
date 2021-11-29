@@ -90,7 +90,7 @@ pub struct MarketState {
     //TODO cranked_accs
 }
 
-#[allow(missing_docs)]
+/// Expected size in bytes of MarketState
 pub const MARKET_STATE_LEN: usize = size_of::<MarketState>();
 
 impl MarketState {

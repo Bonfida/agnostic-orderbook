@@ -28,6 +28,14 @@ export class EventQueueHeader {
   static LEN: number = 37;
   static REGISTER_SIZE: number = 42;
 
+  /**
+   * @param callBackInfoLen number of bytes in the callback info
+   * @returns event queue slot size
+   */
+  static computeSlotSize(callBackInfoLen: BN) {
+    return callBackInfoLen.muln(2).addn(1 + 33);
+  }
+
   static schema: Schema = new Map([
     [
       EventQueueHeader,

@@ -13,3 +13,5 @@ Webassembly can be used to deserialize orderbooks. By default only the pure JS m
 3. Uncomment the Webassembly methods in `slab.ts`
 
 4. Build the library using `yarn build:node`
+
+5. Run `npm install ./wasm/pkg`

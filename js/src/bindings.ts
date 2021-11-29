@@ -8,7 +8,7 @@ import {
 import BN from "bn.js";
 import { EventQueueHeader } from "./event_queue";
 import { MarketState } from "./market_state";
-import { SlabHeader } from "./slab";
+import { Slab, SlabHeader } from "./slab";
 import { createMarketInstruction } from "./instructions";
 import { PrimedTransaction } from "./types";
 
@@ -28,6 +28,7 @@ export const AAOB_ID = new PublicKey(
  * @param eventCapacity The capacity of an event
  * @param nodesCapacity The capacity of a node
  * @param feePayer The fee payer of the transaction
+ * @param programId The agnostic orderbook program ID, or null to use the deployed program ID
  * @returns
  */
 export const createMarket = async (
@@ -38,8 +39,12 @@ export const createMarket = async (
   eventCapacity: number,
   nodesCapacity: number,
   minOrderSize: BN,
-  feePayer: PublicKey
+  feePayer: PublicKey,
+  programId?: PublicKey
 ): Promise<PrimedTransaction> => {
+  if (programId === undefined) {
+    programId = AAOB_ID;
+  }
   let signers: Keypair[] = [];
   let txInstructions: TransactionInstruction[] = [];
 
@@ -47,15 +52,17 @@ export const createMarket = async (
   const eventQueue = new Keypair();
   const eventQueueSize =
     EventQueueHeader.LEN +
-    42 +
-    (1 + 33 + 2 * callBackInfoLen.toNumber()) * eventCapacity;
+    EventQueueHeader.REGISTER_SIZE +
+    EventQueueHeader.computeSlotSize(callBackInfoLen)
+      .muln(eventCapacity)
+      .toNumber();
   const createEventQueueAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(
       eventQueueSize
     ),
     newAccountPubkey: eventQueue.publicKey,
-    programId: AAOB_ID,
+    programId,
     space: eventQueueSize,
   });
   signers.push(eventQueue);
@@ -63,13 +70,12 @@ export const createMarket = async (
 
   // Bids account
   const bids = new Keypair();
-  const nodeSize = Math.max(32, 25 + callBackInfoLen.toNumber());
-  const slabSize = SlabHeader.LEN + nodeSize * nodesCapacity;
+  const slabSize = SlabHeader.PADDED_LEN + Slab.SLOT_SIZE * nodesCapacity;
   const createBidsAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(slabSize),
     newAccountPubkey: bids.publicKey,
-    programId: AAOB_ID,
+    programId,
     space: slabSize,
   });
   signers.push(bids);
@@ -81,7 +87,7 @@ export const createMarket = async (
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(slabSize),
     newAccountPubkey: asks.publicKey,
-    programId: AAOB_ID,
+    programId,
     space: slabSize,
   });
   signers.push(asks);
@@ -95,7 +101,7 @@ export const createMarket = async (
       MarketState.LEN
     ),
     newAccountPubkey: market.publicKey,
-    programId: AAOB_ID,
+    programId,
     space: MarketState.LEN,
   });
   signers.push(market);
@@ -108,7 +114,7 @@ export const createMarket = async (
     callBackIdLen,
     minOrderSize,
   }).getInstruction(
-    AAOB_ID,
+    programId,
     market.publicKey,
     eventQueue.publicKey,
     bids.publicKey,
