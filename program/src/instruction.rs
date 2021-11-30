@@ -45,8 +45,6 @@ pub enum AgnosticOrderbookInstruction {
     /// | 1     | ✅       | ❌     | The event queue account      |
     /// | 3     | ❌       | ✅     | The caller authority         |
     /// | 4     | ✅       | ❌     | The reward target account    |
-    /// | 5     | ❌       | ❌     | The MSRM token account       |
-    /// | 6     | ❌       | ✅     | The MSRM token account owner |
     ConsumeEvents(consume_events::Params),
     /// Cancel an existing order in the orderbook.
     ///
@@ -182,8 +180,6 @@ pub fn consume_events(
     caller_authority: Pubkey,
     event_queue: Pubkey,
     reward_target: Pubkey,
-    msrm_token_account: Pubkey,
-    msrm_token_account_owner: Pubkey,
     consume_events_params: consume_events::Params,
 ) -> Instruction {
     let data = AgnosticOrderbookInstruction::ConsumeEvents(consume_events_params)
@@ -194,8 +190,6 @@ pub fn consume_events(
         AccountMeta::new(event_queue, false),
         AccountMeta::new_readonly(caller_authority, true),
         AccountMeta::new(reward_target, false),
-        AccountMeta::new_readonly(msrm_token_account, false),
-        AccountMeta::new_readonly(msrm_token_account_owner, true),
     ];
 
     Instruction {

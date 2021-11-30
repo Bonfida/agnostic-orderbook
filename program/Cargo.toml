@@ -8,7 +8,6 @@ edition = "2018"
 [features]
 no-entrypoint = []
 test-bpf = []
-permissionless-crank = []
 wasm = []
 debug-asserts = []
 
