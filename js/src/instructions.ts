@@ -10,6 +10,7 @@ export class createMarketInstruction {
   callBackInfoLen: BN;
   callBackIdLen: BN;
   minOrderSize: BN;
+  priceBitMask: BN;
 
   static schema: Schema = new Map([
     [
@@ -22,6 +23,7 @@ export class createMarketInstruction {
           ["callBackInfoLen", "u64"],
           ["callBackIdLen", "u64"],
           ["minOrderSize", "u64"],
+          ["priceBitMask", "u64"],
         ],
       },
     ],
@@ -32,12 +34,14 @@ export class createMarketInstruction {
     callBackInfoLen: BN;
     callBackIdLen: BN;
     minOrderSize: BN;
+    priceBitMask: BN;
   }) {
     this.tag = 0;
     this.callerAuthority = obj.callerAuthority;
     this.callBackInfoLen = obj.callBackInfoLen;
     this.callBackIdLen = obj.callBackIdLen;
     this.minOrderSize = obj.minOrderSize;
+    this.priceBitMask = obj.priceBitMask;
   }
 
   serialize(): Uint8Array {

@@ -37,6 +37,7 @@ export class MarketState {
   feeBudget: BN;
   initialLamports: BN;
   minOrderSize: BN;
+  priceBitMask: BN;
 
   static LEN: number = 176;
 
@@ -56,6 +57,7 @@ export class MarketState {
           ["feeBudget", "u64"],
           ["initialLamports", "u64"],
           ["minOrderSize", "u64"],
+          ["priceBitMask", "u64"],
         ],
       },
     ],
@@ -72,6 +74,7 @@ export class MarketState {
     feeBudget: BN;
     initialLamports: BN;
     minOrderSize: BN;
+    priceBitMask: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.callerAuthority = new PublicKey(arg.callerAuthority);
@@ -83,6 +86,7 @@ export class MarketState {
     this.feeBudget = arg.feeBudget;
     this.initialLamports = arg.initialLamports;
     this.minOrderSize = arg.minOrderSize;
+    this.priceBitMask = arg.priceBitMask;
   }
 
   /**
