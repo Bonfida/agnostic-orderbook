@@ -41,6 +41,7 @@ export const createMarket = async (
   minOrderSize: BN,
   feePayer: PublicKey,
   priceBitMask: BN,
+  crankerReward: BN,
   programId?: PublicKey
 ): Promise<PrimedTransaction> => {
   if (programId === undefined) {
@@ -115,6 +116,7 @@ export const createMarket = async (
     callBackIdLen,
     minOrderSize,
     priceBitMask,
+    crankerReward,
   }).getInstruction(
     programId,
     market.publicKey,

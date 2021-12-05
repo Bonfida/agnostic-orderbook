@@ -38,8 +38,9 @@ export class MarketState {
   initialLamports: BN;
   minOrderSize: BN;
   priceBitMask: BN;
+  crankerReward: BN;
 
-  static LEN: number = 176;
+  static LEN: number = 184;
 
   static schema: Schema = new Map([
     [
@@ -58,6 +59,7 @@ export class MarketState {
           ["initialLamports", "u64"],
           ["minOrderSize", "u64"],
           ["priceBitMask", "u64"],
+          ["crankerReward", "u64"],
         ],
       },
     ],
@@ -75,6 +77,7 @@ export class MarketState {
     initialLamports: BN;
     minOrderSize: BN;
     priceBitMask: BN;
+    crankerReward: BN;
   }) {
     this.tag = arg.tag as AccountTag;
     this.callerAuthority = new PublicKey(arg.callerAuthority);
@@ -87,6 +90,7 @@ export class MarketState {
     this.initialLamports = arg.initialLamports;
     this.minOrderSize = arg.minOrderSize;
     this.priceBitMask = arg.priceBitMask;
+    this.crankerReward = arg.crankerReward;
   }
 
   /**
