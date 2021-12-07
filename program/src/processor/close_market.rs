@@ -1,3 +1,4 @@
+//! Close an existing market.
 use crate::{
     error::AoError,
     orderbook::OrderBookState,
@@ -19,20 +20,24 @@ The required arguments for a close_market instruction.
 */
 pub struct Params {}
 
-struct Accounts<'a, 'b: 'a> {
-    market: &'a AccountInfo<'b>,
-    event_queue: &'a AccountInfo<'b>,
-    bids: &'a AccountInfo<'b>,
-    asks: &'a AccountInfo<'b>,
-    authority: &'a AccountInfo<'b>,
-    lamports_target_account: &'a AccountInfo<'b>,
+/// The required accounts for a close_market instruction.
+pub struct Accounts<'a, 'b: 'a> {
+    #[allow(missing_docs)]
+    pub market: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub event_queue: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub bids: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub asks: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub authority: &'a AccountInfo<'b>,
+    #[allow(missing_docs)]
+    pub lamports_target_account: &'a AccountInfo<'b>,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, 'b> {
-    pub fn parse(
-        program_id: &Pubkey,
-        accounts: &'a [AccountInfo<'b>],
-    ) -> Result<Self, ProgramError> {
+    pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
         let a = Self {
             market: next_account_info(accounts_iter)?,
@@ -42,15 +47,22 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             authority: next_account_info(accounts_iter)?,
             lamports_target_account: next_account_info(accounts_iter)?,
         };
-        check_account_owner(a.market, &program_id.to_bytes(), AoError::WrongMarketOwner)?;
-        check_signer(a.authority)?;
         Ok(a)
     }
+
+    pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
+        check_account_owner(
+            self.market,
+            &program_id.to_bytes(),
+            AoError::WrongMarketOwner,
+        )?;
+        check_signer(self.authority)?;
+        Ok(())
+    }
 }
-
-pub(crate) fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    let accounts = Accounts::parse(program_id, accounts)?;
-
+/// Apply the close_market instruction to the provided accounts
+pub fn process(program_id: &Pubkey, accounts: Accounts) -> ProgramResult {
+    accounts.perform_checks(program_id)?;
     let mut market_state = MarketState::get(&accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;

@@ -6,15 +6,10 @@ use solana_program::{
 
 use crate::instruction::AgnosticOrderbookInstruction;
 
-#[allow(missing_docs)]
 pub mod cancel_order;
-#[allow(missing_docs)]
 pub mod close_market;
-#[allow(missing_docs)]
 pub mod consume_events;
-#[allow(missing_docs)]
 pub mod create_market;
-#[allow(missing_docs)]
 pub mod new_order;
 
 #[allow(missing_docs)]
@@ -40,22 +35,27 @@ impl Processor {
         match instruction {
             AgnosticOrderbookInstruction::CreateMarket(params) => {
                 msg!("Instruction: Create Market");
+                let accounts = create_market::Accounts::parse(accounts)?;
                 create_market::process(program_id, accounts, params)?;
             }
             AgnosticOrderbookInstruction::NewOrder(params) => {
                 msg!("Instruction: New Order");
+                let accounts = new_order::Accounts::parse(accounts)?;
                 new_order::process(program_id, accounts, params)?;
             }
             AgnosticOrderbookInstruction::ConsumeEvents(params) => {
                 msg!("Instruction: Consume Events");
+                let accounts = consume_events::Accounts::parse(accounts)?;
                 consume_events::process(program_id, accounts, params)?;
             }
             AgnosticOrderbookInstruction::CancelOrder(params) => {
                 msg!("Instruction: Cancel Order");
+                let accounts = cancel_order::Accounts::parse(accounts)?;
                 cancel_order::process(program_id, accounts, params)?;
             }
             AgnosticOrderbookInstruction::CloseMarket => {
                 msg!("Instruction: Close Market");
+                let accounts = close_market::Accounts::parse(accounts)?;
                 close_market::process(program_id, accounts)?;
             }
         }
