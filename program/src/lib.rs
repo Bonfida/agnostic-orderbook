@@ -60,7 +60,7 @@ use solana_program::declare_id;
 
 pub(crate) mod orderbook;
 #[doc(hidden)]
-pub mod processor;
+pub(crate) mod processor;
 pub(crate) mod utils;
 
 declare_id!("aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e");

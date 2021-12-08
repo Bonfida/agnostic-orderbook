@@ -59,6 +59,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
             &program_id.to_bytes(),
             AoError::WrongEventQueueOwner,
         )?;
+        #[cfg(not(feature = "lib"))]
         check_signer(self.authority).map_err(|e| {
             msg!("The market authority should be a signer for this instruction!");
             e
@@ -120,6 +121,7 @@ fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramRes
         &market_state.event_queue,
         AoError::WrongEventQueueAccount,
     )?;
+    #[cfg(not(feature = "lib"))]
     check_account_key(
         accounts.authority,
         &market_state.caller_authority,

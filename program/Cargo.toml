@@ -10,6 +10,7 @@ no-entrypoint = []
 test-bpf = []
 wasm = []
 debug-asserts = []
+lib = []
 
 [dependencies]
 solana-program = "1.8.0"

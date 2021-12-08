@@ -67,6 +67,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
         )?;
         check_account_owner(self.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
         check_account_owner(self.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
+        #[cfg(not(feature = "lib"))]
         check_signer(self.authority)?;
         Ok(())
     }
@@ -124,6 +125,7 @@ fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramRes
     )?;
     check_account_key(accounts.bids, &market_state.bids, AoError::WrongBidsAccount)?;
     check_account_key(accounts.asks, &market_state.asks, AoError::WrongAsksAccount)?;
+    #[cfg(not(feature = "lib"))]
     check_account_key(
         accounts.authority,
         &market_state.caller_authority,
