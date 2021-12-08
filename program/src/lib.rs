@@ -59,7 +59,8 @@ pub use processor::msrm_token;
 use solana_program::declare_id;
 
 pub(crate) mod orderbook;
-pub(crate) mod processor;
+#[doc(hidden)]
+pub mod processor;
 pub(crate) mod utils;
 
 declare_id!("aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e");
