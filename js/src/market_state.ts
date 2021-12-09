@@ -27,7 +27,7 @@ export enum SelfTradeBehavior {
  * MarketState object
  */
 export class MarketState {
-  tag: AccountTag;
+  tag: BN;
   callerAuthority: PublicKey;
   eventQueue: PublicKey;
   bids: PublicKey;
@@ -40,7 +40,7 @@ export class MarketState {
   priceBitMask: BN;
   crankerReward: BN;
 
-  static LEN: number = 184;
+  static LEN: number = 192;
 
   static schema: Schema = new Map([
     [
@@ -66,7 +66,7 @@ export class MarketState {
   ]);
 
   constructor(arg: {
-    tag: number;
+    tag: AccountTag;
     callerAuthority: Uint8Array;
     eventQueue: Uint8Array;
     bids: Uint8Array;
@@ -79,7 +79,7 @@ export class MarketState {
     priceBitMask: BN;
     crankerReward: BN;
   }) {
-    this.tag = arg.tag as AccountTag;
+    this.tag = new BN(arg.tag);
     this.callerAuthority = new PublicKey(arg.callerAuthority);
     this.eventQueue = new PublicKey(arg.eventQueue);
     this.bids = new PublicKey(arg.bids);
