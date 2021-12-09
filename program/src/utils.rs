@@ -2,7 +2,10 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
 };
 
-use crate::error::{AoError, AoResult};
+use crate::{
+    error::{AoError, AoResult},
+    state::Side,
+};
 
 #[cfg(feature = "no-entrypoint")]
 use crate::{orderbook::OrderBookState, state::MarketState};
@@ -74,4 +77,13 @@ pub(crate) fn fp32_div(a: u64, b_fp32: u64) -> u64 {
 /// a is fp0, b is fp32 and result is a*b fp0
 pub(crate) fn fp32_mul(a: u64, b_fp32: u64) -> u64 {
     (((a as u128) * (b_fp32 as u128)) >> 32) as u64
+}
+
+pub(crate) fn round_price(tick_size: u64, limit_price: u64, side: Side) -> u64 {
+    match side {
+        // Round down
+        Side::Bid => tick_size * (limit_price / tick_size),
+        // Round up
+        Side::Ask => tick_size * ((limit_price + tick_size - 1) / tick_size),
+    }
 }

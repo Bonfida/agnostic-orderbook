@@ -34,7 +34,7 @@ pub struct Params {
     /// The minimum order size that can be inserted into the orderbook after matching.
     pub min_base_order_size: u64,
     /// Enables the limiting of price precision on the orderbook (price ticks)
-    pub price_bitmask: u64,
+    pub tick_size: u64,
     /// Fixed fee for every new order operation. A higher fee increases incentives for cranking.
     pub cranker_reward: u64,
 }
@@ -85,7 +85,7 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
         callback_info_len,
         callback_id_len,
         min_base_order_size,
-        price_bitmask,
+        tick_size,
         cranker_reward,
     } = params;
 
@@ -95,11 +95,6 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
     check_unitialized(accounts.market)?;
 
     let mut market_state = MarketState::get_unchecked(accounts.market);
-    // Checks that the bitmask is of the form 1111...11100...00 (all ones then all zeros)
-    if u64::MAX << price_bitmask.trailing_zeros() != price_bitmask {
-        msg!("The provided bitmask is invalid");
-        return Err(ProgramError::InvalidArgument);
-    }
 
     *market_state = MarketState {
         tag: AccountTag::Market as u64,
@@ -112,7 +107,7 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
         fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
         min_base_order_size,
-        price_bitmask,
+        tick_size,
         cranker_reward,
     };
 
