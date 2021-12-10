@@ -15,7 +15,7 @@ use crate::{
     state::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
     },
-    utils::{check_account_key, check_account_owner, check_signer},
+    utils::{check_account_key, check_account_owner, check_signer, round_price},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -106,8 +106,8 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, mut params: Params) -> P
 
     check_accounts(&accounts, &market_state)?;
 
-    // Floor price to nearest valid price tick
-    params.limit_price &= market_state.price_bitmask;
+    // Round price to nearest valid price tick
+    params.limit_price = round_price(market_state.tick_size, params.limit_price, params.side);
 
     let callback_info_len = market_state.callback_info_len as usize;
 

@@ -92,7 +92,6 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
         event_queue.header.count,
         params.number_of_entries_to_consume,
     );
-
     let reward = (market_state.fee_budget * capped_number_of_entries_consumed)
         .checked_div(event_queue.header.count)
         .ok_or(AoError::NoOperations)

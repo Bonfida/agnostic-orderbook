@@ -93,7 +93,7 @@ pub async fn create_market_and_accounts(
             callback_info_len: 32,
             callback_id_len: 32,
             min_base_order_size: 10,
-            price_bitmask: u64::MAX,
+            tick_size: 1,
             cranker_reward: 0,
         },
     );

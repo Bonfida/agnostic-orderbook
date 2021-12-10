@@ -87,8 +87,8 @@ pub struct MarketState {
     pub initial_lamports: u64,
     /// The minimum order size that can be inserted into the orderbook after matching.
     pub min_base_order_size: u64,
-    /// Enables the limiting of price precision on the orderbook (price ticks)
-    pub price_bitmask: u64,
+    /// Tick size (FP32)
+    pub tick_size: u64,
     /// Cranker reward (in lamports)
     pub cranker_reward: u64,
 }

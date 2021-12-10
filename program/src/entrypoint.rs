@@ -2,8 +2,8 @@ use crate::error::AoError;
 use crate::processor::Processor;
 use num_traits::FromPrimitive;
 use solana_program::{
-    account_info::AccountInfo, decode_error::DecodeError, entrypoint::ProgramResult,
-    msg, program_error::PrintProgramError, pubkey::Pubkey,
+    account_info::AccountInfo, decode_error::DecodeError, entrypoint::ProgramResult, msg,
+    program_error::PrintProgramError, pubkey::Pubkey,
 };
 
 #[cfg(not(feature = "no-entrypoint"))]

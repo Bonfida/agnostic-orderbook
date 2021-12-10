@@ -37,7 +37,7 @@ export class MarketState {
   feeBudget: BN;
   initialLamports: BN;
   minOrderSize: BN;
-  priceBitMask: BN;
+  tickSize: BN;
   crankerReward: BN;
 
   static LEN: number = 192;
@@ -58,7 +58,7 @@ export class MarketState {
           ["feeBudget", "u64"],
           ["initialLamports", "u64"],
           ["minOrderSize", "u64"],
-          ["priceBitMask", "u64"],
+          ["tickSize", "u64"],
           ["crankerReward", "u64"],
         ],
       },
@@ -76,7 +76,7 @@ export class MarketState {
     feeBudget: BN;
     initialLamports: BN;
     minOrderSize: BN;
-    priceBitMask: BN;
+    tickSize: BN;
     crankerReward: BN;
   }) {
     this.tag = new BN(arg.tag);
@@ -89,7 +89,7 @@ export class MarketState {
     this.feeBudget = arg.feeBudget;
     this.initialLamports = arg.initialLamports;
     this.minOrderSize = arg.minOrderSize;
-    this.priceBitMask = arg.priceBitMask;
+    this.tickSize = arg.tickSize;
     this.crankerReward = arg.crankerReward;
   }
 
