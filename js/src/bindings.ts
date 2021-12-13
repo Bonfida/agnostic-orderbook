@@ -9,7 +9,7 @@ import BN from "bn.js";
 import { EventQueueHeader } from "./event_queue";
 import { MarketState } from "./market_state";
 import { Slab, SlabHeader } from "./slab";
-import { createMarketInstruction } from "./instructions";
+import { createMarketInstruction } from "./raw_instructions";
 import { PrimedTransaction } from "./types";
 
 // Devnet
@@ -23,8 +23,8 @@ export const AAOB_ID = new PublicKey(
  * @param callerAuthority The caller authority will be the required signer for all market instructions.
  * Callback information can be used by the caller to attach specific information to all orders.
  * In practice, it will almost always be a program-derived address.
- * @param callBackInfoLen An example of this would be to store a public key to uniquely identify the owner of a particular order. This example would require a value of 32
- * @param callBackIdLen The prefix length of callback information which is used to identify self-trading in this example
+ * @param callbackInfoLen An example of this would be to store a public key to uniquely identify the owner of a particular order. This example would require a value of 32
+ * @param callbackIdLen The prefix length of callback information which is used to identify self-trading in this example
  * @param eventCapacity The capacity of an event
  * @param nodesCapacity The capacity of a node
  * @param feePayer The fee payer of the transaction
@@ -34,13 +34,13 @@ export const AAOB_ID = new PublicKey(
 export const createMarket = async (
   connection: Connection,
   callerAuthority: PublicKey,
-  callBackInfoLen: BN,
-  callBackIdLen: BN,
+  callbackInfoLen: BN,
+  callbackIdLen: BN,
   eventCapacity: number,
   nodesCapacity: number,
-  minOrderSize: BN,
+  minBaseOrderSize: BN,
   feePayer: PublicKey,
-  priceBitMask: BN,
+  tickSize: BN,
   crankerReward: BN,
   programId?: PublicKey
 ): Promise<PrimedTransaction> => {
@@ -55,7 +55,7 @@ export const createMarket = async (
   const eventQueueSize =
     EventQueueHeader.LEN +
     EventQueueHeader.REGISTER_SIZE +
-    EventQueueHeader.computeSlotSize(callBackInfoLen)
+    EventQueueHeader.computeSlotSize(callbackInfoLen)
       .muln(eventCapacity)
       .toNumber();
   const createEventQueueAccount = SystemProgram.createAccount({
@@ -112,10 +112,10 @@ export const createMarket = async (
   // Create market
   const createMarket = new createMarketInstruction({
     callerAuthority: callerAuthority.toBuffer(),
-    callBackInfoLen,
-    callBackIdLen,
-    minOrderSize,
-    priceBitMask,
+    callbackInfoLen,
+    callbackIdLen,
+    minBaseOrderSize,
+    tickSize,
     crankerReward,
   }).getInstruction(
     programId,

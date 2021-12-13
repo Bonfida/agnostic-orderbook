@@ -83,13 +83,14 @@ pub async fn create_market_and_accounts(
 
     // Create Market
     let create_market_instruction = create_market(
-        agnostic_orderbook_program_id,
-        market_account.pubkey(),
-        event_queue_account.pubkey(),
-        bids_account.pubkey(),
-        asks_account.pubkey(),
+        create_market::Accounts {
+            market: &market_account.pubkey(),
+            event_queue: &event_queue_account.pubkey(),
+            bids: &bids_account.pubkey(),
+            asks: &asks_account.pubkey(),
+        },
         create_market::Params {
-            caller_authority: caller_authority.pubkey(),
+            caller_authority: caller_authority.pubkey().to_bytes(),
             callback_info_len: 32,
             callback_id_len: 32,
             min_base_order_size: 10,

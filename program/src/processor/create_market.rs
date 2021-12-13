@@ -1,4 +1,5 @@
 //! Create and initialize a new orderbook market
+use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -14,7 +15,7 @@ use crate::{
     utils::{check_account_owner, check_unitialized},
 };
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, BorshSize)]
 /**
 The required arguments for a create_market instruction.
 */
@@ -22,7 +23,7 @@ pub struct Params {
     /// The caller authority will be the required signer for all market instructions.
     ///
     /// In practice, it will almost always be a program-derived address..
-    pub caller_authority: Pubkey,
+    pub caller_authority: [u8; 32],
     /// Callback information can be used by the caller to attach specific information to all orders.
     ///
     /// An example of this would be to store a public key to uniquely identify the owner of a particular order.
@@ -39,18 +40,23 @@ pub struct Params {
 }
 
 /// The required accounts for a create_market instruction.
-pub struct Accounts<'a, 'b: 'a> {
+#[derive(InstructionsAccount)]
+pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
-    pub market: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub market: &'a T,
     #[allow(missing_docs)]
-    pub event_queue: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub event_queue: &'a T,
     #[allow(missing_docs)]
-    pub bids: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub bids: &'a T,
     #[allow(missing_docs)]
-    pub asks: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub asks: &'a T,
 }
 
-impl<'a, 'b: 'a> Accounts<'a, 'b> {
+impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
     pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
 
@@ -77,7 +83,11 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 }
 
 /// Apply the create_market instruction to the provided accounts
-pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
+pub fn process<'a, 'b: 'a>(
+    program_id: &Pubkey,
+    accounts: Accounts<'a, AccountInfo<'b>>,
+    params: Params,
+) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let Params {
         caller_authority,
@@ -97,7 +107,7 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
 
     *market_state = MarketState {
         tag: AccountTag::Market as u64,
-        caller_authority: caller_authority.to_bytes(),
+        caller_authority,
         event_queue: accounts.event_queue.key.to_bytes(),
         bids: accounts.bids.key.to_bytes(),
         asks: accounts.asks.key.to_bytes(),

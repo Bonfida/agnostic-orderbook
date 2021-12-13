@@ -28,6 +28,7 @@ name = "agnostic-orderbook"
 version = "0.1.0"
 dependencies = [
  "arrayref",
+ "bonfida-utils",
  "borsh",
  "bytemuck",
  "enumflags2",
@@ -196,6 +197,30 @@ name = "block-padding"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
+
+[[package]]
+name = "bonfida-macros"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d74c55af5acad5bc3de07537a38c5c68b4c2ef44224c5058d0143fb431918d5"
+dependencies = [
+ "proc-macro2 1.0.29",
+ "quote 1.0.9",
+ "solana-program",
+ "syn 1.0.77",
+]
+
+[[package]]
+name = "bonfida-utils"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0492e8763ad9985d1d1ba1cff5f324cbc3a68f024bd89791ffa7076ee506f17d"
+dependencies = [
+ "bonfida-macros",
+ "borsh",
+ "bytemuck",
+ "solana-program",
+]
 
 [[package]]
 name = "borsh"

@@ -1,3 +1,4 @@
+use bonfida_utils::BorshSize;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{try_from_bytes_mut, Pod, Zeroable};
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -29,7 +30,15 @@ pub enum AccountTag {
 }
 
 #[derive(
-    BorshDeserialize, BorshSerialize, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Debug,
+    BorshDeserialize,
+    BorshSerialize,
+    Clone,
+    Copy,
+    PartialEq,
+    FromPrimitive,
+    ToPrimitive,
+    Debug,
+    BorshSize,
 )]
 #[repr(u8)]
 #[allow(missing_docs)]
@@ -48,7 +57,7 @@ impl Side {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, PartialEq, FromPrimitive, BorshSize)]
 /// Describes what happens when two order with identical callback informations are matched together
 pub enum SelfTradeBehavior {
     /// The orders are matched together

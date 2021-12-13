@@ -5,6 +5,7 @@ use crate::{
     state::{AccountTag, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
     utils::{check_account_key, check_account_owner, check_signer},
 };
+use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -14,29 +15,36 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, BorshSize)]
 /**
 The required arguments for a close_market instruction.
 */
 pub struct Params {}
 
 /// The required accounts for a close_market instruction.
-pub struct Accounts<'a, 'b: 'a> {
+#[derive(InstructionsAccount)]
+pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
-    pub market: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub market: &'a T,
     #[allow(missing_docs)]
-    pub event_queue: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub event_queue: &'a T,
     #[allow(missing_docs)]
-    pub bids: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub bids: &'a T,
     #[allow(missing_docs)]
-    pub asks: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub asks: &'a T,
     #[allow(missing_docs)]
-    pub authority: &'a AccountInfo<'b>,
+    #[cons(signer)]
+    pub authority: &'a T,
     #[allow(missing_docs)]
-    pub lamports_target_account: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub lamports_target_account: &'a T,
 }
 
-impl<'a, 'b: 'a> Accounts<'a, 'b> {
+impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
     pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
         let a = Self {
@@ -62,7 +70,11 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
     }
 }
 /// Apply the close_market instruction to the provided accounts
-pub fn process(program_id: &Pubkey, accounts: Accounts) -> ProgramResult {
+pub fn process<'a, 'b: 'a>(
+    program_id: &Pubkey,
+    accounts: Accounts<'a, AccountInfo<'b>>,
+    _params: Params,
+) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let mut market_state = MarketState::get(accounts.market)?;
 
@@ -112,7 +124,10 @@ pub fn process(program_id: &Pubkey, accounts: Accounts) -> ProgramResult {
     Ok(())
 }
 
-fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+fn check_accounts<'a, 'b: 'a>(
+    accounts: &Accounts<'a, AccountInfo<'b>>,
+    market_state: &MarketState,
+) -> ProgramResult {
     check_account_key(
         accounts.event_queue,
         &market_state.event_queue,
