@@ -24,11 +24,10 @@ use crate::common::utils::{create_market_and_accounts, sign_send_instructions};
 #[tokio::test]
 async fn test_agnostic_orderbook() {
     // Create program and test environment
-    let agnostic_orderbook_program_id = Pubkey::new_unique();
 
     let mut program_test = ProgramTest::new(
         "agnostic_orderbook",
-        agnostic_orderbook_program_id,
+        agnostic_orderbook::ID,
         processor!(agnostic_orderbook::entrypoint::process_instruction),
     );
 
@@ -92,7 +91,7 @@ async fn test_agnostic_orderbook() {
         &market_account.pubkey(),
         1_000_000,
         1_000_000,
-        &agnostic_orderbook_program_id,
+        &agnostic_orderbook::ID,
     );
     sign_send_instructions(
         &mut prg_test_ctx,
@@ -109,7 +108,7 @@ async fn test_agnostic_orderbook() {
         &event_queue_account.pubkey(),
         1_000_000,
         1_000_000,
-        &agnostic_orderbook_program_id,
+        &agnostic_orderbook::ID,
     );
     sign_send_instructions(
         &mut prg_test_ctx,
@@ -120,12 +119,9 @@ async fn test_agnostic_orderbook() {
     .unwrap();
 
     let caller_authority = Keypair::new();
-    let market_account = create_market_and_accounts(
-        &mut prg_test_ctx,
-        agnostic_orderbook_program_id,
-        &caller_authority,
-    )
-    .await;
+    let market_account =
+        create_market_and_accounts(&mut prg_test_ctx, agnostic_orderbook::ID, &caller_authority)
+            .await;
 
     let mut market_state_data = prg_test_ctx
         .banks_client
@@ -153,12 +149,14 @@ async fn test_agnostic_orderbook() {
 
     // New Order
     let new_order_instruction = new_order(
-        agnostic_orderbook_program_id,
-        market_account,
-        Pubkey::new_from_array(market_state.caller_authority),
-        Pubkey::new_from_array(market_state.event_queue),
-        Pubkey::new_from_array(market_state.bids),
-        Pubkey::new_from_array(market_state.asks),
+        agnostic_orderbook::ID,
+        new_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
         new_order::Params {
             max_base_qty: 1000,
             max_quote_qty: 1000,
@@ -195,12 +193,14 @@ async fn test_agnostic_orderbook() {
 
     // New Order
     let new_order_instruction = new_order(
-        agnostic_orderbook_program_id,
-        market_account,
-        Pubkey::new_from_array(market_state.caller_authority),
-        Pubkey::new_from_array(market_state.event_queue),
-        Pubkey::new_from_array(market_state.bids),
-        Pubkey::new_from_array(market_state.asks),
+        agnostic_orderbook::ID,
+        new_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
         new_order::Params {
             max_base_qty: 1100,
             max_quote_qty: 1000,
@@ -249,12 +249,14 @@ async fn test_agnostic_orderbook() {
 
     // Cancel order
     let cancel_order_instruction = cancel_order(
-        agnostic_orderbook_program_id,
-        market_account,
-        Pubkey::new_from_array(market_state.caller_authority),
-        Pubkey::new_from_array(market_state.event_queue),
-        Pubkey::new_from_array(market_state.bids),
-        Pubkey::new_from_array(market_state.asks),
+        agnostic_orderbook::ID,
+        cancel_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
         cancel_order::Params {
             order_id: order_summary.posted_order_id.unwrap(),
         },
@@ -286,11 +288,13 @@ async fn test_agnostic_orderbook() {
 
     // Consume events
     let consume_events_instruction = consume_events(
-        agnostic_orderbook_program_id,
-        market_account,
-        Pubkey::new_from_array(market_state.caller_authority),
-        Pubkey::new_from_array(market_state.event_queue),
-        reward_target.pubkey(),
+        agnostic_orderbook::ID,
+        consume_events::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+            reward_target: &reward_target.pubkey(),
+        },
         consume_events::Params {
             number_of_entries_to_consume: 10,
         },
@@ -305,13 +309,16 @@ async fn test_agnostic_orderbook() {
 
     // Close Market
     let close_market_instruction = close_market(
-        agnostic_orderbook_program_id,
-        market_account,
-        Pubkey::new_from_array(market_state.event_queue),
-        Pubkey::new_from_array(market_state.bids),
-        Pubkey::new_from_array(market_state.asks),
-        Pubkey::new_from_array(market_state.caller_authority),
-        reward_target.pubkey(),
+        agnostic_orderbook::ID,
+        close_market::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+            lamports_target_account: &reward_target.pubkey(),
+        },
+        close_market::Params {},
     );
     sign_send_instructions(
         &mut prg_test_ctx,

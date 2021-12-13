@@ -1,11 +1,10 @@
+use bonfida_utils::InstructionsAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-};
+use num_derive::FromPrimitive;
+use solana_program::{instruction::Instruction, pubkey::Pubkey};
 
 pub use crate::processor::{cancel_order, close_market, consume_events, create_market, new_order};
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
     /// Create and initialize a new orderbook market
@@ -18,7 +17,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 1     | ✅       | ❌     | A zeroed out event queue account |
     /// | 2     | ✅       | ❌     | A zeroed out bids account        |
     /// | 3     | ✅       | ❌     | A zeroed out asks account        |
-    CreateMarket(create_market::Params),
+    CreateMarket,
     /// Execute a new order on the orderbook.
     ///
     /// Depending on the provided parameters, the program will attempt to match the order with existing entries
@@ -34,7 +33,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 2     | ✅       | ❌     | The bids account        |
     /// | 3     | ✅       | ❌     | The asks account        |
     /// | 4     | ❌       | ✅     | The caller authority    |
-    NewOrder(new_order::Params),
+    NewOrder,
     /// Pop a series of events off the event queue.
     ///
     /// Required accounts
@@ -45,7 +44,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 1     | ✅       | ❌     | The event queue account      |
     /// | 3     | ❌       | ✅     | The caller authority         |
     /// | 4     | ✅       | ❌     | The reward target account    |
-    ConsumeEvents(consume_events::Params),
+    ConsumeEvents,
     /// Cancel an existing order in the orderbook.
     ///
     /// Required accounts
@@ -57,7 +56,7 @@ pub enum AgnosticOrderbookInstruction {
     /// | 2     | ✅       | ❌     | The bids account        |
     /// | 3     | ✅       | ❌     | The asks account        |
     /// | 4     | ❌       | ✅     | The caller authority    |
-    CancelOrder(cancel_order::Params),
+    CancelOrder,
     /// Close an existing market.
     ///
     /// Required accounts
@@ -89,27 +88,15 @@ accordingly.
 [`compute_slot_size(callback_info_len)`][`crate::critbit::Slab::compute_slot_size`].
 */
 pub fn create_market(
-    agnostic_orderbook_program_id: Pubkey,
-    market_account: Pubkey,
-    event_queue: Pubkey,
-    bids: Pubkey,
-    asks: Pubkey,
-    create_market_params: create_market::Params,
+    program_id: Pubkey,
+    accounts: create_market::Accounts<Pubkey>,
+    params: create_market::Params,
 ) -> Instruction {
-    let instruction_data = AgnosticOrderbookInstruction::CreateMarket(create_market_params);
-    let data = instruction_data.try_to_vec().unwrap();
-    let accounts = vec![
-        AccountMeta::new(market_account, false),
-        AccountMeta::new(event_queue, false),
-        AccountMeta::new(bids, false),
-        AccountMeta::new(asks, false),
-    ];
-
-    Instruction {
-        program_id: agnostic_orderbook_program_id,
-        accounts,
-        data,
-    }
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CreateMarket as u8,
+        params,
+    )
 }
 /**
 Execute a new order on the orderbook.
@@ -118,113 +105,52 @@ Depending on the provided parameters, the program will attempt to match the orde
 in the orderbook, and then optionally post the remaining order.
 */
 pub fn new_order(
-    agnostic_orderbook_program_id: Pubkey,
-    market_account: Pubkey,
-    caller_authority: Pubkey,
-    event_queue: Pubkey,
-    bids: Pubkey,
-    asks: Pubkey,
-    new_order_params: new_order::Params,
+    program_id: Pubkey,
+    accounts: new_order::Accounts<Pubkey>,
+    params: new_order::Params,
 ) -> Instruction {
-    let data = AgnosticOrderbookInstruction::NewOrder(new_order_params)
-        .try_to_vec()
-        .unwrap();
-    let accounts = vec![
-        AccountMeta::new(market_account, false),
-        AccountMeta::new(event_queue, false),
-        AccountMeta::new(bids, false),
-        AccountMeta::new(asks, false),
-        AccountMeta::new_readonly(caller_authority, true),
-    ];
-
-    Instruction {
-        program_id: agnostic_orderbook_program_id,
-        accounts,
-        data,
-    }
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::NewOrder as u8,
+        params,
+    )
 }
 
 /// Cancel an existing order in the orderbook.
 pub fn cancel_order(
-    agnostic_orderbook_program_id: Pubkey,
-    market_account: Pubkey,
-    caller_authority: Pubkey,
-    event_queue: Pubkey,
-    bids: Pubkey,
-    asks: Pubkey,
-    cancel_order_params: cancel_order::Params,
+    program_id: Pubkey,
+    accounts: cancel_order::Accounts<Pubkey>,
+    params: cancel_order::Params,
 ) -> Instruction {
-    let data = AgnosticOrderbookInstruction::CancelOrder(cancel_order_params)
-        .try_to_vec()
-        .unwrap();
-    let accounts = vec![
-        AccountMeta::new(market_account, false),
-        AccountMeta::new(event_queue, false),
-        AccountMeta::new(bids, false),
-        AccountMeta::new(asks, false),
-        AccountMeta::new_readonly(caller_authority, true),
-    ];
-
-    Instruction {
-        program_id: agnostic_orderbook_program_id,
-        accounts,
-        data,
-    }
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CancelOrder as u8,
+        params,
+    )
 }
 
 /// Pop a series of events off the event queue.
-#[allow(clippy::too_many_arguments)]
 pub fn consume_events(
-    agnostic_orderbook_program_id: Pubkey,
-    market_account: Pubkey,
-    caller_authority: Pubkey,
-    event_queue: Pubkey,
-    reward_target: Pubkey,
-    consume_events_params: consume_events::Params,
+    program_id: Pubkey,
+    accounts: consume_events::Accounts<Pubkey>,
+    params: consume_events::Params,
 ) -> Instruction {
-    let data = AgnosticOrderbookInstruction::ConsumeEvents(consume_events_params)
-        .try_to_vec()
-        .unwrap();
-    let accounts = vec![
-        AccountMeta::new(market_account, false),
-        AccountMeta::new(event_queue, false),
-        AccountMeta::new_readonly(caller_authority, true),
-        AccountMeta::new(reward_target, false),
-    ];
-
-    Instruction {
-        program_id: agnostic_orderbook_program_id,
-        accounts,
-        data,
-    }
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::ConsumeEvents as u8,
+        params,
+    )
 }
 
-/// Close and existing market.
-#[allow(clippy::too_many_arguments)]
+/// Close an existing market.
 pub fn close_market(
-    agnostic_orderbook_program_id: Pubkey,
-    market: Pubkey,
-    event_queue: Pubkey,
-    bids: Pubkey,
-    asks: Pubkey,
-    authority: Pubkey,
-    lamports_target_account: Pubkey,
+    program_id: Pubkey,
+    accounts: close_market::Accounts<Pubkey>,
+    params: close_market::Params,
 ) -> Instruction {
-    let data = AgnosticOrderbookInstruction::CloseMarket
-        .try_to_vec()
-        .unwrap();
-    let accounts = vec![
-        AccountMeta::new(market, false),
-        AccountMeta::new(event_queue, false),
-        AccountMeta::new(bids, false),
-        AccountMeta::new(asks, false),
-        AccountMeta::new_readonly(authority, true),
-        AccountMeta::new(lamports_target_account, false),
-    ];
-
-    Instruction {
-        program_id: agnostic_orderbook_program_id,
-        accounts,
-        data,
-    }
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CloseMarket as u8,
+        params,
+    )
 }

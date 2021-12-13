@@ -1,4 +1,5 @@
 //! Pop a series of events off the event queue.
+use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -14,7 +15,7 @@ use crate::{
     utils::{check_account_key, check_account_owner, check_signer},
 };
 
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
 /**
 The required arguments for a consume_events instruction.
 */
@@ -24,18 +25,23 @@ pub struct Params {
 }
 
 /// The required accounts for a consume_events instruction.
-pub struct Accounts<'a, 'b: 'a> {
+#[derive(InstructionsAccount)]
+pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
-    pub market: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub market: &'a T,
     #[allow(missing_docs)]
-    pub event_queue: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub event_queue: &'a T,
     #[allow(missing_docs)]
-    pub authority: &'a AccountInfo<'b>,
+    #[cons(signer)]
+    pub authority: &'a T,
     #[allow(missing_docs)]
-    pub reward_target: &'a AccountInfo<'b>,
+    #[cons(writable)]
+    pub reward_target: &'a T,
 }
 
-impl<'a, 'b: 'a> Accounts<'a, 'b> {
+impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
     pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let mut accounts_iter = accounts.iter();
         let a = Self {
@@ -70,7 +76,11 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 }
 
 /// Apply the consume_events instruction to the provided accounts
-pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
+pub fn process<'a, 'b: 'a>(
+    program_id: &Pubkey,
+    accounts: Accounts<'a, AccountInfo<'b>>,
+    params: Params,
+) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let mut market_state = MarketState::get(accounts.market)?;
 
@@ -114,7 +124,10 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
     Ok(())
 }
 
-fn check_accounts(accounts: &Accounts, market_state: &MarketState) -> ProgramResult {
+fn check_accounts<'a, 'b: 'a>(
+    accounts: &Accounts<'a, AccountInfo<'b>>,
+    market_state: &MarketState,
+) -> ProgramResult {
     check_account_key(
         accounts.event_queue,
         &market_state.event_queue,
