@@ -149,6 +149,7 @@ async fn test_agnostic_orderbook() {
 
     // New Order
     let new_order_instruction = new_order(
+        agnostic_orderbook::ID,
         new_order::Accounts {
             market: &market_account,
             event_queue: &Pubkey::new_from_array(market_state.event_queue),
@@ -192,6 +193,7 @@ async fn test_agnostic_orderbook() {
 
     // New Order
     let new_order_instruction = new_order(
+        agnostic_orderbook::ID,
         new_order::Accounts {
             market: &market_account,
             event_queue: &Pubkey::new_from_array(market_state.event_queue),
@@ -247,6 +249,7 @@ async fn test_agnostic_orderbook() {
 
     // Cancel order
     let cancel_order_instruction = cancel_order(
+        agnostic_orderbook::ID,
         cancel_order::Accounts {
             market: &market_account,
             event_queue: &Pubkey::new_from_array(market_state.event_queue),
@@ -285,6 +288,7 @@ async fn test_agnostic_orderbook() {
 
     // Consume events
     let consume_events_instruction = consume_events(
+        agnostic_orderbook::ID,
         consume_events::Accounts {
             market: &market_account,
             event_queue: &Pubkey::new_from_array(market_state.event_queue),
@@ -305,6 +309,7 @@ async fn test_agnostic_orderbook() {
 
     // Close Market
     let close_market_instruction = close_market(
+        agnostic_orderbook::ID,
         close_market::Accounts {
             market: &market_account,
             event_queue: &Pubkey::new_from_array(market_state.event_queue),

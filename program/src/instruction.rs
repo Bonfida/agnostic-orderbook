@@ -88,10 +88,15 @@ accordingly.
 [`compute_slot_size(callback_info_len)`][`crate::critbit::Slab::compute_slot_size`].
 */
 pub fn create_market(
+    program_id: Pubkey,
     accounts: create_market::Accounts<Pubkey>,
     params: create_market::Params,
 ) -> Instruction {
-    accounts.get_instruction(AgnosticOrderbookInstruction::CreateMarket as u8, params)
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CreateMarket as u8,
+        params,
+    )
 }
 /**
 Execute a new order on the orderbook.
@@ -99,30 +104,53 @@ Execute a new order on the orderbook.
 Depending on the provided parameters, the program will attempt to match the order with existing entries
 in the orderbook, and then optionally post the remaining order.
 */
-pub fn new_order(accounts: new_order::Accounts<Pubkey>, params: new_order::Params) -> Instruction {
-    accounts.get_instruction(AgnosticOrderbookInstruction::NewOrder as u8, params)
+pub fn new_order(
+    program_id: Pubkey,
+    accounts: new_order::Accounts<Pubkey>,
+    params: new_order::Params,
+) -> Instruction {
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::NewOrder as u8,
+        params,
+    )
 }
 
 /// Cancel an existing order in the orderbook.
 pub fn cancel_order(
+    program_id: Pubkey,
     accounts: cancel_order::Accounts<Pubkey>,
     params: cancel_order::Params,
 ) -> Instruction {
-    accounts.get_instruction(AgnosticOrderbookInstruction::CancelOrder as u8, params)
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CancelOrder as u8,
+        params,
+    )
 }
 
 /// Pop a series of events off the event queue.
 pub fn consume_events(
+    program_id: Pubkey,
     accounts: consume_events::Accounts<Pubkey>,
     params: consume_events::Params,
 ) -> Instruction {
-    accounts.get_instruction(AgnosticOrderbookInstruction::ConsumeEvents as u8, params)
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::ConsumeEvents as u8,
+        params,
+    )
 }
 
 /// Close an existing market.
 pub fn close_market(
+    program_id: Pubkey,
     accounts: close_market::Accounts<Pubkey>,
     params: close_market::Params,
 ) -> Instruction {
-    accounts.get_instruction(AgnosticOrderbookInstruction::CloseMarket as u8, params)
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::CloseMarket as u8,
+        params,
+    )
 }
