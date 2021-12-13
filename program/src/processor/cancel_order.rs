@@ -75,7 +75,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 /// Apply the cancel_order instruction to the provided accounts
 pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
     accounts.perform_checks(program_id)?;
-    let market_state = MarketState::get(&accounts.market)?;
+    let market_state = MarketState::get(accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
 
@@ -93,7 +93,7 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> Progr
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
+    let event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
     let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
     let node = slab

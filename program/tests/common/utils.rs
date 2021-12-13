@@ -9,7 +9,7 @@ use solana_sdk::{signature::Keypair, transaction::Transaction, transport::Transp
 /// Creates the accounts needed for the AAOB market testing and returns the
 /// address of the market.
 pub async fn create_market_and_accounts(
-    mut prg_test_ctx: &mut ProgramTestContext,
+    prg_test_ctx: &mut ProgramTestContext,
     agnostic_orderbook_program_id: Pubkey,
     caller_authority: &Keypair,
 ) -> Pubkey {
@@ -23,7 +23,7 @@ pub async fn create_market_and_accounts(
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
-        &mut prg_test_ctx,
+        prg_test_ctx,
         vec![create_market_account_instruction],
         vec![&market_account],
     )
@@ -40,7 +40,7 @@ pub async fn create_market_and_accounts(
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
-        &mut prg_test_ctx,
+        prg_test_ctx,
         vec![create_event_queue_account_instruction],
         vec![&event_queue_account],
     )
@@ -57,7 +57,7 @@ pub async fn create_market_and_accounts(
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
-        &mut prg_test_ctx,
+        prg_test_ctx,
         vec![create_bids_account_instruction],
         vec![&bids_account],
     )
@@ -74,7 +74,7 @@ pub async fn create_market_and_accounts(
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
-        &mut prg_test_ctx,
+        prg_test_ctx,
         vec![create_asks_account_instruction],
         vec![&asks_account],
     )
@@ -97,7 +97,7 @@ pub async fn create_market_and_accounts(
             cranker_reward: 0,
         },
     );
-    sign_send_instructions(&mut prg_test_ctx, vec![create_market_instruction], vec![])
+    sign_send_instructions(prg_test_ctx, vec![create_market_instruction], vec![])
         .await
         .unwrap();
 

@@ -558,7 +558,7 @@ impl<'a> Slab<'a> {
             None => {
                 // create a new root if none exists
                 let new_leaf_key = self
-                    .insert_node(&new_leaf_node)
+                    .insert_node(new_leaf_node)
                     .map_err(|_| AoError::SlabOutOfSpace)?;
                 self.header.root_node = new_leaf_key;
                 self.header.leaf_count += 1;
@@ -603,7 +603,7 @@ impl<'a> Slab<'a> {
 
             // Write new leaf to slab
             let new_leaf_handle = self
-                .insert_node(&new_leaf_node)
+                .insert_node(new_leaf_node)
                 .map_err(|_| AoError::SlabOutOfSpace)?;
 
             let new_root_node_handle = self

@@ -72,7 +72,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 /// Apply the consume_events instruction to the provided accounts
 pub fn process(program_id: &Pubkey, accounts: Accounts, params: Params) -> ProgramResult {
     accounts.perform_checks(program_id)?;
-    let mut market_state = MarketState::get(&accounts.market)?;
+    let mut market_state = MarketState::get(accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
 

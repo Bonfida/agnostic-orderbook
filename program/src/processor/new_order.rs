@@ -102,7 +102,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 /// Apply the new_order instruction to the provided accounts
 pub fn process(program_id: &Pubkey, accounts: Accounts, mut params: Params) -> ProgramResult {
     accounts.perform_checks(program_id)?;
-    let mut market_state = MarketState::get(&accounts.market)?;
+    let mut market_state = MarketState::get(accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
 
@@ -130,13 +130,10 @@ pub fn process(program_id: &Pubkey, accounts: Accounts, mut params: Params) -> P
             .unwrap()
             .check()?
     };
-    let mut event_queue = EventQueue::new_safe(header, &accounts.event_queue, callback_info_len)?;
+    let mut event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
-    let order_summary = order_book.new_order(
-        params,
-        &mut &mut event_queue,
-        market_state.min_base_order_size,
-    )?;
+    let order_summary =
+        order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?;
     msg!("Order summary : {:?}", order_summary);
     event_queue.write_to_register(order_summary);
 

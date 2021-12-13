@@ -64,7 +64,7 @@ impl<'a, 'b: 'a> Accounts<'a, 'b> {
 /// Apply the close_market instruction to the provided accounts
 pub fn process(program_id: &Pubkey, accounts: Accounts) -> ProgramResult {
     accounts.perform_checks(program_id)?;
-    let mut market_state = MarketState::get(&accounts.market)?;
+    let mut market_state = MarketState::get(accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
 

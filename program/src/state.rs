@@ -169,8 +169,8 @@ impl Event {
                 writer.write_all(&maker_order_id.to_le_bytes())?;
                 writer.write_all(&quote_size.to_le_bytes())?;
                 writer.write_all(&base_size.to_le_bytes())?;
-                writer.write_all(&maker_callback_info)?;
-                writer.write_all(&taker_callback_info)?;
+                writer.write_all(maker_callback_info)?;
+                writer.write_all(taker_callback_info)?;
             }
             Event::Out {
                 side,
@@ -184,7 +184,7 @@ impl Event {
                 writer.write_all(&order_id.to_le_bytes())?;
                 writer.write_all(&base_size.to_le_bytes())?;
                 writer.write_all(&[(*delete as u8)])?;
-                writer.write_all(&callback_info)?;
+                writer.write_all(callback_info)?;
             }
         };
         Ok(())

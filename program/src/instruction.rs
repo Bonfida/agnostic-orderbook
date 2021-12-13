@@ -173,7 +173,7 @@ pub fn cancel_order(
 }
 
 /// Pop a series of events off the event queue.
-#[allow(clippy::clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn consume_events(
     agnostic_orderbook_program_id: Pubkey,
     market_account: Pubkey,
@@ -200,7 +200,7 @@ pub fn consume_events(
 }
 
 /// Close and existing market.
-#[allow(clippy::clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn close_market(
     agnostic_orderbook_program_id: Pubkey,
     market: Pubkey,
