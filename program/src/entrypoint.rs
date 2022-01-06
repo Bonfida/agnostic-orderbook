@@ -76,6 +76,9 @@ impl PrintProgramError for AoError {
             AoError::InvalidCallbackIdLength => {
                 msg!("Callback ID is the incorrect length")
             }
+            AoError::IntegerOverflow => {
+                msg!("Integer overflow")
+            }
         }
     }
 }

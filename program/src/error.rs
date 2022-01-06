@@ -52,6 +52,8 @@ pub enum AoError {
     IllegalMsrmOwner,
     #[error("Callback ID is the incorrect length")]
     InvalidCallbackIdLength,
+    #[error("Integer overflow")]
+    IntegerOverflow,
 }
 
 impl From<AoError> for ProgramError {

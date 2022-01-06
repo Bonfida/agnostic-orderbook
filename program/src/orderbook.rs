@@ -313,8 +313,8 @@ impl<'ob> OrderBookState<'ob> {
         event_queue: &mut EventQueue,
     ) -> Result<OrderSummary, AoError> {
         let mut num_orders_cancelled = 0;
-        let mut total_base_qty = 0;
-        let mut total_quote_qty = 0;
+        let mut total_base_qty: u64 = 0;
+        let mut total_quote_qty: u64 = 0;
         let mut books = match params.prioritized_side {
             Side::Bid => [(&mut self.bids, false), (&mut self.asks, true)],
             Side::Ask => [(&mut self.asks, true), (&mut self.bids, false)],
@@ -343,8 +343,12 @@ impl<'ob> OrderBookState<'ob> {
                     event_queue
                         .push_back(cancel)
                         .map_err(|_| AoError::EventQueueFull)?;
-                    total_base_qty += leaf.base_quantity;
-                    total_quote_qty += fp32_mul(leaf.base_quantity, leaf.price());
+                    total_base_qty = total_base_qty
+                        .checked_add(leaf.base_quantity)
+                        .ok_or(|_| AoError::IntegerOverflow)?;
+                    total_quote_qty = total_quote_qty
+                        .checked_add(fp32_mul(leaf.base_quantity, leaf.price()))
+                        .ok_or(|_| AoError::IntegerOverflow)?;
                     num_orders_cancelled += 1
                 }
                 if num_orders_cancelled == params.num_orders {
