@@ -733,8 +733,8 @@ impl<'a> Slab<'a> {
                     leaves.push(*leaf);
                 }
                 NodeRef::Inner(inner) => {
-                    stack.push(inner.children[0 ^ ascending as usize]);
                     stack.push(inner.children[1 ^ ascending as usize]);
+                    stack.push(inner.children[0 ^ ascending as usize]);
                 }
                 _ => unreachable!(),
             }
