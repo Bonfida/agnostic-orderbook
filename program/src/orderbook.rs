@@ -345,10 +345,10 @@ impl<'ob> OrderBookState<'ob> {
                         .map_err(|_| AoError::EventQueueFull)?;
                     total_base_qty = total_base_qty
                         .checked_add(leaf.base_quantity)
-                        .ok_or(|_| AoError::IntegerOverflow)?;
+                        .ok_or_else(|| AoError::IntegerOverflow)?;
                     total_quote_qty = total_quote_qty
                         .checked_add(fp32_mul(leaf.base_quantity, leaf.price()))
-                        .ok_or(|_| AoError::IntegerOverflow)?;
+                        .ok_or_else(|| AoError::IntegerOverflow)?;
                     num_orders_cancelled += 1
                 }
                 if num_orders_cancelled == params.num_orders {
