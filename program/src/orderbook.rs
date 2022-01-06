@@ -313,8 +313,12 @@ impl<'ob> OrderBookState<'ob> {
         event_queue: &mut EventQueue,
     ) -> Result<OrderSummary, AoError> {
         let mut num_orders_cancelled = 0;
-        let mut total_base_qty: u64 = 0;
-        let mut total_quote_qty: u64 = 0;
+        let mut order_summary = OrderSummary {
+            posted_order_id: None,
+            total_base_qty: 0,
+            total_quote_qty: 0,
+            total_base_qty_posted: 0,
+        };
         let mut books = match params.prioritized_side {
             Side::Bid => [(&mut self.bids, false), (&mut self.asks, true)],
             Side::Ask => [(&mut self.asks, true), (&mut self.bids, false)],
@@ -343,30 +347,20 @@ impl<'ob> OrderBookState<'ob> {
                     event_queue
                         .push_back(cancel)
                         .map_err(|_| AoError::EventQueueFull)?;
-                    total_base_qty = total_base_qty
+                    order_summary.total_base_qty = order_summary.total_base_qty
                         .checked_add(leaf.base_quantity)
                         .ok_or_else(|| AoError::IntegerOverflow)?;
-                    total_quote_qty = total_quote_qty
+                    order_summary.total_quote_qty = order_summary.total_quote_qty
                         .checked_add(fp32_mul(leaf.base_quantity, leaf.price()))
                         .ok_or_else(|| AoError::IntegerOverflow)?;
                     num_orders_cancelled += 1
                 }
                 if num_orders_cancelled == params.num_orders {
-                    return Ok(OrderSummary {
-                        posted_order_id: None,
-                        total_base_qty,
-                        total_quote_qty,
-                        total_base_qty_posted: 0,
-                    });
+                    return Ok(order_summary);
                 }
             }
         }
-        Ok(OrderSummary {
-            posted_order_id: None,
-            total_base_qty,
-            total_quote_qty,
-            total_base_qty_posted: 0,
-        })
+        Ok(order_summary)
     }
 
     pub fn is_empty(&self) -> bool {
