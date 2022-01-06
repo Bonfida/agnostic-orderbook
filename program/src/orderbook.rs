@@ -319,45 +319,43 @@ impl<'ob> OrderBookState<'ob> {
             total_quote_qty: 0,
             total_base_qty_posted: 0,
         };
-        let mut books = match params.prioritized_side {
-            Side::Bid => [(&mut self.bids, false), (&mut self.asks, true)],
-            Side::Ask => [(&mut self.asks, true), (&mut self.bids, false)],
+        let (book, ascending) = match params.side {
+            Side::Bid => (&mut self.bids, false),
+            Side::Ask => (&mut self.asks, true),
         };
-        for (book, ascending) in books.iter_mut() {
-            let leaves = book.inorder_traversal(*ascending);
-            for leaf in leaves.iter() {
-                let callback_info = book
-                    .get_callback_info(leaf.callback_info_pt as usize)
-                    .to_vec();
-                if params
-                    .callback_id
-                    .iter()
-                    .zip(callback_info.iter())
-                    .all(|(a, b)| a == b)
-                {
-                    let order_id = leaf.order_id();
-                    book.remove_by_key(order_id).ok_or(AoError::OrderNotFound)?;
-                    let cancel = Event::Out {
-                        side: get_side_from_order_id(order_id),
-                        delete: true,
-                        order_id: order_id,
-                        base_size: 0,
-                        callback_info,
-                    };
-                    event_queue
-                        .push_back(cancel)
-                        .map_err(|_| AoError::EventQueueFull)?;
-                    order_summary.total_base_qty = order_summary.total_base_qty
-                        .checked_add(leaf.base_quantity)
-                        .ok_or_else(|| AoError::IntegerOverflow)?;
-                    order_summary.total_quote_qty = order_summary.total_quote_qty
-                        .checked_add(fp32_mul(leaf.base_quantity, leaf.price()))
-                        .ok_or_else(|| AoError::IntegerOverflow)?;
-                    num_orders_cancelled += 1
-                }
-                if num_orders_cancelled == params.num_orders {
-                    return Ok(order_summary);
-                }
+        let leaves = book.inorder_traversal(ascending);
+        for leaf in leaves.iter() {
+            let callback_info = book
+                .get_callback_info(leaf.callback_info_pt as usize)
+                .to_vec();
+            if params
+                .callback_id
+                .iter()
+                .zip(callback_info.iter())
+                .all(|(a, b)| a == b)
+            {
+                let order_id = leaf.order_id();
+                book.remove_by_key(order_id).ok_or(AoError::OrderNotFound)?;
+                let cancel = Event::Out {
+                    side: get_side_from_order_id(order_id),
+                    delete: true,
+                    order_id: order_id,
+                    base_size: 0,
+                    callback_info,
+                };
+                event_queue
+                    .push_back(cancel)
+                    .map_err(|_| AoError::EventQueueFull)?;
+                order_summary.total_base_qty = order_summary.total_base_qty
+                    .checked_add(leaf.base_quantity)
+                    .ok_or_else(|| AoError::IntegerOverflow)?;
+                order_summary.total_quote_qty = order_summary.total_quote_qty
+                    .checked_add(fp32_mul(leaf.base_quantity, leaf.price()))
+                    .ok_or_else(|| AoError::IntegerOverflow)?;
+                num_orders_cancelled += 1
+            }
+            if num_orders_cancelled == params.num_orders {
+                return Ok(order_summary);
             }
         }
         Ok(order_summary)

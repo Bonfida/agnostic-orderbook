@@ -22,7 +22,7 @@ The required arguments for a mass_cancel_quotes instruction.
 */
 pub struct Params {
     pub num_orders: u64,
-    pub prioritized_side: Side,
+    pub side: Side,
     pub callback_id: Vec<u8>,
 }
 

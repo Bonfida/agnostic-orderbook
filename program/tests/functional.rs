@@ -413,7 +413,7 @@ async fn test_agnostic_orderbook() {
         },
         mass_cancel_quotes::Params {
             num_orders: 10,
-            prioritized_side: Side::Bid,
+            side: Side::Ask,
             callback_id: trader.to_bytes().to_vec(),
         },
     );
@@ -437,7 +437,7 @@ async fn test_agnostic_orderbook() {
         },
         mass_cancel_quotes::Params {
             num_orders: 10,
-            prioritized_side: Side::Bid,
+            side: Side::Ask,
             callback_id: trader_2.to_bytes().to_vec(),
         },
     );
