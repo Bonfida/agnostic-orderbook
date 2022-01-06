@@ -25,7 +25,7 @@ pub struct Params {
     pub callback_id: Vec<u8>,
 }
 
-/// The required accounts for a cancel_order instruction.
+/// The required accounts for a mass_cancel_quotes instruction.
 #[derive(InstructionsAccount)]
 pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
