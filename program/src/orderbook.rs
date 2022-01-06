@@ -1,8 +1,8 @@
 use crate::{
     critbit::{LeafNode, Node, NodeHandle, Slab},
     error::AoError,
-    processor::new_order,
-    state::{Event, EventQueue, SelfTradeBehavior, Side},
+    processor::{mass_cancel_quotes, new_order},
+    state::{get_side_from_order_id, Event, EventQueue, SelfTradeBehavior, Side},
     utils::{fp32_div, fp32_mul},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -305,6 +305,50 @@ impl<'ob> OrderBookState<'ob> {
             total_quote_qty: max_quote_qty - quote_qty_remaining,
             total_base_qty_posted: base_qty_to_post,
         })
+    }
+
+    pub fn mass_cancel(
+        &mut self,
+        params: &mass_cancel_quotes::Params,
+        event_queue: &mut EventQueue,
+    ) -> Result<(), AoError> {
+        let mut num_orders_cancelled = 0;
+        let mut books = match params.prioritized_side {
+            Side::Bid => [(&mut self.bids, false), (&mut self.asks, true)],
+            Side::Ask => [(&mut self.asks, true), (&mut self.bids, false)],
+        };
+        for (book, ascending) in books.iter_mut() {
+            let leaves = book.inorder_traversal(*ascending);
+            for leaf in leaves.iter() {
+                let callback_info = book
+                    .get_callback_info(leaf.callback_info_pt as usize)
+                    .to_vec();
+                if params
+                    .callback_id
+                    .iter()
+                    .zip(callback_info.iter())
+                    .all(|(a, b)| a == b)
+                {
+                    let order_id = leaf.order_id();
+                    book.remove_by_key(order_id);
+                    let cancel = Event::Out {
+                        side: get_side_from_order_id(order_id),
+                        delete: true,
+                        order_id: order_id,
+                        base_size: leaf.base_quantity,
+                        callback_info,
+                    };
+                    event_queue
+                        .push_back(cancel)
+                        .map_err(|_| AoError::EventQueueFull)?;
+                    num_orders_cancelled += 1
+                }
+                if num_orders_cancelled == params.num_orders {
+                    return Ok(());
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn is_empty(&self) -> bool {

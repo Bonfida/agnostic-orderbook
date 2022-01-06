@@ -1,7 +1,9 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use agnostic_orderbook::instruction::{cancel_order, close_market, consume_events, new_order};
+use agnostic_orderbook::instruction::{
+    cancel_order, close_market, consume_events, mass_cancel_quotes, new_order,
+};
 use agnostic_orderbook::msrm_token;
 use agnostic_orderbook::state::{
     EventQueue, EventQueueHeader, SelfTradeBehavior, Side, MARKET_STATE_LEN,
@@ -297,6 +299,167 @@ async fn test_agnostic_orderbook() {
         },
         consume_events::Params {
             number_of_entries_to_consume: 10,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![consume_events_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    let trader = Pubkey::new_unique();
+    // New Order
+    let new_order_instruction = new_order(
+        agnostic_orderbook::ID,
+        new_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
+        new_order::Params {
+            max_base_qty: 1100,
+            max_quote_qty: 1000,
+            limit_price: 1000,
+            side: Side::Ask,
+            callback_info: trader.to_bytes().to_vec(),
+            post_only: false,
+            post_allowed: true,
+            self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            match_limit: 3,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![new_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // New Order
+    let new_order_instruction = new_order(
+        agnostic_orderbook::ID,
+        new_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
+        new_order::Params {
+            max_base_qty: 1100,
+            max_quote_qty: 1000,
+            limit_price: 1001,
+            side: Side::Ask,
+            callback_info: trader.to_bytes().to_vec(),
+            post_only: false,
+            post_allowed: true,
+            self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            match_limit: 3,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![new_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // New Order
+    let trader_2 = Pubkey::new_unique();
+    let new_order_instruction = new_order(
+        agnostic_orderbook::ID,
+        new_order::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
+        new_order::Params {
+            max_base_qty: 1100,
+            max_quote_qty: 1000,
+            limit_price: 1001,
+            side: Side::Ask,
+            callback_info: trader_2.to_bytes().to_vec(),
+            post_only: false,
+            post_allowed: true,
+            self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            match_limit: 3,
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![new_order_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // Mass cancel
+    let mass_cancel_quotes_instruction = mass_cancel_quotes(
+        agnostic_orderbook::ID,
+        mass_cancel_quotes::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
+        mass_cancel_quotes::Params {
+            num_orders: 10,
+            prioritized_side: Side::Bid,
+            callback_id: trader.to_bytes().to_vec(),
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![mass_cancel_quotes_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // Mass cancel
+    let mass_cancel_quotes_instruction = mass_cancel_quotes(
+        agnostic_orderbook::ID,
+        mass_cancel_quotes::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            bids: &Pubkey::new_from_array(market_state.bids),
+            asks: &Pubkey::new_from_array(market_state.asks),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+        },
+        mass_cancel_quotes::Params {
+            num_orders: 10,
+            prioritized_side: Side::Bid,
+            callback_id: trader_2.to_bytes().to_vec(),
+        },
+    );
+    sign_send_instructions(
+        &mut prg_test_ctx,
+        vec![mass_cancel_quotes_instruction],
+        vec![&caller_authority],
+    )
+    .await
+    .unwrap();
+
+    // // Consume events
+    let consume_events_instruction = consume_events(
+        agnostic_orderbook::ID,
+        consume_events::Accounts {
+            market: &market_account,
+            event_queue: &Pubkey::new_from_array(market_state.event_queue),
+            authority: &Pubkey::new_from_array(market_state.caller_authority),
+            reward_target: &reward_target.pubkey(),
+        },
+        consume_events::Params {
+            number_of_entries_to_consume: 5,
         },
     );
     sign_send_instructions(

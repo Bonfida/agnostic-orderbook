@@ -719,6 +719,29 @@ impl<'a> Slab<'a> {
         self.remove_by_key(key)
     }
 
+    pub fn inorder_traversal(&self, ascending: bool) -> Vec<LeafNode> {
+        let mut leaves = vec![];
+        let mut stack: Vec<NodeHandle> = vec![];
+        match self.root() {
+            Some(root) => stack.push(root),
+            None => return leaves,
+        }
+        while !stack.is_empty() {
+            let node = stack.pop().unwrap();
+            match self.get_node(node).unwrap() {
+                NodeRef::Leaf(leaf) => {
+                    leaves.push(*leaf);
+                }
+                NodeRef::Inner(inner) => {
+                    stack.push(inner.children[0 ^ ascending as usize]);
+                    stack.push(inner.children[1 ^ ascending as usize]);
+                }
+                _ => unreachable!(),
+            }
+        }
+        return leaves;
+    }
+
     /////////////////////////////////////////
     // Misc
 

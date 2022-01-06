@@ -73,6 +73,9 @@ impl PrintProgramError for AoError {
             AoError::IllegalMsrmOwner => {
                 msg!("Error: Illegal MSRM token account owner")
             }
+            AoError::InvalidCallbackIdLength => {
+                msg!("Callback ID is the incorrect length")
+            }
         }
     }
 }

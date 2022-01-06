@@ -18,6 +18,14 @@ unsafe fn invariant(check: bool) {
     }
 }
 
+pub fn assert(statement: bool, err: AoError) -> Result<(), AoError> {
+    if !statement {
+        Err(err)
+    } else {
+        Ok(())
+    }
+}
+
 // Safety verification functions
 pub fn check_account_key(account: &AccountInfo, key: &[u8], error: AoError) -> Result<(), AoError> {
     if account.key.to_bytes() != key {

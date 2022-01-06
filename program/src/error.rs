@@ -50,6 +50,8 @@ pub enum AoError {
     WrongMsrmBalance,
     #[error("Illegal MSRM token account owner")]
     IllegalMsrmOwner,
+    #[error("Callback ID is the incorrect length")]
+    InvalidCallbackIdLength,
 }
 
 impl From<AoError> for ProgramError {

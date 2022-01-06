@@ -3,7 +3,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::FromPrimitive;
 use solana_program::{instruction::Instruction, pubkey::Pubkey};
 
-pub use crate::processor::{cancel_order, close_market, consume_events, create_market, new_order};
+pub use crate::processor::{
+    cancel_order, close_market, consume_events, create_market, mass_cancel_quotes, new_order,
+};
 #[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
@@ -70,6 +72,18 @@ pub enum AgnosticOrderbookInstruction {
     /// | 4     | ❌        | ✅      | The caller authority        |
     /// | 5     | ✅        | ❌      | The lamports target account |
     CloseMarket,
+    /// Cancels the most aggressive quotes in the book based on a callback identifier
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    /// | 4     | ❌       | ✅     | The caller authority    |
+    MassCancelQuotes,
 }
 
 /**
@@ -151,6 +165,19 @@ pub fn close_market(
     accounts.get_instruction(
         program_id,
         AgnosticOrderbookInstruction::CloseMarket as u8,
+        params,
+    )
+}
+
+/// Cancel multiple orders from the book
+pub fn mass_cancel_quotes(
+    program_id: Pubkey,
+    accounts: mass_cancel_quotes::Accounts<Pubkey>,
+    params: mass_cancel_quotes::Params,
+) -> Instruction {
+    accounts.get_instruction(
+        program_id,
+        AgnosticOrderbookInstruction::MassCancelQuotes as u8,
         params,
     )
 }

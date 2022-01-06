@@ -11,6 +11,7 @@ pub mod cancel_order;
 pub mod close_market;
 pub mod consume_events;
 pub mod create_market;
+pub mod mass_cancel_quotes;
 pub mod new_order;
 
 #[allow(missing_docs)]
@@ -67,6 +68,13 @@ impl Processor {
                 msg!("Instruction: Close Market");
                 let accounts = close_market::Accounts::parse(accounts)?;
                 close_market::process(program_id, accounts, close_market::Params {})?;
+            }
+            AgnosticOrderbookInstruction::MassCancelQuotes => {
+                msg!("Instruction: Mass Cancel Quotes");
+                let accounts = mass_cancel_quotes::Accounts::parse(accounts)?;
+                let params = mass_cancel_quotes::Params::try_from_slice(instruction_data)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                mass_cancel_quotes::process(program_id, accounts, params)?;
             }
         }
         Ok(())
