@@ -311,8 +311,10 @@ impl<'ob> OrderBookState<'ob> {
         &mut self,
         params: &mass_cancel_quotes::Params,
         event_queue: &mut EventQueue,
-    ) -> Result<(), AoError> {
+    ) -> Result<OrderSummary, AoError> {
         let mut num_orders_cancelled = 0;
+        let mut total_base_qty = 0;
+        let mut total_quote_qty = 0;
         let mut books = match params.prioritized_side {
             Side::Bid => [(&mut self.bids, false), (&mut self.asks, true)],
             Side::Ask => [(&mut self.asks, true), (&mut self.bids, false)],
@@ -335,20 +337,32 @@ impl<'ob> OrderBookState<'ob> {
                         side: get_side_from_order_id(order_id),
                         delete: true,
                         order_id: order_id,
-                        base_size: leaf.base_quantity,
+                        base_size: 0,
                         callback_info,
                     };
                     event_queue
                         .push_back(cancel)
                         .map_err(|_| AoError::EventQueueFull)?;
+                    total_base_qty += leaf.base_quantity;
+                    total_quote_qty += fp32_mul(leaf.base_quantity, leaf.price());
                     num_orders_cancelled += 1
                 }
                 if num_orders_cancelled == params.num_orders {
-                    return Ok(());
+                    return Ok(OrderSummary {
+                        posted_order_id: None,
+                        total_base_qty,
+                        total_quote_qty,
+                        total_base_qty_posted: 0,
+                    });
                 }
             }
         }
-        Ok(())
+        Ok(OrderSummary {
+            posted_order_id: None,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted: 0,
+        })
     }
 
     pub fn is_empty(&self) -> bool {

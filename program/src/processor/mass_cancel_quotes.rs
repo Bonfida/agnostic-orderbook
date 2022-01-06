@@ -5,6 +5,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -105,7 +106,9 @@ pub fn process<'a, 'b: 'a>(
     };
     let mut event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
-    order_book.mass_cancel(&params, &mut event_queue)?;
+    let order_summary = order_book.mass_cancel(&params, &mut event_queue)?;
+    msg!("Order summary : {:?}", order_summary);
+    event_queue.write_to_register(order_summary);
     let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
     event_queue
         .header

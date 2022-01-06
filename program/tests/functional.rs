@@ -322,8 +322,8 @@ async fn test_agnostic_orderbook() {
         },
         new_order::Params {
             max_base_qty: 1100,
-            max_quote_qty: 1000,
-            limit_price: 1000,
+            max_quote_qty: u64::max_value(),
+            limit_price: 100 << 32,
             side: Side::Ask,
             callback_info: trader.to_bytes().to_vec(),
             post_only: false,
@@ -352,8 +352,8 @@ async fn test_agnostic_orderbook() {
         },
         new_order::Params {
             max_base_qty: 1100,
-            max_quote_qty: 1000,
-            limit_price: 1001,
+            max_quote_qty: u64::max_value(),
+            limit_price: 101 << 32,
             side: Side::Ask,
             callback_info: trader.to_bytes().to_vec(),
             post_only: false,
@@ -383,8 +383,8 @@ async fn test_agnostic_orderbook() {
         },
         new_order::Params {
             max_base_qty: 1100,
-            max_quote_qty: 1000,
-            limit_price: 1001,
+            max_quote_qty: u64::max_value(),
+            limit_price: 101 << 32,
             side: Side::Ask,
             callback_info: trader_2.to_bytes().to_vec(),
             post_only: false,
