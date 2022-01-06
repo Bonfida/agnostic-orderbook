@@ -330,7 +330,7 @@ impl<'ob> OrderBookState<'ob> {
                     .all(|(a, b)| a == b)
                 {
                     let order_id = leaf.order_id();
-                    book.remove_by_key(order_id);
+                    book.remove_by_key(order_id).ok_or(AoError::OrderNotFound)?;
                     let cancel = Event::Out {
                         side: get_side_from_order_id(order_id),
                         delete: true,
