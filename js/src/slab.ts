@@ -233,17 +233,24 @@ export class Slab {
    * @param key Key of the node to fetch
    * @returns A node LeafNode object
    */
-  getNodeByKey(key: number) {
+  getNodeByKey(key: BN): LeafNode | undefined {
     let pointer = this.header.rootNode;
     while (true) {
       const offset = SlabHeader.PADDED_LEN + pointer * Slab.SLOT_SIZE;
       let node = parseNode(this.buffer.slice(offset, offset + Slab.SLOT_SIZE));
       if (node instanceof InnerNode) {
-        const critBitMaks = (1 << 127) >> node.prefixLen.toNumber();
-        let critBit = key & critBitMaks;
+        let common_prefix_len = 128 - node.key.xor(key).bitLength();
+        if (common_prefix_len < node.prefixLen.toNumber()) {
+          return undefined;
+        }
+        const critBitMasks = new BN(1).shrn(128 - node.prefixLen.toNumber());
+        let critBit = key.and(critBitMasks).isZero() ? 0 : 1;
         pointer = node.children[critBit];
       }
       if (node instanceof LeafNode) {
+        if (node.key != key) {
+          return undefined;
+        }
         return node;
       }
     }
