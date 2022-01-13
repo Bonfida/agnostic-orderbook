@@ -234,6 +234,9 @@ export class Slab {
    * @returns A node LeafNode object
    */
   getNodeByKey(key: BN): LeafNode | undefined {
+    if (this.header.leafCount.eqn(0)) {
+      return undefined;
+    }
     let pointer = this.header.rootNode;
     while (true) {
       const offset = SlabHeader.PADDED_LEN + pointer * Slab.SLOT_SIZE;
@@ -246,12 +249,13 @@ export class Slab {
         const critBitMasks = new BN(1).shrn(128 - node.prefixLen.toNumber());
         let critBit = key.and(critBitMasks).isZero() ? 0 : 1;
         pointer = node.children[critBit];
-      }
-      if (node instanceof LeafNode) {
+      } else if (node instanceof LeafNode) {
         if (node.key != key) {
           return undefined;
         }
         return node;
+      } else {
+        throw new Error("Couldn't parse node!");
       }
     }
   }
