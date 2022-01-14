@@ -250,7 +250,7 @@ export class Slab {
         let critBit = key.and(critBitMasks).isZero() ? 0 : 1;
         pointer = node.children[critBit];
       } else if (node instanceof LeafNode) {
-        if (node.key != key) {
+        if (node.key.cmp(key) !== 0) {
           return undefined;
         }
         return node;
