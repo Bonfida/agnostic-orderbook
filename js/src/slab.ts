@@ -246,7 +246,7 @@ export class Slab {
         if (common_prefix_len < node.prefixLen.toNumber()) {
           return undefined;
         }
-        const critBitMasks = new BN(1).shrn(127 - node.prefixLen.toNumber());
+        const critBitMasks = new BN(1).shln(127 - node.prefixLen.toNumber());
         let critBit = key.and(critBitMasks).isZero() ? 0 : 1;
         pointer = node.children[critBit];
       } else if (node instanceof LeafNode) {
