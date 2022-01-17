@@ -83,7 +83,6 @@ pub async fn create_market_and_accounts(
 
     // Create Market
     let create_market_instruction = create_market(
-        agnostic_orderbook_program_id,
         create_market::Accounts {
             market: &market_account.pubkey(),
             event_queue: &event_queue_account.pubkey(),
