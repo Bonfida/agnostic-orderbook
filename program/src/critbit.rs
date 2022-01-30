@@ -24,7 +24,7 @@ pub type IoError = std::io::Error;
 pub struct InnerNode {
     prefix_len: u64,
     key: u128,
-    children: [u32; 2],
+    pub children: [u32; 2],
 }
 
 impl InnerNode {
@@ -131,7 +131,7 @@ impl<'a> NodeRef<'a> {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "utils"))]
     fn prefix_len(&self) -> Result<u64, IoError> {
         match &self {
             Self::Inner(i) => Ok(i.prefix_len),
@@ -722,8 +722,8 @@ impl<'a> Slab<'a> {
     /////////////////////////////////////////
     // Misc
 
-    #[cfg(test)]
-    fn find_by_key(&self, search_key: u128) -> Option<NodeHandle> {
+    #[cfg(any(test, feature = "utils"))]
+    pub fn find_by_key(&self, search_key: u128) -> Option<NodeHandle> {
         let mut node_handle: NodeHandle = self.root()?;
         loop {
             let node = self.get_node(node_handle).unwrap();
