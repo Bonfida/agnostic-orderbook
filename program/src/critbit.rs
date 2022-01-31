@@ -47,7 +47,7 @@ pub(crate) const NODE_SIZE: usize = 32;
 pub(crate) const FREE_NODE_SIZE: usize = 4;
 
 pub(crate) const NODE_TAG_SIZE: usize = 8;
-pub(crate) const SLOT_SIZE: usize = NODE_TAG_SIZE + NODE_SIZE;
+pub const SLOT_SIZE: usize = NODE_TAG_SIZE + NODE_SIZE;
 
 impl LeafNode {
     pub fn price(&self) -> u64 {
