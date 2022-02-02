@@ -335,7 +335,9 @@ impl<'a> EventQueue<'a> {
     }
 
     pub(crate) fn get_buf_len(&self) -> usize {
-        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - (REGISTER_SIZE)
+        let buffer_len = self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - REGISTER_SIZE;
+        let remainder = buffer_len % self.header.event_size as usize;
+        buffer_len - remainder
     }
 
     pub(crate) fn full(&self) -> bool {
