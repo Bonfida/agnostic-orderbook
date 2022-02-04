@@ -7,6 +7,7 @@ use crate::{
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{account_info::AccountInfo, msg, program_error::ProgramError};
+use crate::critbit::SlabView;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 /// This struct is written back into the event queue's register after new_order or cancel_order.
@@ -29,16 +30,16 @@ pub struct OrderSummary {
 /// The serialized size of an OrderSummary object.
 pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
-pub(crate) struct OrderBookState<'a> {
-    bids: Slab<'a>,
-    asks: Slab<'a>,
+pub(crate) struct OrderBookState {
+    bids: Slab,
+    asks: Slab,
     callback_id_len: usize,
 }
 
-impl<'ob> OrderBookState<'ob> {
+impl<'a> OrderBookState<'a> {
     pub(crate) fn new_safe(
-        bids_account: &AccountInfo<'ob>,
-        asks_account: &AccountInfo<'ob>,
+        bids_account: &AccountInfo<'a>,
+        asks_account: &AccountInfo<'a>,
         callback_info_len: usize,
         callback_id_len: usize,
     ) -> Result<Self, ProgramError> {
@@ -73,7 +74,7 @@ impl<'ob> OrderBookState<'ob> {
         (best_bid_price, best_ask_price)
     }
 
-    pub fn get_tree(&mut self, side: Side) -> &mut Slab<'ob> {
+    pub fn get_tree(&mut self, side: Side) -> &mut Slab {
         match side {
             Side::Bid => &mut self.bids,
             Side::Ask => &mut self.asks,
@@ -191,6 +192,7 @@ impl<'ob> OrderBookState<'ob> {
                     } else {
                         best_bo_ref.set_base_quantity(remaining_provide_base_qty);
                         self.get_tree(side.opposite())
+                            .get_mut(best_bo_h)
                             .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
                     }
 

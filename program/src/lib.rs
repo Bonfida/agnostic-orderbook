@@ -52,6 +52,10 @@ pub mod state;
 
 #[doc(hidden)]
 pub mod critbit;
+
+#[doc(hidden)]
+pub mod critbit2;
+
 #[doc(hidden)]
 pub mod error;
 
