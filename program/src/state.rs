@@ -3,7 +3,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{try_from_bytes_mut, Pod, Zeroable};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
-use solana_program::{account_info::AccountInfo, program_error::ProgramError};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+};
 use std::{
     cell::{RefCell, RefMut},
     convert::TryInto,
@@ -318,6 +320,18 @@ impl<'a> EventQueue<'a> {
 }
 
 impl<'a> EventQueue<'a> {
+    pub(crate) fn check_buffer_size(
+        account: &AccountInfo,
+        callback_info_len: u64,
+    ) -> ProgramResult {
+        let event_size = Event::compute_slot_size(callback_info_len as usize);
+        if (account.data_len() - EVENT_QUEUE_HEADER_LEN - REGISTER_SIZE) % event_size != 0 {
+            msg!("Event queue buffer size must be a multiple of the event size");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(())
+    }
+
     pub(crate) fn gen_order_id(&mut self, limit_price: u64, side: Side) -> u128 {
         let seq_num = self.gen_seq_num();
         let upper = (limit_price as u128) << 64;
@@ -335,9 +349,7 @@ impl<'a> EventQueue<'a> {
     }
 
     pub(crate) fn get_buf_len(&self) -> usize {
-        let buffer_len = self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - REGISTER_SIZE;
-        let remainder = buffer_len % self.header.event_size as usize;
-        buffer_len - remainder
+        self.buffer.borrow().len() - EVENT_QUEUE_HEADER_LEN - REGISTER_SIZE
     }
 
     pub(crate) fn full(&self) -> bool {

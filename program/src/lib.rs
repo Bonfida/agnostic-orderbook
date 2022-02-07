@@ -1,3 +1,4 @@
+#![feature(map_first_last)]
 #![warn(missing_docs)]
 /*!
 Orderbook program which can be used with generic assets.
