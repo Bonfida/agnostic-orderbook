@@ -108,6 +108,7 @@ impl<'ob> OrderBookState<'ob> {
 
         // New bid
         let mut crossed = true;
+        let callback_id_len = self.callback_id_len;
         loop {
             if match_limit == 0 {
                 break;
@@ -150,10 +151,10 @@ impl<'ob> OrderBookState<'ob> {
             // The decrement take case can be handled by the caller program on event consumption, so no special logic
             // is needed for it.
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
-                let order_would_self_trade = &callback_info[..self.callback_id_len]
+                let order_would_self_trade = &callback_info[..callback_id_len]
                     == (&self
                         .get_tree(side.opposite())
-                        .get_callback_info(best_bo_ref.callback_info_pt as usize)
+                        .get_callback_info(best_bo_ref.callback_info_pt as usize)[..callback_id_len]
                         as &[u8]);
                 if order_would_self_trade {
                     let best_offer_id = best_bo_ref.order_id();
