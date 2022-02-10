@@ -11,7 +11,7 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     error::AoError,
-    state::{AccountTag, EventQueueHeader, MarketState},
+    state::{AccountTag, EventQueueHeader, EventQueue, MarketState},
     utils::{check_account_owner, check_unitialized},
 };
 
@@ -102,6 +102,7 @@ pub fn process<'a, 'b: 'a>(
     check_unitialized(accounts.bids)?;
     check_unitialized(accounts.asks)?;
     check_unitialized(accounts.market)?;
+    EventQueue::check_buffer_size(accounts.event_queue, params.callback_info_len)?;
 
     let mut market_state = MarketState::get_unchecked(accounts.market);
 

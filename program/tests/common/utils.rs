@@ -1,4 +1,5 @@
 use agnostic_orderbook::instruction::create_market;
+use agnostic_orderbook::state::Event;
 use solana_program::instruction::Instruction;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
@@ -36,7 +37,7 @@ pub async fn create_market_and_accounts(
         &prg_test_ctx.payer.pubkey(),
         &event_queue_account.pubkey(),
         1_000_000,
-        1_000_000,
+        (79 + (Event::compute_slot_size(32) * 10000)) as u64,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
