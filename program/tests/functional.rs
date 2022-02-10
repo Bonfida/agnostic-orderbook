@@ -101,23 +101,6 @@ async fn test_agnostic_orderbook() {
     .await
     .unwrap();
 
-    // Create event queue account
-    let event_queue_account = Keypair::new();
-    let create_event_queue_account_instruction = create_account(
-        &prg_test_ctx.payer.pubkey(),
-        &event_queue_account.pubkey(),
-        1_000_000,
-        1_000_000,
-        &agnostic_orderbook::ID,
-    );
-    sign_send_instructions(
-        &mut prg_test_ctx,
-        vec![create_event_queue_account_instruction],
-        vec![&event_queue_account],
-    )
-    .await
-    .unwrap();
-
     let caller_authority = Keypair::new();
     let market_account =
         create_market_and_accounts(&mut prg_test_ctx, agnostic_orderbook::ID, &caller_authority)
