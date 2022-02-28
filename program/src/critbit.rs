@@ -257,6 +257,7 @@ impl<'a> Slab<'a> {
 
         header.account_tag = AccountTag::Bids;
         header.callback_memory_offset = bids_callback_memory_offset as u64;
+        header.callback_bump_index = bids_callback_memory_offset as u64;
         header
             .serialize(&mut ((&mut bids_account.data.borrow_mut()) as &mut [u8]))
             .unwrap();
