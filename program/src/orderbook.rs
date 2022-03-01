@@ -257,7 +257,7 @@ impl<'ob> OrderBookState<'ob> {
             base_qty_remaining,
         );
 
-        if crossed || !post_allowed || base_qty_to_post <= min_base_order_size {
+        if crossed || !post_allowed || base_qty_to_post < min_base_order_size {
             return Ok(OrderSummary {
                 posted_order_id: None,
                 total_base_qty: max_base_qty - base_qty_remaining,
