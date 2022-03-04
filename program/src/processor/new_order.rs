@@ -68,6 +68,7 @@ pub struct Accounts<'a, T> {
     pub asks: &'a T,
     #[allow(missing_docs)]
     #[cons(signer)]
+    #[cfg(not(feature = "lib"))]
     pub authority: &'a T,
 }
 
@@ -79,6 +80,7 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
+            #[cfg(not(feature = "lib"))]
             authority: next_account_info(accounts_iter)?,
         };
         Ok(a)

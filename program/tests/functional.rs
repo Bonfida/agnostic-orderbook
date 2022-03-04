@@ -114,7 +114,7 @@ async fn test_agnostic_orderbook() {
         .unwrap();
     let market_state =
         try_from_bytes_mut::<MarketState>(&mut market_state_data.data[..MARKET_STATE_LEN]).unwrap();
-    println!("{:?}", market_state);
+    println!("{:#?}", market_state);
 
     // Transfer the cranking fee
     let transfer_new_order_fee_instruction = transfer(
@@ -210,7 +210,7 @@ async fn test_agnostic_orderbook() {
         .unwrap();
     let market_state =
         try_from_bytes_mut::<MarketState>(&mut market_data.data[..MARKET_STATE_LEN]).unwrap();
-    println!("{:?}", market_state);
+    println!("{:#?}", market_state);
 
     let mut event_queue_acc = prg_test_ctx
         .banks_client
@@ -226,7 +226,7 @@ async fn test_agnostic_orderbook() {
         32,
     );
     let order_summary: OrderSummary = event_queue.read_register().unwrap().unwrap();
-    println!("Parsed order summary {:?}", order_summary);
+    println!("Parsed order summary {:#?}", order_summary);
 
     // Cancel order
     let cancel_order_instruction = cancel_order(
