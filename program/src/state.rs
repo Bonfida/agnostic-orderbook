@@ -245,7 +245,7 @@ pub struct EventQueueHeader {
     seq_num: u64,
 }
 #[allow(missing_docs)]
-pub const EVENT_QUEUE_HEADER_LEN: usize = 37;
+pub const EVENT_QUEUE_HEADER_LEN: usize = 33;
 #[allow(missing_docs)]
 pub const REGISTER_SIZE: usize = ORDER_SUMMARY_SIZE as usize + 1; // Option<OrderSummary>
 
