@@ -224,7 +224,7 @@ impl<'ob> OrderBookState<'ob> {
             base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
-            if best_bo_ref.base_quantity <= min_base_order_size {
+            if best_bo_ref.base_quantity < min_base_order_size {
                 let best_offer_id = best_bo_ref.order_id();
                 let cur_side = side.opposite();
                 let out_event = Event::Out {
