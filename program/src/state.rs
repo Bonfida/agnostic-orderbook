@@ -237,7 +237,8 @@ impl Event {
 /// Describes the current state of the event queue
 pub struct EventQueueHeader {
     tag: AccountTag, // Initialized, EventQueue
-    head: u64,
+    /// The current event
+    pub head: u64,
     /// The current event queue length
     pub count: u64,
     event_size: u64,
