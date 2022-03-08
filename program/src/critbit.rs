@@ -949,8 +949,8 @@ impl<'slab> Slab<'slab> {
     /// Get a price ascending or price descending iterator over all the Slab's orders
     pub fn into_iter(self, price_ascending: bool) -> impl Iterator<Item = LeafNode> + 'slab {
         SlabIterator {
+            search_stack: self.root().iter().copied().collect(),
             slab: self,
-            search_stack: Vec::new(),
             ascending: price_ascending,
         }
     }
