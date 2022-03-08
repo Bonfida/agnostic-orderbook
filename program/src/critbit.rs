@@ -168,7 +168,7 @@ impl<'a> NodeRef<'a> {
 ////////////////////////////////////
 // Slabs
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 struct SlabHeader {
     account_tag: AccountTag,
     bump_index: u64,
@@ -186,6 +186,7 @@ struct SlabHeader {
 pub const SLAB_HEADER_LEN: usize = 97;
 pub const PADDED_SLAB_HEADER_LEN: usize = SLAB_HEADER_LEN + 7;
 
+#[derive(Clone)]
 pub struct Slab<'a> {
     header: SlabHeader,
     pub buffer: Rc<RefCell<&'a mut [u8]>>,
@@ -907,6 +908,40 @@ trait CallbackInfo: Sized {
 impl CallbackInfo for Pubkey {
     fn from_bytes(data: &[u8]) -> Self {
         Self::new(data)
+    }
+}
+
+impl<'slab> Slab<'slab> {
+    pub fn into_iter(self, price_ascending: bool) -> impl Iterator<Item = LeafNode> + 'slab {
+        SlabIterator {
+            slab: self,
+            search_stack: Vec::new(),
+            ascending: price_ascending,
+        }
+    }
+}
+
+struct SlabIterator<'slab> {
+    slab: Slab<'slab>,
+    search_stack: Vec<u32>,
+    ascending: bool,
+}
+
+impl<'slab> Iterator for SlabIterator<'slab> {
+    type Item = LeafNode;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(current) = self.search_stack.pop() {
+            match self.slab.get_node(current) {
+                Some(NodeRef::Inner(i)) => {
+                    self.search_stack.push(i.children[self.ascending as usize]);
+                    self.search_stack.push(i.children[!self.ascending as usize]);
+                }
+                Some(NodeRef::Leaf(l)) => return Some(*l),
+                _ => unreachable!(),
+            }
+        }
+        None
     }
 }
 
