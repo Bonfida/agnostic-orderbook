@@ -15,10 +15,12 @@ use std::{cell::RefCell, convert::identity, rc::Rc};
 ////////////////////////////////////
 // Nodes
 
+#[doc(hidden)]
 pub type NodeHandle = u32;
 
+#[doc(hidden)]
 pub type IoError = std::io::Error;
-
+#[doc(hidden)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct InnerNode {
@@ -35,11 +37,15 @@ impl InnerNode {
     }
 }
 
+/// A critibit leaf node
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct LeafNode {
+    /// The key is the associated order id
     pub key: u128,
+    /// A pointer into the underlying Slab to retrieve the node's associated callback info. The [`Slab::get_callback_info`] method can be used.
     pub callback_info_pt: u64,
+    /// The quantity of base asset associated with the underlying order
     pub base_quantity: u64,
 }
 
@@ -47,22 +53,27 @@ pub(crate) const NODE_SIZE: usize = 32;
 pub(crate) const FREE_NODE_SIZE: usize = 4;
 
 pub(crate) const NODE_TAG_SIZE: usize = 8;
+
+/// The size in bytes of a critbit slot
 pub const SLOT_SIZE: usize = NODE_TAG_SIZE + NODE_SIZE;
 
 impl LeafNode {
+    /// Parse a leaf node's price
     pub fn price(&self) -> u64 {
         (self.key >> 64) as u64
     }
 
+    /// Get the associated order id
     pub fn order_id(&self) -> u128 {
         self.key
     }
 
-    pub fn set_base_quantity(&mut self, quantity: u64) {
+    pub(crate) fn set_base_quantity(&mut self, quantity: u64) {
         self.base_quantity = quantity;
     }
 }
 
+#[doc(hidden)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct FreeNode {
@@ -70,7 +81,7 @@ pub struct FreeNode {
 }
 
 #[derive(Debug, PartialEq, Clone, FromPrimitive)]
-pub enum NodeTag {
+pub(crate) enum NodeTag {
     Uninitialized,
     Inner,
     Leaf,
@@ -78,6 +89,7 @@ pub enum NodeTag {
     LastFree,
 }
 
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
     Uninitialized,
@@ -87,6 +99,7 @@ pub enum Node {
     LastFree(FreeNode),
 }
 
+#[doc(hidden)]
 pub enum NodeRef<'a> {
     Uninitialized,
     Inner(Ref<'a, InnerNode>),
@@ -95,7 +108,7 @@ pub enum NodeRef<'a> {
     LastFree(Ref<'a, FreeNode>),
 }
 
-pub enum NodeRefMut<'a> {
+pub(crate) enum NodeRefMut<'a> {
     Uninitialized,
     Inner(RefMut<'a, InnerNode>),
     Leaf(RefMut<'a, LeafNode>),
@@ -111,7 +124,7 @@ impl<'a> Node {
         }
     }
 
-    pub fn tag(&self) -> NodeTag {
+    pub(crate) fn tag(&self) -> NodeTag {
         match self {
             Node::Uninitialized => NodeTag::Uninitialized,
             Node::Inner(_) => NodeTag::Inner,
@@ -183,24 +196,31 @@ struct SlabHeader {
     leaf_count: u64,
     market_address: Pubkey,
 }
+#[doc(hidden)]
 pub const SLAB_HEADER_LEN: usize = 97;
+#[doc(hidden)]
 pub const PADDED_SLAB_HEADER_LEN: usize = SLAB_HEADER_LEN + 7;
 
+/// A Slab contains the data for a slab header and an array of nodes of a critbit tree
+/// whose leafs contain the data referencing an order of the orderbook.
 #[derive(Clone)]
 pub struct Slab<'a> {
     header: SlabHeader,
+    /// The underlying account data
     pub buffer: Rc<RefCell<&'a mut [u8]>>,
+    #[doc(hidden)]
     pub callback_info_len: usize,
 }
 
 // Data access methods
 impl<'a> Slab<'a> {
-    pub fn check(&self, side: Side) -> bool {
+    pub(crate) fn check(&self, side: Side) -> bool {
         match side {
             Side::Bid => self.header.account_tag == AccountTag::Bids,
             Side::Ask => self.header.account_tag == AccountTag::Asks,
         }
     }
+    /// Intialize a Slab object from an AccountInfo
     pub fn new_from_acc_info(acc_info: &AccountInfo<'a>, callback_info_len: usize) -> Self {
         // assert_eq!(len_without_header % slot_size, 0);
         Self {
@@ -209,11 +229,20 @@ impl<'a> Slab<'a> {
             header: SlabHeader::deserialize(&mut (&acc_info.data.borrow() as &[u8])).unwrap(),
         }
     }
-
+    /// Intialize a Slab object from a wrapped buffer
     pub fn new(buffer: Rc<RefCell<&'a mut [u8]>>, callback_info_len: usize) -> Self {
         Self {
             header: SlabHeader::deserialize(&mut (&buffer.borrow() as &[u8])).unwrap(),
             buffer: Rc::clone(&buffer),
+            callback_info_len,
+        }
+    }
+
+    /// Instantiate a Slab object directly from a buffer reference
+    pub fn from_bytes(buffer: &'a mut [u8], callback_info_len: usize) -> Self {
+        Self {
+            header: SlabHeader::deserialize(&mut (buffer as &[u8])).unwrap(),
+            buffer: Rc::new(RefCell::new(buffer)),
             callback_info_len,
         }
     }
@@ -272,6 +301,7 @@ impl<'a> Slab<'a> {
             / (2 * SLOT_SIZE + self.callback_info_len)) as u64
     }
 
+    #[doc(hidden)]
     pub fn get_node(&self, key: u32) -> Option<NodeRef> {
         let mut offset = PADDED_SLAB_HEADER_LEN + (key as usize) * SLOT_SIZE;
         // println!("key: {:?}, slot_size: {:?}", key, self.slot_size);
@@ -310,7 +340,7 @@ impl<'a> Slab<'a> {
         Some(node)
     }
 
-    pub fn get_node_mut(&self, key: u32) -> Option<NodeRefMut> {
+    pub(crate) fn get_node_mut(&self, key: u32) -> Option<NodeRefMut> {
         let mut offset = PADDED_SLAB_HEADER_LEN + (key as usize) * SLOT_SIZE;
         // println!("key: {:?}, slot_size: {:?}", key, self.slot_size);
         let node_tag = NodeTag::from_u64(u64::from_le_bytes(
@@ -467,7 +497,7 @@ impl<'a> Slab<'a> {
         Ok(handle)
     }
 
-    pub fn write_callback_info(&mut self, callback_info: &[u8]) -> Result<u64, IoError> {
+    pub(crate) fn write_callback_info(&mut self, callback_info: &[u8]) -> Result<u64, IoError> {
         let h = if self.header.callback_free_list_len > 0 {
             let next_free_spot = u64::from_le_bytes(
                 self.buffer.borrow()[self.header.callback_free_list_head as usize
@@ -499,13 +529,14 @@ impl<'a> Slab<'a> {
         self.header.callback_free_list_len += 1;
     }
 
+    /// Retrieve a callback info slice
     pub fn get_callback_info(&self, callback_info_pt: usize) -> Ref<[u8]> {
         Ref::map(self.buffer.borrow(), |r| {
             &r[callback_info_pt..callback_info_pt + self.callback_info_len]
         })
     }
 
-    pub fn write_node(&mut self, node: &Node, handle: NodeHandle) {
+    pub(crate) fn write_node(&mut self, node: &Node, handle: NodeHandle) {
         match (node, self.get_node_mut(handle)) {
             (Node::Inner(i), Some(NodeRefMut::Inner(mut r))) => {
                 *r = *i;
@@ -520,6 +551,7 @@ impl<'a> Slab<'a> {
 
 // Critbit tree walks
 impl<'a> Slab<'a> {
+    #[doc(hidden)]
     pub fn root(&self) -> Option<NodeHandle> {
         if self.header.leaf_count == 0 {
             return None;
@@ -542,15 +574,17 @@ impl<'a> Slab<'a> {
         }
     }
 
+    #[doc(hidden)]
     pub fn find_min(&self) -> Option<NodeHandle> {
         self.find_min_max(false)
     }
 
+    #[doc(hidden)]
     pub fn find_max(&self) -> Option<NodeHandle> {
         self.find_min_max(true)
     }
 
-    pub fn insert_leaf(
+    pub(crate) fn insert_leaf(
         &mut self,
         new_leaf_node: &Node,
     ) -> Result<(NodeHandle, Option<Node>), AoError> {
@@ -711,12 +745,12 @@ impl<'a> Slab<'a> {
         Some(removed_leaf)
     }
 
-    pub fn remove_min(&mut self) -> Option<Node> {
+    pub(crate) fn remove_min(&mut self) -> Option<Node> {
         let key = self.get_node(self.find_min()?)?.key()?;
         self.remove_by_key(key)
     }
 
-    pub fn remove_max(&mut self) -> Option<Node> {
+    pub(crate) fn remove_max(&mut self) -> Option<Node> {
         let key = self.get_node(self.find_max()?)?.key()?;
         self.remove_by_key(key)
     }
@@ -912,6 +946,7 @@ impl CallbackInfo for Pubkey {
 }
 
 impl<'slab> Slab<'slab> {
+    /// Get a price ascending or price descending iterator over all the Slab's orders
     pub fn into_iter(self, price_ascending: bool) -> impl Iterator<Item = LeafNode> + 'slab {
         SlabIterator {
             slab: self,
