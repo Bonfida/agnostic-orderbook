@@ -25,7 +25,7 @@ export class EventQueueHeader {
   eventSize: BN;
   seqNum: BN;
 
-  static LEN: number = 37;
+  static LEN: number = 33;
   static REGISTER_SIZE: number = 42;
 
   /**
