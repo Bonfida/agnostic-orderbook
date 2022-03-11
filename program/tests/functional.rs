@@ -83,13 +83,14 @@ async fn test_agnostic_orderbook() {
 
     // Create Market context
     let mut prg_test_ctx = program_test.start_with_context().await;
+    let rent = prg_test_ctx.banks_client.get_rent().await.unwrap();
 
     // Create market state account
     let market_account = Keypair::new();
     let create_market_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &market_account.pubkey(),
-        1_000_000,
+        rent.minimum_balance(1_000_000),
         1_000_000,
         &agnostic_orderbook::ID,
     );

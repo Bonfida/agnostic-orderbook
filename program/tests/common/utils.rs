@@ -1,11 +1,11 @@
 use agnostic_orderbook::instruction::create_market;
-use agnostic_orderbook::state::Event;
+use agnostic_orderbook::state::{Event, REGISTER_SIZE, EVENT_QUEUE_HEADER_LEN};
 use solana_program::instruction::Instruction;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
-use solana_program_test::ProgramTestContext;
+use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::signature::Signer;
-use solana_sdk::{signature::Keypair, transaction::Transaction, transport::TransportError};
+use solana_sdk::{signature::Keypair, transaction::Transaction};
 
 /// Creates the accounts needed for the AAOB market testing and returns the
 /// address of the market.
@@ -14,12 +14,14 @@ pub async fn create_market_and_accounts(
     agnostic_orderbook_program_id: Pubkey,
     caller_authority: &Keypair,
 ) -> Pubkey {
+    let rent = prg_test_ctx.banks_client.get_rent().await.unwrap();
+
     // Create market state account
     let market_account = Keypair::new();
     let create_market_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &market_account.pubkey(),
-        1_000_000,
+        rent.minimum_balance(1_000_000),
         1_000_000,
         &agnostic_orderbook_program_id,
     );
@@ -33,11 +35,12 @@ pub async fn create_market_and_accounts(
 
     // Create event queue account
     let event_queue_account = Keypair::new();
+    let space = EVENT_QUEUE_HEADER_LEN + REGISTER_SIZE + (Event::compute_slot_size(32) * 10000);
     let create_event_queue_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &event_queue_account.pubkey(),
-        1_000_000,
-        (79 + (Event::compute_slot_size(32) * 10000)) as u64,
+        rent.minimum_balance(space),
+        space as u64,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
@@ -53,7 +56,7 @@ pub async fn create_market_and_accounts(
     let create_bids_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &bids_account.pubkey(),
-        1_000_000,
+        rent.minimum_balance(1_000_000),
         1_000_000,
         &agnostic_orderbook_program_id,
     );
@@ -70,7 +73,7 @@ pub async fn create_market_and_accounts(
     let create_asks_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &asks_account.pubkey(),
-        1_000_000,
+        rent.minimum_balance(1_000_000),
         1_000_000,
         &agnostic_orderbook_program_id,
     );
@@ -111,7 +114,7 @@ pub async fn sign_send_instructions(
     ctx: &mut ProgramTestContext,
     instructions: Vec<Instruction>,
     signers: Vec<&Keypair>,
-) -> Result<(), TransportError> {
+) -> Result<(), BanksClientError> {
     let mut transaction = Transaction::new_with_payer(&instructions, Some(&ctx.payer.pubkey()));
     let mut payer_signers = vec![&ctx.payer];
     for s in signers {
