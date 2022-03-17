@@ -280,7 +280,7 @@ impl<'ob> OrderBookState<'ob> {
         if let Err(AoError::SlabOutOfSpace) = insert_result {
             // Boot out the least aggressive orders
             msg!("Orderbook is full! booting lest aggressive orders...");
-            let order = match side {
+            let (order, callback_info) = match side {
                 Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
                 Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
             };
@@ -290,10 +290,7 @@ impl<'ob> OrderBookState<'ob> {
                 delete: true,
                 order_id: l.order_id(),
                 base_size: l.base_quantity,
-                callback_info: self
-                    .get_tree(side)
-                    .get_callback_info(l.callback_info_pt as usize)
-                    .to_owned(),
+                callback_info,
             };
             event_queue
                 .push_back(out)

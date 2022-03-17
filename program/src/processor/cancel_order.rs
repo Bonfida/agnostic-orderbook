@@ -109,7 +109,7 @@ pub fn process<'a, 'b: 'a>(
     let event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
     let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
-    let node = slab
+    let (node, _) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();
