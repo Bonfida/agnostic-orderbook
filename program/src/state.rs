@@ -385,9 +385,7 @@ impl<'a> EventQueue<'a> {
         let offset = ((self
             .header
             .head
-            .checked_add(index)
-            .unwrap()
-            .checked_mul(self.header.event_size)
+            .checked_add(index.checked_mul(self.header.event_size).unwrap())
             .unwrap()) as usize
             % self.get_buf_len())
             + header_offset;

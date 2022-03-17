@@ -671,7 +671,7 @@ impl<'a> Slab<'a> {
     }
 
     /// This function corrupts the node's callback information when erasing it!
-    pub fn remove_by_key(&mut self, search_key: u128) -> Option<Node> {
+    pub fn remove_by_key(&mut self, search_key: u128) -> Option<(Node, Vec<u8>)> {
         let mut grandparent_h: Option<NodeHandle> = None;
         let mut parent_h = self.root()?;
         // We have to initialize the values to work around the type checker
@@ -698,11 +698,14 @@ impl<'a> Slab<'a> {
             }
         }
         if let Some(leaf_copy) = remove_root {
+            let callback_info = self
+                .get_callback_info(leaf_copy.as_leaf().unwrap().callback_info_pt as usize)
+                .to_vec();
             self.remove(parent_h);
 
             self.header.root_node = 0;
             self.header.leaf_count = 0;
-            return Some(leaf_copy);
+            return Some((leaf_copy, callback_info));
         }
         loop {
             match self.get_node(child_h).unwrap() {
@@ -740,17 +743,20 @@ impl<'a> Slab<'a> {
         }
         self.header.leaf_count -= 1;
         let removed_leaf = self.get_node(child_h).unwrap().to_owned();
+        let callback_info = self
+            .get_callback_info(removed_leaf.as_leaf().unwrap().callback_info_pt as usize)
+            .to_vec();
         self.remove(child_h);
         self.remove(parent_h);
-        Some(removed_leaf)
+        Some((removed_leaf, callback_info))
     }
 
-    pub(crate) fn remove_min(&mut self) -> Option<Node> {
+    pub(crate) fn remove_min(&mut self) -> Option<(Node, Vec<u8>)> {
         let key = self.get_node(self.find_min()?)?.key()?;
         self.remove_by_key(key)
     }
 
-    pub(crate) fn remove_max(&mut self) -> Option<Node> {
+    pub(crate) fn remove_max(&mut self) -> Option<(Node, Vec<u8>)> {
         let key = self.get_node(self.find_max()?)?.key()?;
         self.remove_by_key(key)
     }
@@ -1212,7 +1218,7 @@ mod tests {
 
                         println!("Remove {:x}", key);
 
-                        let slab_value = slab.remove_by_key(key);
+                        let slab_value = slab.remove_by_key(key).map(|v| v.0);
                         let model_value = model.remove(&key).map(|(n, _)| n);
                         assert_eq!(slab_value, model_value);
                     }
