@@ -73,6 +73,9 @@ impl PrintProgramError for AoError {
             AoError::IllegalMsrmOwner => {
                 msg!("Error: Illegal MSRM token account owner")
             }
+            AoError::InvalidLimitPrice => {
+                msg!("Error: Limit price must be a tick size multiple")
+            }
         }
     }
 }
