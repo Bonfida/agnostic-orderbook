@@ -50,6 +50,8 @@ pub enum AoError {
     WrongMsrmBalance,
     #[error("Illegal MSRM token account owner")]
     IllegalMsrmOwner,
+    #[error("Limit price must be a tick size multiple")]
+    InvalidLimitPrice,
 }
 
 impl From<AoError> for ProgramError {
