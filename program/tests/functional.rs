@@ -83,13 +83,14 @@ async fn test_agnostic_orderbook() {
 
     // Create Market context
     let mut prg_test_ctx = program_test.start_with_context().await;
+    let rent = prg_test_ctx.banks_client.get_rent().await.unwrap();
 
     // Create market state account
     let market_account = Keypair::new();
     let create_market_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &market_account.pubkey(),
-        1_000_000,
+        rent.minimum_balance(1_000_000),
         1_000_000,
         &agnostic_orderbook::ID,
     );
@@ -114,7 +115,7 @@ async fn test_agnostic_orderbook() {
         .unwrap();
     let market_state =
         try_from_bytes_mut::<MarketState>(&mut market_state_data.data[..MARKET_STATE_LEN]).unwrap();
-    println!("{:?}", market_state);
+    println!("{:#?}", market_state);
 
     // Transfer the cranking fee
     let transfer_new_order_fee_instruction = transfer(
@@ -140,9 +141,9 @@ async fn test_agnostic_orderbook() {
             authority: &Pubkey::new_from_array(market_state.caller_authority),
         },
         new_order::Params {
-            max_base_qty: 1000,
-            max_quote_qty: 1000,
-            limit_price: 1000,
+            max_base_qty: 100000,
+            max_quote_qty: 100000,
+            limit_price: 1000 << 32,
             side: Side::Bid,
             callback_info: Pubkey::new_unique().to_bytes().to_vec(),
             post_only: false,
@@ -183,9 +184,9 @@ async fn test_agnostic_orderbook() {
             authority: &Pubkey::new_from_array(market_state.caller_authority),
         },
         new_order::Params {
-            max_base_qty: 1100,
-            max_quote_qty: 1000,
-            limit_price: 1000,
+            max_base_qty: 110000,
+            max_quote_qty: 1000000,
+            limit_price: 1000 << 32,
             side: Side::Ask,
             callback_info: Pubkey::new_unique().to_bytes().to_vec(),
             post_only: false,
@@ -210,7 +211,7 @@ async fn test_agnostic_orderbook() {
         .unwrap();
     let market_state =
         try_from_bytes_mut::<MarketState>(&mut market_data.data[..MARKET_STATE_LEN]).unwrap();
-    println!("{:?}", market_state);
+    println!("{:#?}", market_state);
 
     let mut event_queue_acc = prg_test_ctx
         .banks_client
@@ -226,7 +227,7 @@ async fn test_agnostic_orderbook() {
         32,
     );
     let order_summary: OrderSummary = event_queue.read_register().unwrap().unwrap();
-    println!("Parsed order summary {:?}", order_summary);
+    println!("Parsed order summary {:#?}", order_summary);
 
     // Cancel order
     let cancel_order_instruction = cancel_order(

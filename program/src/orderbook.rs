@@ -148,6 +148,12 @@ impl<'ob> OrderBookState<'ob> {
                 break;
             }
 
+            let quote_maker_qty = fp32_mul(base_trade_qty, trade_price);
+
+            if quote_maker_qty == 0 {
+                break;
+            }
+
             // The decrement take case can be handled by the caller program on event consumption, so no special logic
             // is needed for it.
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
@@ -199,8 +205,6 @@ impl<'ob> OrderBookState<'ob> {
                 }
             }
 
-            let quote_maker_qty = fp32_mul(base_trade_qty, trade_price);
-
             let maker_fill = Event::Fill {
                 taker_side: side,
                 maker_callback_info: self
@@ -220,7 +224,7 @@ impl<'ob> OrderBookState<'ob> {
             base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
-            if best_bo_ref.base_quantity <= min_base_order_size {
+            if best_bo_ref.base_quantity < min_base_order_size {
                 let best_offer_id = best_bo_ref.order_id();
                 let cur_side = side.opposite();
                 let out_event = Event::Out {
@@ -253,7 +257,7 @@ impl<'ob> OrderBookState<'ob> {
             base_qty_remaining,
         );
 
-        if crossed || !post_allowed || base_qty_to_post <= min_base_order_size {
+        if crossed || !post_allowed || base_qty_to_post < min_base_order_size {
             return Ok(OrderSummary {
                 posted_order_id: None,
                 total_base_qty: max_base_qty - base_qty_remaining,
@@ -276,20 +280,17 @@ impl<'ob> OrderBookState<'ob> {
         if let Err(AoError::SlabOutOfSpace) = insert_result {
             // Boot out the least aggressive orders
             msg!("Orderbook is full! booting lest aggressive orders...");
-            let order = match side {
+            let (order, callback_info) = match side {
                 Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
                 Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
             };
             let l = order.as_leaf().unwrap();
             let out = Event::Out {
-                side: Side::Bid,
+                side,
                 delete: true,
                 order_id: l.order_id(),
                 base_size: l.base_quantity,
-                callback_info: self
-                    .get_tree(side)
-                    .get_callback_info(l.callback_info_pt as usize)
-                    .to_owned(),
+                callback_info,
             };
             event_queue
                 .push_back(out)

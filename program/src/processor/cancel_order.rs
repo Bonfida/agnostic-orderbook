@@ -43,6 +43,7 @@ pub struct Accounts<'a, T> {
     pub asks: &'a T,
     #[allow(missing_docs)]
     #[cons(signer)]
+    #[cfg(not(feature = "lib"))]
     pub authority: &'a T,
 }
 
@@ -55,6 +56,7 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
+            #[cfg(not(feature = "lib"))]
             authority: next_account_info(accounts_iter)?,
         };
         Ok(a)
@@ -107,7 +109,7 @@ pub fn process<'a, 'b: 'a>(
     let event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
     let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
-    let node = slab
+    let (node, _) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();

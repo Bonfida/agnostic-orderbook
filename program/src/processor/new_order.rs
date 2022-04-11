@@ -16,7 +16,7 @@ use crate::{
     state::{
         EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
     },
-    utils::{check_account_key, check_account_owner, check_signer, round_price},
+    utils::{check_account_key, check_account_owner, check_signer},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
@@ -29,6 +29,7 @@ pub struct Params {
     /// The maximum quantity of quote to be traded.
     pub max_quote_qty: u64,
     /// The limit price of the order. This value is understood as a 32-bit fixed point number.
+    /// Must be rounded to the nearest tick size multiple (see [`round_price`][`crate::utils::round_price`])
     pub limit_price: u64,
     /// The order's side.
     pub side: Side,
@@ -68,6 +69,7 @@ pub struct Accounts<'a, T> {
     pub asks: &'a T,
     #[allow(missing_docs)]
     #[cons(signer)]
+    #[cfg(not(feature = "lib"))]
     pub authority: &'a T,
 }
 
@@ -79,6 +81,7 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
+            #[cfg(not(feature = "lib"))]
             authority: next_account_info(accounts_iter)?,
         };
         Ok(a)
@@ -110,15 +113,16 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
 pub fn process<'a, 'b: 'a>(
     program_id: &Pubkey,
     accounts: Accounts<'a, AccountInfo<'b>>,
-    mut params: Params,
+    params: Params,
 ) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let mut market_state = MarketState::get(accounts.market)?;
 
     check_accounts(&accounts, &market_state)?;
 
-    // Round price to nearest valid price tick
-    params.limit_price = round_price(market_state.tick_size, params.limit_price, params.side);
+    if params.limit_price % market_state.tick_size != 0 {
+        return Err(AoError::InvalidLimitPrice.into());
+    }
 
     let callback_info_len = market_state.callback_info_len as usize;
 

@@ -237,14 +237,15 @@ impl Event {
 /// Describes the current state of the event queue
 pub struct EventQueueHeader {
     tag: AccountTag, // Initialized, EventQueue
-    head: u64,
+    /// The current event
+    pub head: u64,
     /// The current event queue length
     pub count: u64,
     event_size: u64,
     seq_num: u64,
 }
 #[allow(missing_docs)]
-pub const EVENT_QUEUE_HEADER_LEN: usize = 37;
+pub const EVENT_QUEUE_HEADER_LEN: usize = 33;
 #[allow(missing_docs)]
 pub const REGISTER_SIZE: usize = ORDER_SUMMARY_SIZE as usize + 1; // Option<OrderSummary>
 
@@ -384,9 +385,7 @@ impl<'a> EventQueue<'a> {
         let offset = ((self
             .header
             .head
-            .checked_add(index)
-            .unwrap()
-            .checked_mul(self.header.event_size)
+            .checked_add(index.checked_mul(self.header.event_size).unwrap())
             .unwrap()) as usize
             % self.get_buf_len())
             + header_offset;

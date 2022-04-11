@@ -50,7 +50,7 @@ pub mod instruction;
 /// Describes the different data structres that the program uses to encode state
 pub mod state;
 
-#[doc(hidden)]
+/// Describes the orderbook's underlying data structure, the [`Slab`].
 pub mod critbit;
 #[doc(hidden)]
 pub mod error;
@@ -61,6 +61,7 @@ use solana_program::declare_id;
 pub(crate) mod orderbook;
 #[doc(hidden)]
 pub(crate) mod processor;
+/// Utility functions
 pub mod utils;
 
 declare_id!("aaobKniTtDGvCZces7GH5UReLYP671bBkB96ahr9x3e");

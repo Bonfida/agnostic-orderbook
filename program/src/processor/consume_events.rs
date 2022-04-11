@@ -35,6 +35,7 @@ pub struct Accounts<'a, T> {
     pub event_queue: &'a T,
     #[allow(missing_docs)]
     #[cons(signer)]
+    #[cfg(not(feature = "lib"))]
     pub authority: &'a T,
     #[allow(missing_docs)]
     #[cons(writable)]
@@ -47,6 +48,7 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
         let a = Self {
             market: next_account_info(&mut accounts_iter)?,
             event_queue: next_account_info(&mut accounts_iter)?,
+            #[cfg(not(feature = "lib"))]
             authority: next_account_info(&mut accounts_iter)?,
             reward_target: next_account_info(&mut accounts_iter)?,
         };
