@@ -1,9 +1,15 @@
-use bonfida_utils::InstructionsAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::FromPrimitive;
-use solana_program::{instruction::Instruction, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
 
-pub use crate::processor::{cancel_order, close_market, consume_events, create_market, new_order};
+use bonfida_utils::{BorshSize, InstructionsAccount};
+
+pub use crate::processor::{
+    cancel_order, close_market, consume_events, create_market, mass_cancel_orders, new_order,
+};
 #[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
@@ -70,6 +76,18 @@ pub enum AgnosticOrderbookInstruction {
     /// | 4     | ❌        | ✅      | The caller authority        |
     /// | 5     | ✅        | ❌      | The lamports target account |
     CloseMarket,
+    /// Cancel a series of existing orders in the orderbook.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    /// | 4     | ❌       | ✅     | The caller authority    |
+    MassCancelOrders,
 }
 
 /**
@@ -89,13 +107,21 @@ accordingly.
 */
 pub fn create_market(
     accounts: create_market::Accounts<Pubkey>,
+    register_account: Pubkey,
     params: create_market::Params,
 ) -> Instruction {
-    accounts.get_instruction(
+    let mut i = accounts.get_instruction(
         crate::id(),
         AgnosticOrderbookInstruction::CreateMarket as u8,
         params,
-    )
+    );
+
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
 }
 /**
 Execute a new order on the orderbook.
@@ -103,46 +129,99 @@ Execute a new order on the orderbook.
 Depending on the provided parameters, the program will attempt to match the order with existing entries
 in the orderbook, and then optionally post the remaining order.
 */
-pub fn new_order(accounts: new_order::Accounts<Pubkey>, params: new_order::Params) -> Instruction {
-    accounts.get_instruction(
+pub fn new_order<C: BorshSerialize + BorshSize>(
+    accounts: new_order::Accounts<Pubkey>,
+    register_account: Pubkey,
+    params: new_order::Params<C>,
+) -> Instruction {
+    let mut i = accounts.get_instruction(
         crate::id(),
         AgnosticOrderbookInstruction::NewOrder as u8,
         params,
-    )
+    );
+
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
 }
 
 /// Cancel an existing order in the orderbook.
 pub fn cancel_order(
     accounts: cancel_order::Accounts<Pubkey>,
+    register_account: Pubkey,
     params: cancel_order::Params,
 ) -> Instruction {
-    accounts.get_instruction(
+    let mut i = accounts.get_instruction(
         crate::id(),
         AgnosticOrderbookInstruction::CancelOrder as u8,
         params,
-    )
+    );
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
 }
 
 /// Pop a series of events off the event queue.
 pub fn consume_events(
     accounts: consume_events::Accounts<Pubkey>,
+    register_account: Pubkey,
     params: consume_events::Params,
 ) -> Instruction {
-    accounts.get_instruction(
+    let mut i = accounts.get_instruction(
         crate::id(),
         AgnosticOrderbookInstruction::ConsumeEvents as u8,
         params,
-    )
+    );
+
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
 }
 
 /// Close an existing market.
 pub fn close_market(
     accounts: close_market::Accounts<Pubkey>,
+    register_account: Pubkey,
     params: close_market::Params,
 ) -> Instruction {
-    accounts.get_instruction(
+    let mut i = accounts.get_instruction(
         crate::id(),
         AgnosticOrderbookInstruction::CloseMarket as u8,
         params,
-    )
+    );
+
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
+}
+
+/// Create and initialize a new orderbook market
+pub fn mass_cancel_orders(
+    accounts: mass_cancel_orders::Accounts<Pubkey>,
+    register_account: Pubkey,
+    params: mass_cancel_orders::Params,
+) -> Instruction {
+    let mut i = accounts.get_instruction(
+        crate::id(),
+        AgnosticOrderbookInstruction::CloseMarket as u8,
+        params,
+    );
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
 }

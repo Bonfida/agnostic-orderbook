@@ -54,6 +54,8 @@ pub enum AoError {
     InvalidLimitPrice,
     #[error("Numerical overlflow")]
     NumericalOverflow,
+    #[error("Invalid callback info")]
+    InvalidCallbackInfo,
 }
 
 impl From<AoError> for ProgramError {

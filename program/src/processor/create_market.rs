@@ -4,6 +4,7 @@ use bonfida_utils::{
     {BorshSize, InstructionsAccount},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::Pod;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -13,9 +14,8 @@ use solana_program::{
 };
 
 use crate::{
-    critbit::Slab,
     error::AoError,
-    state::{AccountTag, EventQueue, EventQueueHeader, MarketState},
+    state::{critbit::Slab, event_queue::EventQueue, market_state::MarketState, AccountTag},
     utils::{check_account_owner, check_unitialized},
 };
 
@@ -24,17 +24,6 @@ use crate::{
 The required arguments for a create_market instruction.
 */
 pub struct Params {
-    /// The caller authority will be the required signer for all market instructions.
-    ///
-    /// In practice, it will almost always be a program-derived address..
-    pub caller_authority: [u8; 32],
-    /// Callback information can be used by the caller to attach specific information to all orders.
-    ///
-    /// An example of this would be to store a public key to uniquely identify the owner of a particular order.
-    /// This example would thus require a value of 32
-    pub callback_info_len: u64,
-    /// The prefix length of callback information which is used to identify self-trading
-    pub callback_id_len: u64,
     /// The minimum order size that can be inserted into the orderbook after matching.
     pub min_base_order_size: u64,
     /// Enables the limiting of price precision on the orderbook (price ticks)
@@ -70,10 +59,8 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
         };
-
         Ok(a)
     }
-
     pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
             self.event_queue,
@@ -87,16 +74,13 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
 }
 
 /// Apply the create_market instruction to the provided accounts
-pub fn process<'a, 'b: 'a>(
+pub fn process<'a, 'b: 'a, C: Pod>(
     program_id: &Pubkey,
     accounts: Accounts<'a, AccountInfo<'b>>,
     params: Params,
 ) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let Params {
-        caller_authority,
-        callback_info_len,
-        callback_id_len,
         min_base_order_size,
         tick_size,
         cranker_reward,
@@ -110,18 +94,16 @@ pub fn process<'a, 'b: 'a>(
         return Err(ProgramError::InvalidArgument);
     }
 
-    EventQueue::check_buffer_size(accounts.event_queue, params.callback_info_len)?;
+    EventQueue::<C>::check_buffer_size(accounts.event_queue).unwrap();
 
-    let mut market_state = MarketState::get_unchecked(accounts.market);
+    let mut market_data = accounts.market.data.borrow_mut();
+
+    let market_state = MarketState::from_buffer(&mut market_data, AccountTag::Uninitialized)?;
 
     *market_state = MarketState {
-        tag: AccountTag::Market as u64,
-        caller_authority,
-        event_queue: accounts.event_queue.key.to_bytes(),
-        bids: accounts.bids.key.to_bytes(),
-        asks: accounts.asks.key.to_bytes(),
-        callback_info_len,
-        callback_id_len,
+        event_queue: *accounts.event_queue.key,
+        bids: *accounts.bids.key,
+        asks: *accounts.asks.key,
         fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
         min_base_order_size,
@@ -129,17 +111,15 @@ pub fn process<'a, 'b: 'a>(
         cranker_reward,
     };
 
-    let event_queue_header = EventQueueHeader::initialize(params.callback_info_len as usize);
-    event_queue_header
-        .serialize(&mut (&mut accounts.event_queue.data.borrow_mut() as &mut [u8]))
-        .unwrap();
+    let mut event_queue_data = accounts.event_queue.data.borrow_mut();
 
-    Slab::initialize(
-        &mut accounts.bids.data.borrow_mut(),
+    EventQueue::<C>::from_buffer(&mut event_queue_data, AccountTag::Uninitialized)?;
+
+    Slab::<C>::initialize(
         &mut accounts.asks.data.borrow_mut(),
+        &mut accounts.bids.data.borrow_mut(),
         *accounts.market.key,
-        callback_info_len as usize,
-    );
+    )?;
 
     Ok(())
 }
