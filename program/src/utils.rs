@@ -5,10 +5,11 @@ use crate::{
 
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    pubkey::Pubkey,
 };
 
 #[cfg(feature = "no-entrypoint")]
-use crate::{orderbook::OrderBookState, state::MarketState};
+use crate::state::orderbook::{CallbackInfo, OrderBookState};
 
 #[cfg(not(debug_assertions))]
 #[inline(always)]
@@ -21,10 +22,10 @@ unsafe fn invariant(check: bool) {
 // Safety verification functions
 pub(crate) fn check_account_key(
     account: &AccountInfo,
-    key: &[u8],
+    key: &Pubkey,
     error: AoError,
 ) -> Result<(), AoError> {
-    if account.key.to_bytes() != key {
+    if account.key != key {
         return Err(error);
     }
     Ok(())
@@ -57,19 +58,17 @@ pub(crate) fn check_unitialized(account: &AccountInfo) -> AoResult {
 
 #[cfg(feature = "no-entrypoint")]
 /// This util is used to return the orderbook's spread (best_bid_price, best_ask_price) with both values in FP32 format
-pub fn get_spread<'ob>(
-    market_state_account: &AccountInfo<'ob>,
-    bids_account: &AccountInfo<'ob>,
-    asks_account: &AccountInfo<'ob>,
-) -> (Option<u64>, Option<u64>) {
-    let market_state = MarketState::get(market_state_account).unwrap();
-    let orderbook = OrderBookState::new_safe(
-        bids_account,
-        asks_account,
-        market_state.callback_info_len as usize,
-        market_state.callback_id_len as usize,
-    )
-    .unwrap();
+pub fn get_spread<'ob, 'b: 'ob, C: CallbackInfo + PartialEq>(
+    bids_account: &'ob AccountInfo<'b>,
+    asks_account: &'ob AccountInfo<'b>,
+) -> (Option<u64>, Option<u64>)
+where
+    <C as CallbackInfo>::CallbackId: PartialEq,
+{
+    let mut bids = bids_account.data.borrow_mut();
+    let mut asks = asks_account.data.borrow_mut();
+
+    let orderbook = OrderBookState::<C>::new_safe(&mut bids, &mut asks).unwrap();
     orderbook.get_spread()
 }
 

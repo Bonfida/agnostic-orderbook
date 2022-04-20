@@ -1,6 +1,7 @@
 //! Pop a series of events off the event queue.
 use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::Pod;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -11,8 +12,10 @@ use solana_program::{
 
 use crate::{
     error::AoError,
-    state::{EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN},
-    utils::{check_account_key, check_account_owner, check_signer},
+    state::{
+        event_queue::EventQueue, market_state::MarketState, orderbook::CallbackInfo, AccountTag,
+    },
+    utils::{check_account_key, check_account_owner},
 };
 
 #[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
@@ -34,28 +37,21 @@ pub struct Accounts<'a, T> {
     #[cons(writable)]
     pub event_queue: &'a T,
     #[allow(missing_docs)]
-    #[cons(signer)]
-    #[cfg(not(feature = "lib"))]
-    pub authority: &'a T,
-    #[allow(missing_docs)]
     #[cons(writable)]
     pub reward_target: &'a T,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
     pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
-        let mut accounts_iter = accounts.iter();
-        let a = Self {
-            market: next_account_info(&mut accounts_iter)?,
-            event_queue: next_account_info(&mut accounts_iter)?,
-            #[cfg(not(feature = "lib"))]
-            authority: next_account_info(&mut accounts_iter)?,
-            reward_target: next_account_info(&mut accounts_iter)?,
-        };
+        let accounts_iter = &mut accounts.iter();
 
+        let a = Self {
+            market: next_account_info(accounts_iter)?,
+            event_queue: next_account_info(accounts_iter)?,
+            reward_target: next_account_info(accounts_iter)?,
+        };
         Ok(a)
     }
-
     pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
             self.market,
@@ -67,37 +63,25 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             &program_id.to_bytes(),
             AoError::WrongEventQueueOwner,
         )?;
-        #[cfg(not(feature = "lib"))]
-        check_signer(self.authority).map_err(|e| {
-            msg!("The market authority should be a signer for this instruction!");
-            e
-        })?;
 
         Ok(())
     }
 }
 
 /// Apply the consume_events instruction to the provided accounts
-pub fn process<'a, 'b: 'a>(
+pub fn process<'a, 'b: 'a, C: CallbackInfo + Pod + PartialEq>(
     program_id: &Pubkey,
     accounts: Accounts<'a, AccountInfo<'b>>,
     params: Params,
 ) -> ProgramResult {
     accounts.perform_checks(program_id)?;
-    let mut market_state = MarketState::get(accounts.market)?;
+    let mut market_data = accounts.market.data.borrow_mut();
+    let mut market_state = MarketState::from_buffer(&mut market_data, AccountTag::Market)?;
 
-    check_accounts(&accounts, &market_state)?;
-
-    let header = {
-        let mut event_queue_data: &[u8] =
-            &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
-        EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
-    };
-    let mut event_queue = EventQueue::new_safe(
-        header,
-        accounts.event_queue,
-        market_state.callback_info_len as usize,
-    )?;
+    check_accounts(&accounts, market_state)?;
+    let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
+    let mut event_queue =
+        EventQueue::<C>::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
 
     // Reward payout
     let capped_number_of_entries_consumed = std::cmp::min(
@@ -115,8 +99,6 @@ pub fn process<'a, 'b: 'a>(
 
     // Pop Events
     event_queue.pop_n(params.number_of_entries_to_consume);
-    let mut event_queue_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
-    event_queue.header.serialize(&mut event_queue_data).unwrap();
 
     msg!(
         "Number of events consumed: {:?}",
@@ -134,12 +116,6 @@ fn check_accounts<'a, 'b: 'a>(
         accounts.event_queue,
         &market_state.event_queue,
         AoError::WrongEventQueueAccount,
-    )?;
-    #[cfg(not(feature = "lib"))]
-    check_account_key(
-        accounts.authority,
-        &market_state.caller_authority,
-        AoError::WrongCallerAuthority,
     )?;
     check_account_key(
         accounts.event_queue,

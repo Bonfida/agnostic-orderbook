@@ -2,6 +2,7 @@
 
 use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::Pod;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -12,18 +13,20 @@ use solana_program::{
 
 use crate::{
     error::AoError,
-    orderbook::OrderBookState,
     state::{
-        EventQueue, EventQueueHeader, MarketState, SelfTradeBehavior, Side, EVENT_QUEUE_HEADER_LEN,
+        event_queue::EventQueue,
+        market_state::MarketState,
+        orderbook::{CallbackInfo, OrderBookState},
+        AccountTag, OrderSummary, SelfTradeBehavior, Side,
     },
-    utils::{check_account_key, check_account_owner, check_signer},
+    utils::{check_account_key, check_account_owner},
 };
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
+#[derive(Clone, BorshSerialize, BorshDeserialize)]
 /**
 The required arguments for a new_order instruction.
 */
-pub struct Params {
+pub struct Params<C> {
     /// The maximum quantity of base to be traded.
     pub max_base_qty: u64,
     /// The maximum quantity of quote to be traded.
@@ -40,8 +43,8 @@ pub struct Params {
     pub match_limit: u64,
     /// The callback information is used to attach metadata to an order. This callback information will be transmitted back through the event queue.
     ///
-    /// The size of this vector should be equal to the current market's [`callback_info_len`][`MarketState::callback_info_len`].
-    pub callback_info: Vec<u8>,
+    /// The size of this vector should not exceed the current market's [`callback_info_len`][`MarketState::callback_info_len`].
+    pub callback_info: C,
     /// The order will not be matched against the orderbook and will be direcly written into it.
     ///
     /// The operation will fail if the order's limit_price crosses the spread.
@@ -50,6 +53,20 @@ pub struct Params {
     pub post_allowed: bool,
     /// Describes what would happen if this order was matched against an order with an equal `callback_info` field.
     pub self_trade_behavior: SelfTradeBehavior,
+}
+
+impl<C: BorshSize> BorshSize for Params<C> {
+    fn borsh_len(&self) -> usize {
+        self.max_base_qty.borsh_len()
+            + self.max_quote_qty.borsh_len()
+            + self.limit_price.borsh_len()
+            + self.side.borsh_len()
+            + self.match_limit.borsh_len()
+            + self.callback_info.borsh_len()
+            + self.post_only.borsh_len()
+            + self.post_allowed.borsh_len()
+            + self.self_trade_behavior.borsh_len()
+    }
 }
 
 /// The required accounts for a new_order instruction.
@@ -67,26 +84,20 @@ pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
     #[cons(writable)]
     pub asks: &'a T,
-    #[allow(missing_docs)]
-    #[cons(signer)]
-    #[cfg(not(feature = "lib"))]
-    pub authority: &'a T,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
     pub(crate) fn parse(accounts: &'a [AccountInfo<'b>]) -> Result<Self, ProgramError> {
         let accounts_iter = &mut accounts.iter();
+
         let a = Self {
             market: next_account_info(accounts_iter)?,
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
-            #[cfg(not(feature = "lib"))]
-            authority: next_account_info(accounts_iter)?,
         };
         Ok(a)
     }
-
     pub(crate) fn perform_checks(&self, program_id: &Pubkey) -> Result<(), ProgramError> {
         check_account_owner(
             self.market,
@@ -100,69 +111,40 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
         )?;
         check_account_owner(self.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
         check_account_owner(self.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
-        #[cfg(not(feature = "lib"))]
-        check_signer(self.authority).map_err(|e| {
-            msg!("The market authority should be a signer for this instruction!");
-            e
-        })?;
         Ok(())
     }
 }
 
 /// Apply the new_order instruction to the provided accounts
-pub fn process<'a, 'b: 'a>(
+pub fn process<'a, 'b: 'a, C: Pod + CallbackInfo + PartialEq>(
     program_id: &Pubkey,
     accounts: Accounts<'a, AccountInfo<'b>>,
-    params: Params,
-) -> ProgramResult {
+    params: Params<C>,
+) -> Result<OrderSummary, ProgramError>
+where
+    <C as CallbackInfo>::CallbackId: PartialEq,
+{
     accounts.perform_checks(program_id)?;
-    let mut market_state = MarketState::get(accounts.market)?;
+    let mut market_data = accounts.market.data.borrow_mut();
+    let mut market_state = MarketState::from_buffer(&mut market_data, AccountTag::Market)?;
 
-    check_accounts(&accounts, &market_state)?;
+    check_accounts(&accounts, market_state)?;
 
     if params.limit_price % market_state.tick_size != 0 {
         return Err(AoError::InvalidLimitPrice.into());
     }
 
-    let callback_info_len = market_state.callback_info_len as usize;
+    let mut bids_guard = accounts.bids.data.borrow_mut();
+    let mut asks_guard = accounts.asks.data.borrow_mut();
 
-    let mut order_book = OrderBookState::new_safe(
-        accounts.bids,
-        accounts.asks,
-        market_state.callback_info_len as usize,
-        market_state.callback_id_len as usize,
-    )?;
+    let mut order_book = OrderBookState::new_safe(&mut bids_guard, &mut asks_guard)?;
 
-    if params.callback_info.len() != callback_info_len {
-        msg!("Invalid callback information");
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    if params.post_allowed && params.limit_price == 0 {
-        msg!("Prices of zero are only allowed when not posting");
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    let header = {
-        let mut event_queue_data: &[u8] =
-            &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
-        EventQueueHeader::deserialize(&mut event_queue_data)
-            .unwrap()
-            .check()?
-    };
-    let mut event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
+    let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
+    let mut event_queue = EventQueue::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
 
     let order_summary =
         order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?;
     msg!("Order summary : {:?}", order_summary);
-    event_queue.write_to_register(order_summary);
-
-    let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
-    event_queue
-        .header
-        .serialize(&mut event_queue_header_data)
-        .unwrap();
-    order_book.commit_changes();
 
     //Verify that fees were transfered. Fees are expected to be transfered by the caller program in order
     // to reduce the CPI call stack depth.
@@ -177,7 +159,7 @@ pub fn process<'a, 'b: 'a>(
     }
     market_state.fee_budget = accounts.market.lamports() - market_state.initial_lamports;
 
-    Ok(())
+    Ok(order_summary)
 }
 
 fn check_accounts<'a, 'b: 'a>(
@@ -191,12 +173,6 @@ fn check_accounts<'a, 'b: 'a>(
     )?;
     check_account_key(accounts.bids, &market_state.bids, AoError::WrongBidsAccount)?;
     check_account_key(accounts.asks, &market_state.asks, AoError::WrongAsksAccount)?;
-    #[cfg(not(feature = "lib"))]
-    check_account_key(
-        accounts.authority,
-        &market_state.caller_authority,
-        AoError::WrongCallerAuthority,
-    )?;
 
     Ok(())
 }
