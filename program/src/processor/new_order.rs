@@ -157,7 +157,6 @@ pub fn process<'a, 'b: 'a>(
         .header
         .serialize(&mut event_queue_header_data)
         .unwrap();
-    order_book.commit_changes();
 
     //Verify that fees were transfered. Fees are expected to be transfered by the caller program in order
     // to reduce the CPI call stack depth.

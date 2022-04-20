@@ -109,10 +109,9 @@ pub fn process<'a, 'b: 'a>(
     let event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
     let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
-    let (node, _) = slab
+    let (leaf_node, _) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
-    let leaf_node = node.as_leaf().unwrap();
     let total_base_qty = leaf_node.base_quantity;
     let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
 
@@ -124,8 +123,6 @@ pub fn process<'a, 'b: 'a>(
     };
 
     event_queue.write_to_register(order_summary);
-
-    order_book.commit_changes();
 
     Ok(())
 }

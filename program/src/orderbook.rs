@@ -1,8 +1,10 @@
+use std::ops::DerefMut;
+
 use crate::{
-    critbit::{LeafNode, Node, NodeHandle, Slab},
+    critbit::{InnerNode, LeafNode, NodeHandle, Slab, SlabHeader, SlabRef},
     error::AoError,
     processor::new_order,
-    state::{Event, EventQueue, SelfTradeBehavior, Side},
+    state::{AccountTag, Event, EventQueue, SelfTradeBehavior, Side},
     utils::{fp32_div, fp32_mul},
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -30,30 +32,44 @@ pub struct OrderSummary {
 pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
 #[doc(hidden)]
-pub struct OrderBookState<'a> {
-    pub bids: Slab<'a>,
-    pub asks: Slab<'a>,
+pub struct OrderBookState<S> {
+    pub bids: S,
+    pub asks: S,
     pub callback_id_len: usize,
 }
 
-impl<'ob> OrderBookState<'ob> {
-    pub(crate) fn new_safe(
-        bids_account: &AccountInfo<'ob>,
-        asks_account: &AccountInfo<'ob>,
+impl<'ob> OrderBookState<SlabRef<'ob>> {
+    pub(crate) fn new_safe<'b: 'ob>(
+        bids_account: &'ob AccountInfo<'b>,
+        asks_account: &'ob AccountInfo<'b>,
         callback_info_len: usize,
         callback_id_len: usize,
     ) -> Result<Self, ProgramError> {
-        let bids = Slab::new_from_acc_info(bids_account, callback_info_len);
-        let asks = Slab::new_from_acc_info(asks_account, callback_info_len);
-        if !(bids.check(Side::Bid) && asks.check(Side::Ask)) {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let bids = SlabRef::get(
+            bids_account.data.borrow_mut(),
+            callback_info_len,
+            AccountTag::Bids,
+        )?;
+        let asks = SlabRef::get(
+            asks_account.data.borrow_mut(),
+            callback_info_len,
+            AccountTag::Asks,
+        )?;
         Ok(Self {
             bids,
             asks,
             callback_id_len,
         })
     }
+}
+
+impl<
+        H: DerefMut<Target = SlabHeader>,
+        L: DerefMut<Target = [LeafNode]>,
+        I: DerefMut<Target = [InnerNode]>,
+        C: DerefMut<Target = [u8]>,
+    > OrderBookState<Slab<H, L, I, C>>
+{
     pub fn find_bbo(&self, side: Side) -> Option<NodeHandle> {
         match side {
             Side::Bid => self.bids.find_max(),
@@ -74,17 +90,11 @@ impl<'ob> OrderBookState<'ob> {
         (best_bid_price, best_ask_price)
     }
 
-    pub fn get_tree(&mut self, side: Side) -> &mut Slab<'ob> {
+    pub fn get_tree(&mut self, side: Side) -> &mut Slab<H, L, I, C> {
         match side {
             Side::Bid => &mut self.bids,
             Side::Ask => &mut self.asks,
         }
-    }
-
-    #[doc(hidden)]
-    pub fn commit_changes(&self) {
-        self.bids.write_header();
-        self.asks.write_header();
     }
 
     pub fn new_order(
@@ -123,13 +133,7 @@ impl<'ob> OrderBookState<'ob> {
                 Some(h) => h,
             };
 
-            let mut best_bo_ref = self
-                .get_tree(side.opposite())
-                .get_node(best_bo_h)
-                .unwrap()
-                .as_leaf()
-                .unwrap()
-                .to_owned();
+            let mut best_bo_ref = self.get_tree(side.opposite()).leaf_nodes[best_bo_h as usize];
 
             let trade_price = best_bo_ref.price();
             crossed = match side {
@@ -160,18 +164,14 @@ impl<'ob> OrderBookState<'ob> {
             // is needed for it.
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
                 let order_would_self_trade = &callback_info[..callback_id_len]
-                    == (&self
-                        .get_tree(side.opposite())
-                        .get_callback_info(best_bo_ref.callback_info_pt as usize)[..callback_id_len]
-                        as &[u8]);
+                    == (&self.get_tree(side.opposite()).get_callback_info(best_bo_h)
+                        [..callback_id_len] as &[u8]);
                 if order_would_self_trade {
                     let best_offer_id = best_bo_ref.order_id();
-                    let cancelled_provide_base_qty;
 
-                    match self_trade_behavior {
+                    let cancelled_provide_base_qty = match self_trade_behavior {
                         SelfTradeBehavior::CancelProvide => {
-                            cancelled_provide_base_qty =
-                                std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity);
+                            std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity)
                         }
                         SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
                         SelfTradeBehavior::DecrementTake => unreachable!(),
@@ -187,7 +187,7 @@ impl<'ob> OrderBookState<'ob> {
                         base_size: cancelled_provide_base_qty,
                         callback_info: self
                             .get_tree(side.opposite())
-                            .get_callback_info(best_bo_ref.callback_info_pt as usize)
+                            .get_callback_info(best_bo_h)
                             .to_owned(),
                     };
                     event_queue
@@ -198,9 +198,7 @@ impl<'ob> OrderBookState<'ob> {
                             .remove_by_key(best_offer_id)
                             .unwrap();
                     } else {
-                        best_bo_ref.set_base_quantity(remaining_provide_base_qty);
-                        self.get_tree(side.opposite())
-                            .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
+                        best_bo_ref.base_quantity = remaining_provide_base_qty;
                     }
 
                     continue;
@@ -211,7 +209,7 @@ impl<'ob> OrderBookState<'ob> {
                 taker_side: side,
                 maker_callback_info: self
                     .get_tree(side.opposite())
-                    .get_callback_info(best_bo_ref.callback_info_pt as usize)
+                    .get_callback_info(best_bo_h)
                     .to_owned(),
                 taker_callback_info: callback_info.clone(),
                 maker_order_id: best_bo_ref.order_id(),
@@ -222,7 +220,7 @@ impl<'ob> OrderBookState<'ob> {
                 .push_back(maker_fill)
                 .map_err(|_| AoError::EventQueueFull)?;
 
-            best_bo_ref.set_base_quantity(best_bo_ref.base_quantity - base_trade_qty);
+            best_bo_ref.base_quantity -= base_trade_qty;
             base_qty_remaining -= base_trade_qty;
             quote_qty_remaining -= quote_maker_qty;
 
@@ -235,7 +233,7 @@ impl<'ob> OrderBookState<'ob> {
                     base_size: best_bo_ref.base_quantity,
                     callback_info: self
                         .get_tree(side.opposite())
-                        .get_callback_info(best_bo_ref.callback_info_pt as usize)
+                        .get_callback_info(best_bo_h)
                         .to_owned(),
                     delete: true,
                 };
@@ -246,9 +244,6 @@ impl<'ob> OrderBookState<'ob> {
                 event_queue
                     .push_back(out_event)
                     .map_err(|_| AoError::EventQueueFull)?;
-            } else {
-                self.get_tree(side.opposite())
-                    .write_node(&Node::Leaf(best_bo_ref), best_bo_h);
             }
 
             match_limit -= 1;
@@ -269,15 +264,10 @@ impl<'ob> OrderBookState<'ob> {
         }
 
         let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
-        let callback_info_offset = self
-            .get_tree(side)
-            .write_callback_info(&callback_info)
-            .unwrap();
-        let new_leaf = Node::Leaf(LeafNode {
+        let new_leaf = LeafNode {
             key: new_leaf_order_id,
-            callback_info_pt: callback_info_offset,
             base_quantity: base_qty_to_post,
-        });
+        };
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         if let Err(AoError::SlabOutOfSpace) = insert_result {
             // Boot out the least aggressive orders
@@ -286,12 +276,11 @@ impl<'ob> OrderBookState<'ob> {
                 Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
                 Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
             };
-            let l = order.as_leaf().unwrap();
             let out = Event::Out {
                 side,
                 delete: true,
-                order_id: l.order_id(),
-                base_size: l.base_quantity,
+                order_id: order.order_id(),
+                base_size: order.base_quantity,
                 callback_info,
             };
             event_queue
@@ -299,7 +288,10 @@ impl<'ob> OrderBookState<'ob> {
                 .map_err(|_| AoError::EventQueueFull)?;
             self.get_tree(side).insert_leaf(&new_leaf).unwrap();
         } else {
-            insert_result.unwrap();
+            let k = insert_result.unwrap().0;
+            self.get_tree(side)
+                .get_callback_info_mut(k)
+                .copy_from_slice(&callback_info)
         }
         base_qty_remaining -= base_qty_to_post;
         quote_qty_remaining -= fp32_mul(base_qty_to_post, limit_price);
@@ -312,6 +304,6 @@ impl<'ob> OrderBookState<'ob> {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.asks.root().is_none() && self.bids.root().is_none()
+        self.asks.header.leaf_count == 0 && self.bids.header.leaf_count == 0
     }
 }
