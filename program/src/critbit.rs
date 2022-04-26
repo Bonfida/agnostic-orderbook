@@ -380,7 +380,7 @@ impl<'a> Slab<'a> {
 
     fn allocate(&mut self, node_type: &NodeTag) -> Result<u32, IoError> {
         if self.header.free_list_len == 0 {
-            if self.header.bump_index as usize == self.capacity() as usize {
+            if self.header.bump_index as usize == 2 * self.capacity() as usize {
                 return Err(std::io::ErrorKind::UnexpectedEof.into());
             }
 
