@@ -59,11 +59,16 @@ dependencies = [
  "borsh",
  "bytemuck",
  "enumflags2",
+ "gnuplot",
  "hexdump",
+ "lazy_static",
  "num-derive",
  "num-traits",
  "num_enum",
  "rand 0.8.5",
+ "regex",
+ "serde",
+ "serde_json",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
@@ -242,6 +247,7 @@ dependencies = [
 
 [[package]]
 name = "bonfida-utils"
+<<<<<<< HEAD
 version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0de55392939054ec60454e98ad8befaadd58aea49027021c2f88ca5dd168695e"
@@ -249,6 +255,19 @@ dependencies = [
  "bonfida-macros",
  "borsh",
  "pyth-sdk-solana",
+=======
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b76ab421b3c9d0b23508c35f1b6d17d541e5aa4c9fb2e30fc14dec40bbe534f"
+dependencies = [
+ "bonfida-macros",
+ "borsh",
+ "lazy_static",
+ "pyth-client",
+ "regex",
+ "serde",
+ "serde_json",
+>>>>>>> 75a2793 (Add benchmarking capabilities)
  "solana-program",
 ]
 
@@ -947,6 +966,15 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi 0.10.2+wasi-snapshot-preview1",
+]
+
+[[package]]
+name = "gnuplot"
+version = "0.0.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8de437277a7ec10de5f34e3147c7da4c6d8b279c5d8ae1e33e842fd9432bb0f3"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]

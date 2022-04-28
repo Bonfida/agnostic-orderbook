@@ -181,20 +181,21 @@ impl<'a> NodeRef<'a> {
 ////////////////////////////////////
 // Slabs
 
+#[doc(hidden)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
-struct SlabHeader {
-    account_tag: AccountTag,
-    bump_index: u64,
-    free_list_len: u64,
-    free_list_head: u32,
-    callback_memory_offset: u64,
-    callback_free_list_len: u64,
-    callback_free_list_head: u64,
-    callback_bump_index: u64,
+pub struct SlabHeader {
+    pub account_tag: AccountTag,
+    pub bump_index: u64,
+    pub free_list_len: u64,
+    pub free_list_head: u32,
+    pub callback_memory_offset: u64,
+    pub callback_free_list_len: u64,
+    pub callback_free_list_head: u64,
+    pub callback_bump_index: u64,
 
-    root_node: u32,
-    leaf_count: u64,
-    market_address: Pubkey,
+    pub root_node: u32,
+    pub leaf_count: u64,
+    pub market_address: Pubkey,
 }
 #[doc(hidden)]
 pub const SLAB_HEADER_LEN: usize = 97;
@@ -205,7 +206,8 @@ pub const PADDED_SLAB_HEADER_LEN: usize = SLAB_HEADER_LEN + 7;
 /// whose leafs contain the data referencing an order of the orderbook.
 #[derive(Clone)]
 pub struct Slab<'a> {
-    header: SlabHeader,
+    #[doc(hidden)]
+    pub header: SlabHeader,
     /// The underlying account data
     pub buffer: Rc<RefCell<&'a mut [u8]>>,
     #[doc(hidden)]
@@ -253,16 +255,15 @@ impl<'a> Slab<'a> {
             .unwrap()
     }
 
-    pub(crate) fn initialize(
-        bids_account: &AccountInfo<'a>,
-        asks_account: &AccountInfo<'a>,
+    #[doc(hidden)]
+    pub fn initialize(
+        mut bids_account: &mut [u8],
+        mut asks_account: &mut [u8],
         market_address: Pubkey,
         callback_info_len: usize,
     ) {
-        let asks_order_capacity =
-            Slab::compute_capacity(callback_info_len, asks_account.data.borrow().len());
-        let asks_callback_memory_offset =
-            Slab::compute_callback_memory_offset(asks_order_capacity as usize);
+        let order_capacity =
+            (asks_account.len() - PADDED_SLAB_HEADER_LEN) / (SLOT_SIZE * 2 + callback_info_len);
 
         let mut header = SlabHeader {
             account_tag: AccountTag::Asks,
@@ -277,21 +278,25 @@ impl<'a> Slab<'a> {
             callback_free_list_head: 0,
             callback_free_list_len: 0,
         };
-        header
-            .serialize(&mut ((&mut asks_account.data.borrow_mut()) as &mut [u8]))
-            .unwrap();
+        header.serialize(&mut (asks_account)).unwrap();
 
         let bids_order_capacity =
-            Slab::compute_capacity(callback_info_len, bids_account.data.borrow().len());
+            (bids_account.len() - PADDED_SLAB_HEADER_LEN) / (SLOT_SIZE * 2 + callback_info_len);
         let bids_callback_memory_offset =
             Slab::compute_callback_memory_offset(bids_order_capacity as usize);
 
         header.account_tag = AccountTag::Bids;
         header.callback_memory_offset = bids_callback_memory_offset as u64;
         header.callback_bump_index = bids_callback_memory_offset as u64;
-        header
-            .serialize(&mut ((&mut bids_account.data.borrow_mut()) as &mut [u8]))
-            .unwrap();
+        header.serialize(&mut (bids_account)).unwrap();
+    }
+
+    /// Compute the allocation size for an orderbook Slab of a desired capacity
+    pub fn compute_allocation_size(
+        desired_order_capacity: usize,
+        callback_info_len: usize,
+    ) -> usize {
+        PADDED_SLAB_HEADER_LEN + desired_order_capacity * (2 * SLOT_SIZE + callback_info_len)
     }
 }
 

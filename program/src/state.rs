@@ -251,7 +251,8 @@ pub const EVENT_QUEUE_HEADER_LEN: usize = 33;
 pub const REGISTER_SIZE: usize = ORDER_SUMMARY_SIZE as usize + 1; // Option<OrderSummary>
 
 impl EventQueueHeader {
-    pub(crate) fn initialize(callback_info_len: usize) -> Self {
+    #[doc(hidden)]
+    pub fn initialize(callback_info_len: usize) -> Self {
         Self {
             tag: AccountTag::EventQueue,
             head: 0,
@@ -274,7 +275,8 @@ impl EventQueueHeader {
 ///
 /// This struct is used at runtime but doesn't represent a serialized event queue
 pub struct EventQueue<'a> {
-    pub(crate) header: EventQueueHeader,
+    #[doc(hidden)]
+    pub header: EventQueueHeader,
     pub(crate) buffer: Rc<RefCell<&'a mut [u8]>>, //The whole account data
     callback_info_len: usize,
 }
@@ -300,7 +302,7 @@ impl<'a> EventQueue<'a> {
     /// Initialize a new EventQueue object.
     ///
     /// Within a CPI context, the account parameter can be supplied through
-    /// ```no_run
+    /// ```ignore
     /// use std::rc::Rc;
     /// let a: AccountInfo;
     ///
@@ -318,6 +320,28 @@ impl<'a> EventQueue<'a> {
             buffer: account,
             callback_info_len,
         }
+    }
+
+    /// Load a new EventQueue object from a bytes buffer
+    pub fn from_buffer(
+        header: EventQueueHeader,
+        buffer: &'a mut [u8],
+        callback_info_len: usize,
+    ) -> Self {
+        Self {
+            header,
+            buffer: Rc::new(RefCell::new(buffer)),
+            callback_info_len,
+        }
+    }
+
+    /// Compute the allocation size for an event queue of a desired capacity
+    pub fn compute_allocation_size(
+        desired_event_capacity: usize,
+        callback_info_len: usize,
+    ) -> usize {
+        desired_event_capacity * Event::compute_slot_size(callback_info_len)
+            + EVENT_QUEUE_HEADER_LEN
     }
 }
 
@@ -395,8 +419,9 @@ impl<'a> EventQueue<'a> {
         Some(Event::deserialize(&mut event_data, self.callback_info_len))
     }
 
+    #[doc(hidden)]
     /// Pop n entries from the event queue
-    pub(crate) fn pop_n(&mut self, number_of_entries_to_pop: u64) {
+    pub fn pop_n(&mut self, number_of_entries_to_pop: u64) {
         let capped_number_of_entries_to_pop =
             std::cmp::min(self.header.count, number_of_entries_to_pop);
         self.header.count -= capped_number_of_entries_to_pop;
