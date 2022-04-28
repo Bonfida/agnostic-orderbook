@@ -135,8 +135,8 @@ pub fn process<'a, 'b: 'a>(
         .unwrap();
 
     Slab::initialize(
-        accounts.bids,
-        accounts.asks,
+        &mut accounts.bids.data.borrow_mut(),
+        &mut accounts.asks.data.borrow_mut(),
         *accounts.market.key,
         callback_info_len as usize,
     );
