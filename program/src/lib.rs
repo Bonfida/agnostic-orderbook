@@ -58,7 +58,8 @@ pub mod error;
 pub use processor::msrm_token;
 use solana_program::declare_id;
 
-pub(crate) mod orderbook;
+#[doc(hidden)]
+pub mod orderbook;
 #[doc(hidden)]
 pub(crate) mod processor;
 /// Utility functions
