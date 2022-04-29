@@ -3,6 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use num_derive::FromPrimitive;
 use solana_program::{instruction::Instruction, pubkey::Pubkey};
 
+use crate::processor::mass_cancel_orders;
 pub use crate::processor::{cancel_order, close_market, consume_events, create_market, new_order};
 #[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
@@ -70,6 +71,18 @@ pub enum AgnosticOrderbookInstruction {
     /// | 4     | ❌        | ✅      | The caller authority        |
     /// | 5     | ✅        | ❌      | The lamports target account |
     CloseMarket,
+    /// Cancel a series of existing orders in the orderbook.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    /// | 4     | ❌       | ✅     | The caller authority    |
+    MassCancelOrders,
 }
 
 /**
@@ -139,6 +152,18 @@ pub fn consume_events(
 pub fn close_market(
     accounts: close_market::Accounts<Pubkey>,
     params: close_market::Params,
+) -> Instruction {
+    accounts.get_instruction(
+        crate::id(),
+        AgnosticOrderbookInstruction::CloseMarket as u8,
+        params,
+    )
+}
+
+/// Create and initialize a new orderbook market
+pub fn mass_cancel_orders(
+    accounts: mass_cancel_orders::Accounts<Pubkey>,
+    params: mass_cancel_orders::Params,
 ) -> Instruction {
     accounts.get_instruction(
         crate::id(),

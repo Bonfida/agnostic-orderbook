@@ -3,6 +3,7 @@ use crate::error::AoError;
 use crate::state::AccountTag;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use std::cell::RefMut;
@@ -383,6 +384,7 @@ impl<
         let mut crit_bit = false;
         let mut prev_crit_bit: Option<bool> = None;
         let mut remove_root = None;
+        let mut depth = 0;
         {
             match Node::from_handle(parent_h) {
                 Node::Leaf => {
@@ -417,6 +419,7 @@ impl<
                     child_h = grandchild_h;
                     prev_crit_bit = Some(crit_bit);
                     crit_bit = grandchild_crit_bit;
+                    depth += 1;
                     continue;
                 }
                 Node::Leaf => {
@@ -429,6 +432,7 @@ impl<
                 }
             }
         }
+        msg!("Found key at depth : {}", depth);
         // replace parent with its remaining child node
         // free child_h, replace *parent_h with *other_child_h, free other_child_h
         let other_child_h = self.inner_nodes[(!parent_h) as usize].children[!crit_bit as usize];
@@ -497,6 +501,26 @@ impl<
             ascending: price_ascending,
         }
     }
+
+    // #[cfg(feature = "utils")]
+    // pub fn get_depth(&self) -> usize {
+    //     if self.header.leaf_count == 0 {
+    //         return 0;
+    //     }
+    //     let mut stack = vec![(self.header.root_node, 1)];
+    //     let mut max_depth = 0;
+    //     while let Some((current_node, current_depth)) = stack.pop() {
+    //         match Node::from_handle(current_node) {
+    //             Node::Inner => {
+    //                 let node = self.inner_nodes[(!current_node) as usize];
+    //                 stack.push((node.children[0], current_depth + 1));
+    //                 stack.push((node.children[1], current_depth + 1));
+    //             }
+    //             Node::Leaf => max_depth = std::cmp::max(current_depth, max_depth),
+    //         }
+    //     }
+    //     max_depth
+    // }
 
     #[cfg(test)]
     fn traverse<T: CallbackInfo>(&self) -> Vec<(LeafNode, T)> {

@@ -82,11 +82,11 @@ impl<
         let best_bid_price = self
             .bids
             .find_max()
-            .map(|h| self.bids.get_node(h).unwrap().as_leaf().unwrap().price());
+            .map(|h| self.bids.leaf_nodes[h as usize].price());
         let best_ask_price = self
             .asks
             .find_max()
-            .map(|h| self.asks.get_node(h).unwrap().as_leaf().unwrap().price());
+            .map(|h| self.asks.leaf_nodes[h as usize].price());
         (best_bid_price, best_ask_price)
     }
 
