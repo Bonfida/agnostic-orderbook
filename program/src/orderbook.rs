@@ -68,7 +68,7 @@ impl<'ob> OrderBookState<'ob> {
             .map(|h| self.bids.get_node(h).unwrap().as_leaf().unwrap().price());
         let best_ask_price = self
             .asks
-            .find_max()
+            .find_min()
             .map(|h| self.asks.get_node(h).unwrap().as_leaf().unwrap().price());
         (best_bid_price, best_ask_price)
     }
