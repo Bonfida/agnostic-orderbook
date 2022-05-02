@@ -1,5 +1,6 @@
 //! Cancel an existing order in the orderbook.
 
+use bonfida_utils::fp_math::fp32_mul;
 use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -15,7 +16,7 @@ use crate::{
     state::{
         get_side_from_order_id, EventQueue, EventQueueHeader, MarketState, EVENT_QUEUE_HEADER_LEN,
     },
-    utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
+    utils::{check_account_key, check_account_owner, check_signer},
 };
 #[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
 /**
@@ -114,7 +115,8 @@ pub fn process<'a, 'b: 'a>(
         .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();
     let total_base_qty = leaf_node.base_quantity;
-    let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
+    let total_quote_qty =
+        fp32_mul(leaf_node.base_quantity, leaf_node.price()).ok_or(AoError::NumericalOverflow)?;
 
     let order_summary = OrderSummary {
         posted_order_id: None,

@@ -76,6 +76,9 @@ impl PrintProgramError for AoError {
             AoError::InvalidLimitPrice => {
                 msg!("Error: Limit price must be a tick size multiple")
             }
+            AoError::NumericalOverflow => {
+                msg!("Error: Numerical overflow")
+            }
         }
     }
 }

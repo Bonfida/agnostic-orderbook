@@ -73,16 +73,6 @@ pub fn get_spread<'ob>(
     orderbook.get_spread()
 }
 
-/// a is fp0, b is fp32 and result is a/b fp0
-pub(crate) fn fp32_div(a: u64, b_fp32: u64) -> u64 {
-    (((a as u128) << 32) / (b_fp32 as u128)) as u64
-}
-
-/// a is fp0, b is fp32 and result is a*b fp0
-pub(crate) fn fp32_mul(a: u64, b_fp32: u64) -> u64 {
-    (((a as u128) * (b_fp32 as u128)) >> 32) as u64
-}
-
 /// Rounds a given price the nearest tick size according to the rules of the AOB
 pub fn round_price(tick_size: u64, limit_price: u64, side: Side) -> u64 {
     match side {
