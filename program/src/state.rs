@@ -23,8 +23,9 @@ pub use crate::utils::get_spread;
 #[derive(BorshDeserialize, BorshSerialize, Copy, Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 #[repr(u8)]
+/// Warning: the account tags are bitshifted to allow for standard tag usage in the program using the aob.
 pub enum AccountTag {
-    Uninitialized,
+    Uninitialized = 1 << 7,
     Market,
     EventQueue,
     Bids,
