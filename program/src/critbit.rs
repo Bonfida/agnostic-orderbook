@@ -297,8 +297,10 @@ impl<'a> Slab<'a> {
 // Tree nodes manipulation methods
 impl<'a> Slab<'a> {
     fn capacity(&self) -> u64 {
-        ((self.buffer.borrow().len() - PADDED_SLAB_HEADER_LEN)
+        let root_size = SLOT_SIZE + self.callback_info_len;
+        ((self.buffer.borrow().len() - PADDED_SLAB_HEADER_LEN - root_size)
             / (2 * SLOT_SIZE + self.callback_info_len)) as u64
+            + 1
     }
 
     #[doc(hidden)]
@@ -380,7 +382,7 @@ impl<'a> Slab<'a> {
 
     fn allocate(&mut self, node_type: &NodeTag) -> Result<u32, IoError> {
         if self.header.free_list_len == 0 {
-            if self.header.bump_index as usize == 2 * self.capacity() as usize {
+            if self.header.bump_index as usize == (2 * self.capacity() - 1) as usize {
                 return Err(std::io::ErrorKind::UnexpectedEof.into());
             }
 
@@ -642,9 +644,11 @@ impl<'a> Slab<'a> {
                 .insert_node(new_leaf_node)
                 .map_err(|_| AoError::SlabOutOfSpace)?;
 
-            let new_root_node_handle = self
-                .allocate(&NodeTag::Inner)
-                .map_err(|_| AoError::SlabOutOfSpace)?;
+            let new_root_node_handle = self.allocate(&NodeTag::Inner).map_err(|_| {
+                // Prevent potential leak from previous allocation
+                self.remove(new_leaf_handle);
+                AoError::SlabOutOfSpace
+            })?;
 
             if let NodeRefMut::Inner(mut i) = self.get_node_mut(new_root_node_handle).unwrap() {
                 i.prefix_len = shared_prefix_len as u64;
