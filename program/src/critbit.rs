@@ -297,9 +297,13 @@ impl<'a> Slab<'a> {
 // Tree nodes manipulation methods
 impl<'a> Slab<'a> {
     fn capacity(&self) -> u64 {
-        let root_size = SLOT_SIZE + self.callback_info_len;
-        ((self.buffer.borrow().len() - PADDED_SLAB_HEADER_LEN - root_size)
-            / (2 * SLOT_SIZE + self.callback_info_len)) as u64
+        Self::compute_capacity(self.callback_info_len, self.buffer.borrow().len())
+    }
+
+    fn compute_capacity(callback_info_len: usize, account_length: usize) -> u64 {
+        let root_size = SLOT_SIZE + callback_info_len;
+        ((account_length - PADDED_SLAB_HEADER_LEN - root_size)
+            / (2 * SLOT_SIZE + callback_info_len)) as u64
             + 1
     }
 
