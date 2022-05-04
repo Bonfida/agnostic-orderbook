@@ -259,10 +259,11 @@ impl<'a> Slab<'a> {
         market_address: Pubkey,
         callback_info_len: usize,
     ) {
-        let order_capacity = (asks_account.data.borrow().len() - PADDED_SLAB_HEADER_LEN)
-            / (SLOT_SIZE * 2 + callback_info_len);
+        let asks_order_capacity =
+            Slab::compute_capacity(callback_info_len, asks_account.data.borrow().len());
+        let asks_callback_memory_offset =
+            Slab::compute_callback_memory_offset(asks_order_capacity as usize);
 
-        let asks_callback_memory_offset = PADDED_SLAB_HEADER_LEN + 2 * order_capacity * SLOT_SIZE;
         let mut header = SlabHeader {
             account_tag: AccountTag::Asks,
             bump_index: 0,
@@ -280,10 +281,10 @@ impl<'a> Slab<'a> {
             .serialize(&mut ((&mut asks_account.data.borrow_mut()) as &mut [u8]))
             .unwrap();
 
-        let bids_order_capacity = (bids_account.data.borrow().len() - PADDED_SLAB_HEADER_LEN)
-            / (SLOT_SIZE * 2 + callback_info_len);
+        let bids_order_capacity =
+            Slab::compute_capacity(callback_info_len, bids_account.data.borrow().len());
         let bids_callback_memory_offset =
-            PADDED_SLAB_HEADER_LEN + 2 * bids_order_capacity * SLOT_SIZE;
+            Slab::compute_callback_memory_offset(bids_order_capacity as usize);
 
         header.account_tag = AccountTag::Bids;
         header.callback_memory_offset = bids_callback_memory_offset as u64;
@@ -305,6 +306,10 @@ impl<'a> Slab<'a> {
         ((account_length - PADDED_SLAB_HEADER_LEN - root_size)
             / (2 * SLOT_SIZE + callback_info_len)) as u64
             + 1
+    }
+
+    fn compute_callback_memory_offset(order_capacity: usize) -> usize {
+        PADDED_SLAB_HEADER_LEN + (2 * order_capacity - 1) * SLOT_SIZE
     }
 
     #[doc(hidden)]
