@@ -11,7 +11,7 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     error::AoError,
-    state::{AccountTag, EventQueueHeader, EventQueue, MarketState},
+    state::{AccountTag, EventQueue, EventQueueHeader, MarketState},
     utils::{check_account_owner, check_unitialized},
 };
 
@@ -127,8 +127,8 @@ pub fn process<'a, 'b: 'a>(
         .unwrap();
 
     Slab::initialize(
-        accounts.bids,
-        accounts.asks,
+        &mut accounts.bids.data.borrow_mut(),
+        &mut accounts.asks.data.borrow_mut(),
         *accounts.market.key,
         callback_info_len as usize,
     );

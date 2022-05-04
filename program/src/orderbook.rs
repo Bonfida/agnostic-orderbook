@@ -29,10 +29,11 @@ pub struct OrderSummary {
 /// The serialized size of an OrderSummary object.
 pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
-pub(crate) struct OrderBookState<'a> {
-    bids: Slab<'a>,
-    asks: Slab<'a>,
-    callback_id_len: usize,
+#[doc(hidden)]
+pub struct OrderBookState<'a> {
+    pub bids: Slab<'a>,
+    pub asks: Slab<'a>,
+    pub callback_id_len: usize,
 }
 
 impl<'ob> OrderBookState<'ob> {
@@ -80,12 +81,13 @@ impl<'ob> OrderBookState<'ob> {
         }
     }
 
-    pub(crate) fn commit_changes(&self) {
+    #[doc(hidden)]
+    pub fn commit_changes(&self) {
         self.bids.write_header();
         self.asks.write_header();
     }
 
-    pub(crate) fn new_order(
+    pub fn new_order(
         &mut self,
         params: new_order::Params,
         event_queue: &mut EventQueue,
