@@ -7,6 +7,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -103,6 +104,11 @@ pub fn process<'a, 'b: 'a>(
 
     check_initialization(&accounts)?;
     check_rent(&accounts)?;
+
+    if min_base_order_size == 0 {
+        msg!("min_base_order_size must be > 0");
+        return Err(ProgramError::InvalidArgument);
+    }
 
     EventQueue::check_buffer_size(accounts.event_queue, params.callback_info_len)?;
 
