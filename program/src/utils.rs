@@ -1,10 +1,10 @@
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-};
-
 use crate::{
     error::{AoError, AoResult},
     state::Side,
+};
+
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
 };
 
 #[cfg(feature = "no-entrypoint")]
