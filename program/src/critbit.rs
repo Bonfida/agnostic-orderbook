@@ -24,8 +24,8 @@ pub type IoError = std::io::Error;
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct InnerNode {
-    prefix_len: u64,
     key: u128,
+    prefix_len: u64,
     pub children: [u32; 2],
 }
 
