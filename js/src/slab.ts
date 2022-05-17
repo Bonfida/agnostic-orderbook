@@ -21,8 +21,8 @@ export class InnerNode {
       {
         kind: "struct",
         fields: [
-          ["prefixLen", "u64"],
           ["key", "u128"],
+          ["prefixLen", "u64"],
           ["children", ["u32", 2]],
         ],
       },

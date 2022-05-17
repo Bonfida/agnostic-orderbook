@@ -11,7 +11,7 @@ use solana_program::{
 use crate::{
     critbit::Slab,
     error::AoError,
-    state::{AccountTag, EventQueueHeader, EventQueue, MarketState},
+    state::{AccountTag, EventQueue, EventQueueHeader, MarketState},
     utils::{check_account_owner, check_unitialized},
 };
 
