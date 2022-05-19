@@ -73,7 +73,6 @@ impl<'a, C> OrderBookState<'a, C> {
         }
     }
 
-    #[cfg(feature = "no-entrypoint")]
     pub fn get_spread(&self) -> (Option<u64>, Option<u64>) {
         let best_bid_price = self
             .bids
@@ -81,7 +80,7 @@ impl<'a, C> OrderBookState<'a, C> {
             .map(|h| self.bids.leaf_nodes[h as usize].price());
         let best_ask_price = self
             .asks
-            .find_max()
+            .find_min()
             .map(|h| self.asks.leaf_nodes[h as usize].price());
         (best_bid_price, best_ask_price)
     }
@@ -137,7 +136,9 @@ where
                 Some(h) => h,
             };
 
-            let mut best_bo_ref = self.get_tree(side.opposite()).leaf_nodes[best_bo_h as usize];
+            let opposite_slab = self.get_tree(side.opposite());
+
+            let mut best_bo_ref = &mut opposite_slab.leaf_nodes[best_bo_h as usize];
 
             let trade_price = best_bo_ref.price();
             crossed = match side {
@@ -170,50 +171,39 @@ where
             // is needed for it.
             if self_trade_behavior != SelfTradeBehavior::DecrementTake {
                 let order_would_self_trade = callback_info.as_callback_id()
-                    == self
-                        .get_tree(side.opposite())
-                        .get_callback_info(best_bo_h)
-                        .as_callback_id();
+                    == opposite_slab.callback_infos[best_bo_h as usize].as_callback_id();
                 if order_would_self_trade {
                     let best_offer_id = best_bo_ref.order_id();
 
-                    let cancelled_provide_base_qty = match self_trade_behavior {
-                        SelfTradeBehavior::CancelProvide => {
-                            std::cmp::min(base_qty_remaining, best_bo_ref.base_quantity)
-                        }
-                        SelfTradeBehavior::AbortTransaction => return Err(AoError::WouldSelfTrade),
-                        SelfTradeBehavior::DecrementTake => unreachable!(),
-                    };
-
-                    let remaining_provide_base_qty =
-                        best_bo_ref.base_quantity - cancelled_provide_base_qty;
-                    let delete = remaining_provide_base_qty == 0;
+                    if self_trade_behavior == SelfTradeBehavior::AbortTransaction {
+                        return Err(AoError::WouldSelfTrade);
+                    }
                     let provide_out_callback_info =
-                        self.get_tree(side.opposite()).get_callback_info(best_bo_h);
+                        &opposite_slab.callback_infos[best_bo_h as usize];
                     let provide_out = OutEvent {
-                        side: side.opposite(),
-                        delete,
+                        side: side.opposite() as u8,
+                        delete: true as u8,
                         order_id: best_offer_id,
-                        base_size: cancelled_provide_base_qty,
-                        tag: EventTag::Out,
+                        base_size: best_bo_ref.base_quantity,
+                        tag: EventTag::Out as u8,
                         _padding: [0; 13],
                     };
+                    println!("Hi");
                     event_queue
                         .push_back(provide_out, Some(provide_out_callback_info), None)
                         .map_err(|_| AoError::EventQueueFull)?;
-                    if delete {
-                        self.get_tree(side.opposite())
-                            .remove_by_key(best_offer_id)
-                            .unwrap();
-                    } else {
-                        best_bo_ref.base_quantity = remaining_provide_base_qty;
-                    }
+
+                    self.get_tree(side.opposite())
+                        .remove_by_key(best_offer_id)
+                        .unwrap();
+
+                    match_limit -= 1;
 
                     continue;
                 }
             }
 
-            let maker_callback_info = self.get_tree(side.opposite()).get_callback_info(best_bo_h);
+            let maker_callback_info = &opposite_slab.callback_infos[best_bo_h as usize];
 
             let maker_fill = FillEvent {
                 taker_side: side as u8,
@@ -235,11 +225,11 @@ where
                 let best_offer_id = best_bo_ref.order_id();
                 let cur_side = side.opposite();
                 let out_event = OutEvent {
-                    side: cur_side,
+                    side: cur_side as u8,
                     order_id: best_offer_id,
                     base_size: best_bo_ref.base_quantity,
-                    delete: true,
-                    tag: EventTag::Out,
+                    delete: true as u8,
+                    tag: EventTag::Out as u8,
                     _padding: [0; 13],
                 };
 
@@ -277,17 +267,17 @@ where
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         if let Err(AoError::SlabOutOfSpace) = insert_result {
             // Boot out the least aggressive orders
-            msg!("Orderbook is full! booting lest aggressive orders...");
+            msg!("Orderbook is full! booting least aggressive orders...");
             let (order, callback_info) = match side {
                 Side::Bid => self.get_tree(Side::Bid).remove_min().unwrap(),
                 Side::Ask => self.get_tree(Side::Ask).remove_max().unwrap(),
             };
             let out = OutEvent {
-                side,
-                delete: true,
+                side: side as u8,
+                delete: true as u8,
                 order_id: order.order_id(),
                 base_size: order.base_quantity,
-                tag: EventTag::Out,
+                tag: EventTag::Out as u8,
                 _padding: [0; 13],
             };
             event_queue
@@ -307,5 +297,273 @@ where
             total_quote_qty: max_quote_qty - quote_qty_remaining,
             total_base_qty_posted: base_qty_to_post,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use solana_program::pubkey::Pubkey;
+
+    use crate::state::event_queue::{EventRef, FillEventRef, OutEventRef};
+
+    use super::*;
+
+    type SlabTest<'a> = Slab<'a, [u8; 32]>;
+    type OrderBookStateTest<'a> = OrderBookState<'a, [u8; 32]>;
+    type EventQueueTest<'a> = EventQueue<'a, [u8; 32]>;
+
+    #[test]
+    fn test_ob_0() {
+        let mut asks_buffer = vec![0; SlabTest::compute_allocation_size(1000)];
+        let mut bids_buffer = vec![0; SlabTest::compute_allocation_size(1000)];
+        SlabTest::initialize(&mut asks_buffer, &mut bids_buffer, Pubkey::new_unique()).unwrap();
+
+        let mut orderbook =
+            OrderBookStateTest::new_safe(&mut bids_buffer, &mut asks_buffer).unwrap();
+        let mut event_queue_buffer = vec![0; EventQueueTest::compute_allocation_size(1000)];
+        let mut event_queue =
+            EventQueueTest::from_buffer(&mut event_queue_buffer, AccountTag::Uninitialized)
+                .unwrap();
+        let alice = [1; 32];
+        let bob = [2; 32];
+        orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 10,
+                    max_quote_qty: 10,
+                    limit_price: 10 << 32,
+                    side: Side::Ask,
+                    match_limit: 0,
+                    callback_info: [0; 32],
+                    post_only: false,
+                    post_allowed: false,
+                    self_trade_behavior: SelfTradeBehavior::DecrementTake,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(event_queue.header.count == 0);
+
+        // Alice posts a bid order for 1 BTC at 10 USD/BTC
+
+        let OrderSummary {
+            posted_order_id,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted,
+        } = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 2_000_000,
+                    max_quote_qty: 10_000_000,
+                    limit_price: 10 << 32,
+                    side: Side::Bid,
+                    match_limit: 10,
+                    callback_info: alice,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::DecrementTake,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(posted_order_id.is_some());
+        assert_eq!(total_base_qty, 1_000_000);
+        assert_eq!(total_quote_qty, 10_000_000);
+        assert_eq!(total_base_qty_posted, 1_000_000);
+
+        // Bob posts an ask order for 3 BTC at 20 USD/BTC
+        let OrderSummary {
+            posted_order_id,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted,
+        } = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 3_000_000,
+                    max_quote_qty: 1_000_000_000,
+                    limit_price: 20 << 32,
+                    side: Side::Ask,
+                    match_limit: 10,
+                    callback_info: bob,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::DecrementTake,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(posted_order_id.is_some());
+        assert_eq!(total_base_qty, 3_000_000);
+        assert_eq!(total_quote_qty, 60_000_000);
+        assert_eq!(total_base_qty_posted, 3_000_000);
+
+        // Bob posts a bid order for 0.5 BTC at 15 USD/BTC
+        let OrderSummary {
+            posted_order_id: bob_order_id_0,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted,
+        } = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 500_000,
+                    max_quote_qty: 1_000_000_000,
+                    limit_price: 15 << 32,
+                    side: Side::Bid,
+                    match_limit: 10,
+                    callback_info: bob,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::DecrementTake,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(posted_order_id.is_some());
+        assert_eq!(total_base_qty, 500_000);
+        assert_eq!(total_quote_qty, 7_500_000);
+        assert_eq!(total_base_qty_posted, 500_000);
+
+        // Alice posts an ask order for 0.75 BTC at 14 USD/BTC, and is partially matched
+        let OrderSummary {
+            posted_order_id: alice_order_id_0,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted,
+        } = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 750_000,
+                    max_quote_qty: 1_000_000_000,
+                    limit_price: 14 << 32,
+                    side: Side::Ask,
+                    match_limit: 10,
+                    callback_info: alice,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::DecrementTake,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(posted_order_id.is_some());
+        assert_eq!(total_base_qty, 750_000);
+        assert_eq!(total_quote_qty, 500_000 * 15 + 250_000 * 14);
+        assert_eq!(total_base_qty_posted, 250_000);
+        assert_eq!(orderbook.get_spread(), (Some(10 << 32), Some(14 << 32)));
+
+        assert_eq!(event_queue.header.count, 2);
+        let mut event_queue_iter = event_queue.iter();
+        assert_eq!(
+            event_queue_iter.next().unwrap(),
+            EventRef::Fill(FillEventRef {
+                event: &FillEvent {
+                    tag: EventTag::Fill as u8,
+                    taker_side: Side::Ask as u8,
+                    _padding: [0; 6],
+                    quote_size: 500_000 * 15,
+                    maker_order_id: bob_order_id_0.unwrap(),
+                    base_size: 500_000
+                },
+                maker_callback_info: &bob,
+                taker_callback_info: &alice
+            })
+        );
+
+        assert_eq!(
+            event_queue_iter.next().unwrap(),
+            EventRef::Out(OutEventRef {
+                event: &OutEvent {
+                    tag: EventTag::Out as u8,
+                    side: Side::Bid as u8,
+                    _padding: [0; 13],
+                    base_size: 0,
+                    delete: true as u8,
+                    order_id: bob_order_id_0.unwrap()
+                },
+                callback_info: &bob
+            })
+        );
+        println!("Event queue head: {}", event_queue.header.head);
+        event_queue.pop_n(2);
+        println!("Event queue head: {}", event_queue.header.head);
+
+        assert_eq!(event_queue.header.count, 0);
+
+        // Alice makes a bid for 0.05 BTC at 15 USD/BTC, and attempts to self-trade
+        let r = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 50_000,
+                    max_quote_qty: 1_000_000_000,
+                    limit_price: 15 << 32,
+                    side: Side::Bid,
+                    match_limit: 10,
+                    callback_info: alice,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::AbortTransaction,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap_err();
+        assert!(matches!(r, AoError::WouldSelfTrade));
+        println!("Event queue head: {}", event_queue.header.head);
+
+        assert_eq!(event_queue.header.count, 0);
+
+        // Alice changes her self trading behavior
+
+        let OrderSummary {
+            posted_order_id,
+            total_base_qty,
+            total_quote_qty,
+            total_base_qty_posted,
+        } = orderbook
+            .new_order(
+                new_order::Params {
+                    max_base_qty: 50_000,
+                    max_quote_qty: 1_000_000_000,
+                    limit_price: 15 << 32,
+                    side: Side::Bid,
+                    match_limit: 10,
+                    callback_info: alice,
+                    post_only: false,
+                    post_allowed: true,
+                    self_trade_behavior: SelfTradeBehavior::CancelProvide,
+                },
+                &mut event_queue,
+                10,
+            )
+            .unwrap();
+        assert!(posted_order_id.is_some());
+        assert_eq!(total_base_qty, 50_000);
+        assert_eq!(total_quote_qty, 50_000 * 15);
+        assert_eq!(total_base_qty_posted, 50_000);
+        assert_eq!(event_queue.header.count, 1);
+        println!("Event queue head: {}", event_queue.header.head);
+
+        assert_eq!(
+            event_queue.iter().next().unwrap(),
+            EventRef::Out(OutEventRef {
+                event: &OutEvent {
+                    tag: EventTag::Out as u8,
+                    side: Side::Ask as u8,
+                    _padding: [0; 13],
+                    base_size: 250_000,
+                    delete: true as u8,
+                    order_id: alice_order_id_0.unwrap()
+                },
+                callback_info: &alice
+            })
+        )
     }
 }

@@ -2,17 +2,14 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-};
+use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError};
 
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
-#[cfg(feature = "no-entrypoint")]
 pub use crate::utils::get_spread;
 
 use super::{AccountTag, Side};
 
-#[derive(Zeroable, Clone, Pod, Copy)]
+#[derive(Clone, Zeroable, Pod, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FillEvent {
     pub(crate) tag: u8,
@@ -31,14 +28,14 @@ impl FillEvent {
     pub const LEN: usize = std::mem::size_of::<Self>();
 }
 
-#[derive(Clone, CheckedBitPattern, NoUninit, Copy)]
+#[derive(Clone, Zeroable, Pod, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct OutEvent {
-    pub(crate) tag: EventTag,
+    pub(crate) tag: u8,
     #[allow(missing_docs)]
-    pub(crate) side: Side,
+    pub(crate) side: u8,
     /// The total quote size of the transaction
-    pub(crate) delete: bool,
+    pub(crate) delete: u8,
     pub(crate) _padding: [u8; 13],
     /// The order id of the maker order
     pub(crate) order_id: u128,
@@ -46,9 +43,23 @@ pub struct OutEvent {
     pub(crate) base_size: u64,
 }
 
-pub enum EventRef<'a> {
-    Fill(&'a FillEvent),
-    Out(&'a OutEvent),
+#[derive(PartialEq, Debug)]
+pub enum EventRef<'a, C> {
+    Fill(FillEventRef<'a, C>),
+    Out(OutEventRef<'a, C>),
+}
+
+#[derive(PartialEq, Debug)]
+pub struct FillEventRef<'a, C> {
+    pub event: &'a FillEvent,
+    pub maker_callback_info: &'a C,
+    pub taker_callback_info: &'a C,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct OutEventRef<'a, C> {
+    pub event: &'a OutEvent,
+    pub callback_info: &'a C,
 }
 
 #[derive(FromPrimitive, Clone, Copy, CheckedBitPattern, NoUninit)]
@@ -56,15 +67,6 @@ pub enum EventRef<'a> {
 pub enum EventTag {
     Fill,
     Out,
-}
-
-impl<'a> EventRef<'a> {
-    pub(crate) fn from_event(event: &'a FillEvent) -> Self {
-        match EventTag::from_u8(event.tag).unwrap() {
-            EventTag::Fill => EventRef::Fill(event),
-            EventTag::Out => EventRef::Out(bytemuck::checked::cast_ref(event)),
-        }
-    }
 }
 
 pub type GenericEvent = FillEvent;
@@ -82,7 +84,7 @@ impl Event for FillEvent {
 
 impl Event for OutEvent {
     fn to_generic(&mut self) -> &GenericEvent {
-        self.tag = EventTag::Out;
+        self.tag = EventTag::Out as u8;
         bytemuck::cast_ref(self)
     }
 }
@@ -153,7 +155,8 @@ impl<'queue, C: Clone> EventQueue<'queue, C> {
             return Err(event);
         }
         let generic_event = event.to_generic();
-        let event_idx = (self.header.count as usize) % self.events.len();
+        let event_idx =
+            (self.header.head as usize + self.header.count as usize) % self.events.len();
         self.events[event_idx] = *generic_event;
 
         self.header.count += 1;
@@ -178,10 +181,10 @@ impl<'queue, C> EventQueue<'queue, C> {
             + 8
     }
 
-    pub(crate) fn check_buffer_size(account: &AccountInfo) -> ProgramResult {
+    pub(crate) fn check_buffer_size(buffer: &[u8]) -> ProgramResult {
         const HEADER_OFFSET: usize = EventQueueHeader::LEN + 8;
         let event_size: usize = FillEvent::LEN + 2 * std::mem::size_of::<C>();
-        let account_len = account.data.borrow().len();
+        let account_len = buffer.len();
         if account_len < HEADER_OFFSET + 5 * event_size {
             msg!("The event queue account is too small!");
             return Err(ProgramError::InvalidAccountData);
@@ -214,14 +217,28 @@ impl<'queue, C> EventQueue<'queue, C> {
     }
 
     /// Retrieves the event at position index in the queue.
-    pub fn peek_at(&self, index: u64) -> Option<EventRef<'_>> {
+    pub fn peek_at(&self, index: u64) -> Option<EventRef<'_, C>> {
         if self.header.count <= index {
             return None;
         }
 
         let event_idx = (self.header.head.checked_add(index).unwrap() as usize) % self.events.len();
+        Some(self.get_event(event_idx))
+    }
+
+    fn get_event(&self, event_idx: usize) -> EventRef<'_, C> {
         let event = &self.events[event_idx];
-        Some(EventRef::from_event(event))
+        match EventTag::from_u8(event.tag).unwrap() {
+            EventTag::Fill => EventRef::Fill(FillEventRef {
+                event,
+                maker_callback_info: &self.callback_infos[2 * event_idx],
+                taker_callback_info: &self.callback_infos[2 * event_idx + 1],
+            }),
+            EventTag::Out => EventRef::Out(OutEventRef {
+                event: bytemuck::cast_ref(event),
+                callback_info: &self.callback_infos[2 * event_idx],
+            }),
+        }
     }
 
     #[doc(hidden)]
@@ -235,17 +252,15 @@ impl<'queue, C> EventQueue<'queue, C> {
     }
 
     /// Returns an iterator over all the queue's events
-    #[cfg(feature = "no-entrypoint")]
     pub fn iter(&self) -> QueueIterator<'_, C> {
         QueueIterator {
             queue: self,
-            current_index: self.header.head as usize,
+            current_index: 0,
             remaining: self.header.count,
         }
     }
 }
 
-#[cfg(feature = "no-entrypoint")]
 /// Utility struct for iterating over a queue
 pub struct QueueIterator<'a, C> {
     queue: &'a EventQueue<'a, C>,
@@ -253,17 +268,135 @@ pub struct QueueIterator<'a, C> {
     remaining: u64,
 }
 
-#[cfg(feature = "no-entrypoint")]
 impl<'a, C> Iterator for QueueIterator<'a, C> {
-    type Item = EventRef<'a>;
+    type Item = EventRef<'a, C>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.remaining == 0 {
             return None;
         }
-        let event = &self.queue.events[self.queue.header.head as usize + self.current_index];
-        self.current_index = (self.current_index + 1) % self.queue.events.len();
+        let event_idx =
+            (self.queue.header.head as usize + self.current_index) % self.queue.events.len();
+        self.current_index += 1;
         self.remaining -= 1;
-        Some(EventRef::from_event(event))
+        Some(self.queue.get_event(event_idx))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type EventQueueTest<'a> = EventQueue<'a, [u8; 32]>;
+
+    #[test]
+    fn test_event_queue_0() {
+        let allocation_size = EventQueue::<[u8; 32]>::compute_allocation_size(100);
+        let mut buffer = vec![0; allocation_size];
+
+        assert!(EventQueueTest::from_buffer(&mut buffer, AccountTag::EventQueue).is_err());
+
+        assert!(EventQueueTest::check_buffer_size(&[0; 10]).is_err());
+        assert!(EventQueueTest::check_buffer_size(&[0; 1000]).is_err());
+
+        let mut event_queue =
+            EventQueueTest::from_buffer(&mut buffer, AccountTag::Uninitialized).unwrap();
+
+        let mut seq_gen = 0..;
+        let mut parity_gen = 0..;
+
+        for _ in 0..100 {
+            if parity_gen.next().unwrap() % 7 != 3 {
+                event_queue
+                    .push_back(
+                        FillEvent {
+                            tag: EventTag::Fill as u8,
+                            taker_side: Side::Ask as u8,
+                            _padding: [0; 6],
+                            quote_size: seq_gen.next().unwrap(),
+                            maker_order_id: seq_gen.next().unwrap() as u128,
+                            base_size: seq_gen.next().unwrap(),
+                        },
+                        Some(&[seq_gen.next().unwrap() as u8; 32]),
+                        Some(&[seq_gen.next().unwrap() as u8; 32]),
+                    )
+                    .unwrap();
+            } else {
+                event_queue
+                    .push_back(
+                        OutEvent {
+                            tag: EventTag::Out as u8,
+                            side: Side::Ask as u8,
+                            _padding: [0; 13],
+                            base_size: seq_gen.next().unwrap(),
+                            delete: true as u8,
+                            order_id: seq_gen.next().unwrap() as u128,
+                        },
+                        Some(&[seq_gen.next().unwrap() as u8; 32]),
+                        None,
+                    )
+                    .unwrap();
+            }
+        }
+        let extra_event = FillEvent {
+            tag: EventTag::Fill as u8,
+            taker_side: Side::Ask as u8,
+            _padding: [0; 6],
+            quote_size: seq_gen.next().unwrap(),
+            maker_order_id: seq_gen.next().unwrap() as u128,
+            base_size: seq_gen.next().unwrap(),
+        };
+        assert_eq!(
+            extra_event,
+            event_queue.push_back(extra_event, None, None).unwrap_err()
+        );
+        let mut number_of_events = 0;
+        let mut seq_gen = 0..;
+        let mut parity_gen = 0..;
+
+        assert!(event_queue.peek_at(100).is_none());
+
+        for (i, e) in event_queue.iter().enumerate() {
+            let is_fill = parity_gen.next().unwrap() % 7 != 3;
+            match e {
+                EventRef::Out(o) if !is_fill => {
+                    assert_eq!(
+                        o,
+                        OutEventRef {
+                            event: &OutEvent {
+                                tag: EventTag::Out as u8,
+                                side: Side::Ask as u8,
+                                _padding: [0; 13],
+                                base_size: seq_gen.next().unwrap(),
+                                delete: true as u8,
+                                order_id: seq_gen.next().unwrap() as u128,
+                            },
+                            callback_info: &[seq_gen.next().unwrap() as u8; 32]
+                        }
+                    );
+                }
+                EventRef::Fill(e) if is_fill => {
+                    assert_eq!(
+                        e,
+                        FillEventRef {
+                            event: &FillEvent {
+                                tag: EventTag::Fill as u8,
+                                taker_side: Side::Ask as u8,
+                                _padding: [0; 6],
+                                quote_size: seq_gen.next().unwrap(),
+                                maker_order_id: seq_gen.next().unwrap() as u128,
+                                base_size: seq_gen.next().unwrap(),
+                            },
+                            maker_callback_info: &[seq_gen.next().unwrap() as u8; 32],
+                            taker_callback_info: &[seq_gen.next().unwrap() as u8; 32]
+                        }
+                    );
+                    assert_eq!(EventRef::Fill(e), event_queue.peek_at(i as u64).unwrap());
+                }
+                _ => panic!(),
+            }
+            number_of_events = i + 1;
+        }
+        assert_eq!(number_of_events, 100);
     }
 }

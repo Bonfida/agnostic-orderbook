@@ -8,7 +8,6 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-#[cfg(feature = "no-entrypoint")]
 use crate::state::orderbook::{CallbackInfo, OrderBookState};
 
 #[cfg(not(debug_assertions))]
@@ -56,7 +55,6 @@ pub(crate) fn check_unitialized(account: &AccountInfo) -> AoResult {
     Ok(())
 }
 
-#[cfg(feature = "no-entrypoint")]
 /// This util is used to return the orderbook's spread (best_bid_price, best_ask_price) with both values in FP32 format
 pub fn get_spread<'ob, 'b: 'ob, C: CallbackInfo + PartialEq>(
     bids_account: &'ob AccountInfo<'b>,

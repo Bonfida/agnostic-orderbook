@@ -94,7 +94,7 @@ pub fn process<'a, 'b: 'a, C: Pod>(
         return Err(ProgramError::InvalidArgument);
     }
 
-    EventQueue::<C>::check_buffer_size(accounts.event_queue).unwrap();
+    EventQueue::<C>::check_buffer_size(&accounts.event_queue.data.borrow()).unwrap();
 
     let mut market_data = accounts.market.data.borrow_mut();
 
