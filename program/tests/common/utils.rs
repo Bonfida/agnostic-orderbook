@@ -1,5 +1,6 @@
 use agnostic_orderbook::instruction::create_market;
 use agnostic_orderbook::state::event_queue::EventQueue;
+use agnostic_orderbook::state::market_state::MarketState;
 use solana_program::instruction::Instruction;
 use solana_program::pubkey::Pubkey;
 use solana_program::system_instruction::create_account;
@@ -21,8 +22,8 @@ pub async fn create_market_and_accounts(
     let create_market_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &market_account.pubkey(),
-        rent.minimum_balance(1_000_000),
-        1_000_000,
+        rent.minimum_balance(MarketState::LEN + 8),
+        MarketState::LEN as u64 + 8,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(

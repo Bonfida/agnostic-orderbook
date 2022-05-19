@@ -274,12 +274,7 @@ impl<'a, C> Slab<'a, C> {
             let new_leaf_handle = self.allocate_leaf().map_err(|_| AoError::SlabOutOfSpace)?;
             self.leaf_nodes[new_leaf_handle as usize] = *new_leaf;
 
-            let new_root_node_handle = self.allocate_inner_node().map_err(|_| {
-                // A memory leak guard
-                // This code should be unreachable though
-                self.free_leaf(new_leaf_handle);
-                AoError::SlabOutOfSpace
-            })?;
+            let new_root_node_handle = self.allocate_inner_node().unwrap();
             let new_root_node = &mut self.inner_nodes[(!new_root_node_handle) as usize];
             new_root_node.prefix_len = shared_prefix_len as u64;
             new_root_node.key = new_leaf.key;
@@ -365,18 +360,17 @@ impl<'a, C> Slab<'a, C> {
                 }
             }
         }
-        // msg!("Found key at depth : {}", depth);
+
         // replace parent with its remaining child node
         // free child_h, replace *parent_h with *other_child_h, free other_child_h
         let other_child_h = self.inner_nodes[(!parent_h) as usize].children[!crit_bit as usize];
 
-        if let Some(h) = grandparent_h {
-            let r = &mut self.inner_nodes[(!h) as usize];
-            r.children[prev_crit_bit.unwrap() as usize] = other_child_h
-        }
-        // Split condition here works around borrow checker
-        if grandparent_h.is_none() {
-            self.header.root_node = other_child_h;
+        match grandparent_h {
+            Some(h) => {
+                let r = &mut self.inner_nodes[(!h) as usize];
+                r.children[prev_crit_bit.unwrap() as usize] = other_child_h;
+            }
+            None => self.header.root_node = other_child_h,
         }
         self.header.leaf_count -= 1;
         let removed_leaf = self.leaf_nodes[child_h as usize];
@@ -769,6 +763,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "quick-test"))]
     fn simulate_operations() {
         use rand::distributions::WeightedIndex;
         use std::collections::BTreeMap;

@@ -1,9 +1,8 @@
 use agnostic_orderbook::instruction::{cancel_order, close_market, consume_events, new_order};
 use agnostic_orderbook::state::{market_state::MarketState, OrderSummary};
-use agnostic_orderbook::state::{SelfTradeBehavior, Side};
+use agnostic_orderbook::state::{AccountTag, SelfTradeBehavior, Side};
 use bonfida_utils::BorshSize;
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::try_from_bytes_mut;
 use solana_program::program_option::COption;
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
@@ -92,7 +91,8 @@ async fn test_agnostic_orderbook() {
         .unwrap()
         .unwrap();
     let market_state =
-        try_from_bytes_mut::<MarketState>(&mut market_state_data.data[..MarketState::LEN]).unwrap();
+        MarketState::from_buffer(&mut market_state_data.data, AccountTag::Market).unwrap();
+
     println!("{:#?}", market_state);
 
     // Transfer the cranking fee
@@ -130,6 +130,7 @@ async fn test_agnostic_orderbook() {
             match_limit: 3,
         },
     );
+
     sign_send_instructions(&mut prg_test_ctx, vec![new_order_instruction], vec![])
         .await
         .unwrap();
@@ -179,8 +180,7 @@ async fn test_agnostic_orderbook() {
         .await
         .unwrap()
         .unwrap();
-    let market_state =
-        try_from_bytes_mut::<MarketState>(&mut market_data.data[..MarketState::LEN]).unwrap();
+    let market_state = MarketState::from_buffer(&mut market_data.data, AccountTag::Market).unwrap();
     println!("{:#?}", market_state);
 
     let mut register_acc = &prg_test_ctx
