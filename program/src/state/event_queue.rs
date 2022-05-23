@@ -359,7 +359,8 @@ mod tests {
         for (i, e) in event_queue.iter().enumerate() {
             let is_fill = parity_gen.next().unwrap() % 7 != 3;
             match e {
-                EventRef::Out(o) if !is_fill => {
+                EventRef::Out(o) => {
+                    assert!(!is_fill);
                     assert_eq!(
                         o,
                         OutEventRef {
@@ -375,7 +376,8 @@ mod tests {
                         }
                     );
                 }
-                EventRef::Fill(e) if is_fill => {
+                EventRef::Fill(e) => {
+                    assert!(is_fill);
                     assert_eq!(
                         e,
                         FillEventRef {
@@ -393,7 +395,6 @@ mod tests {
                     );
                     assert_eq!(EventRef::Fill(e), event_queue.peek_at(i as u64).unwrap());
                 }
-                _ => panic!(),
             }
             number_of_events = i + 1;
         }

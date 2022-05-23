@@ -18,7 +18,7 @@ use crate::{
         orderbook::{CallbackInfo, OrderBookState, OrderSummary},
         AccountTag,
     },
-    utils::{check_account_key, check_account_owner, check_signer},
+    utils::{check_account_key, check_account_owner},
 };
 #[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
 /**
@@ -44,10 +44,6 @@ pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
     #[cons(writable)]
     pub asks: &'a T,
-    #[allow(missing_docs)]
-    #[cons(signer)]
-    #[cfg(not(feature = "lib"))]
-    pub authority: &'a T,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
@@ -59,8 +55,6 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
             event_queue: next_account_info(accounts_iter)?,
             bids: next_account_info(accounts_iter)?,
             asks: next_account_info(accounts_iter)?,
-            #[cfg(not(feature = "lib"))]
-            authority: next_account_info(accounts_iter)?,
         };
         Ok(a)
     }
@@ -78,8 +72,6 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
         )?;
         check_account_owner(self.bids, &program_id.to_bytes(), AoError::WrongBidsOwner)?;
         check_account_owner(self.asks, &program_id.to_bytes(), AoError::WrongAsksOwner)?;
-        #[cfg(not(feature = "lib"))]
-        check_signer(self.authority)?;
         Ok(())
     }
 }

@@ -54,12 +54,17 @@ impl LeafNode {
 
     /// Parse a leaf node's price
     pub fn price(&self) -> u64 {
-        (self.key >> 64) as u64
+        Self::price_from_key(self.key)
     }
 
     /// Get the associated order id
     pub fn order_id(&self) -> u128 {
         self.key
+    }
+
+    #[inline(always)]
+    pub(crate) fn price_from_key(key: u128) -> u64 {
+        (key >> 64) as u64
     }
 }
 
@@ -126,7 +131,8 @@ impl<'slab, C> Slab<'slab, C> {
         8 + SlabHeader::LEN
             + LeafNode::LEN
             + std::mem::size_of::<C>()
-            + desired_order_capacity * (LeafNode::LEN + InnerNode::LEN + std::mem::size_of::<C>())
+            + (desired_order_capacity.checked_sub(1).unwrap())
+                * (LeafNode::LEN + InnerNode::LEN + std::mem::size_of::<C>())
     }
 }
 
@@ -403,16 +409,6 @@ impl<'a, C> Slab<'a, C> {
     #[doc(hidden)]
     pub fn find_max(&self) -> Option<NodeHandle> {
         self.find_min_max(true)
-    }
-
-    pub(crate) fn remove_min(&mut self) -> Option<(LeafNode, &C)> {
-        let key = self.leaf_nodes[self.find_min()? as usize].key;
-        self.remove_by_key(key)
-    }
-
-    pub(crate) fn remove_max(&mut self) -> Option<(LeafNode, &C)> {
-        let key = self.leaf_nodes[self.find_max()? as usize].key;
-        self.remove_by_key(key)
     }
 
     /// Get a price ascending or price descending iterator over all the Slab's orders
