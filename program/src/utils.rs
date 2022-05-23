@@ -3,10 +3,7 @@ use crate::{
     state::Side,
 };
 
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::state::orderbook::{CallbackInfo, OrderBookState};
 
@@ -41,13 +38,6 @@ pub(crate) fn check_account_owner(
     Ok(())
 }
 
-pub(crate) fn check_signer(account: &AccountInfo) -> ProgramResult {
-    if !(account.is_signer) {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    Ok(())
-}
-
 pub(crate) fn check_unitialized(account: &AccountInfo) -> AoResult {
     if account.data.borrow()[0] != 0 {
         return Err(AoError::AlreadyInitialized);
@@ -77,5 +67,21 @@ pub fn round_price(tick_size: u64, limit_price: u64, side: Side) -> u64 {
         Side::Bid => tick_size * (limit_price / tick_size),
         // Round up
         Side::Ask => tick_size * ((limit_price + tick_size - 1) / tick_size),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_round_price() {
+        let price = (5.01 * 2.0f64.powi(32)) as u64;
+        let tick_size = (0.5 * 2.0f64.powi(32)) as u64;
+        let rounded_price_bid = round_price(tick_size, price, Side::Bid);
+        assert_eq!(rounded_price_bid, 5 << 32);
+
+        let rounded_price_ask = round_price(tick_size, price, Side::Ask);
+        assert_eq!(rounded_price_ask, (5.5 * 2.0f64.powi(32)) as u64);
     }
 }
