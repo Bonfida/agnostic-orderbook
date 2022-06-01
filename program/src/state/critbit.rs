@@ -5,8 +5,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-// A Slab contains the data for a slab header and an array of nodes of a critbit tree
-// whose leafs contain the data referencing an order of the orderbook.
+// A Slab contains the data for a slab header and two type-split arrays of inner nodes and leaves arranger in a critbit tree
+// whose leaves contain data referencing an order of the orderbook.
 
 #[doc(hidden)]
 pub type IoError = std::io::Error;
@@ -62,7 +62,7 @@ impl LeafNode {
         self.key
     }
 
-    #[inline(always)]
+    /// Deduce an associated price from an order_id
     pub(crate) fn price_from_key(key: u128) -> u64 {
         (key >> 64) as u64
     }
@@ -401,12 +401,12 @@ impl<'a, C> Slab<'a, C> {
         }
     }
 
-    #[doc(hidden)]
+    /// Get the handle for the leaf of minimum key (and price)
     pub fn find_min(&self) -> Option<NodeHandle> {
         self.find_min_max(false)
     }
 
-    #[doc(hidden)]
+    /// Get the handle for the leaf of maximum key (and price)
     pub fn find_max(&self) -> Option<NodeHandle> {
         self.find_min_max(true)
     }
@@ -425,6 +425,7 @@ impl<'a, C> Slab<'a, C> {
     }
 
     #[cfg(feature = "utils")]
+    /// Get the current critbit's depth. Walks though the entire tree.
     pub fn get_depth(&self) -> usize {
         if self.header.leaf_count == 0 {
             return 0;

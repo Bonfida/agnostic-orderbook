@@ -1,3 +1,9 @@
+//! The event queue is one of two information outputs of the AOB.
+//!
+//! It provides a linear event-based interface to propagate the matching and modifying of orders
+//! to other use-case specific data structures. It is essential to bypass the need for predicting
+//! an instruction's required account beforehand : the runtime can freely decide which users to
+//! match together this way.
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 use num_derive::FromPrimitive;
@@ -11,67 +17,82 @@ use super::{AccountTag, Side};
 
 #[derive(Clone, Zeroable, Pod, Copy, Debug, PartialEq)]
 #[repr(C)]
+/// Represents an order being filled, a match between two parties.
 pub struct FillEvent {
-    pub(crate) tag: u8,
-    #[allow(missing_docs)]
-    pub(crate) taker_side: u8,
+    /// The u8 representation for an [`AccountTag`] enum
+    pub tag: u8,
+    /// The u8 representation for a [`Side`] enum
+    pub taker_side: u8,
     pub(crate) _padding: [u8; 6],
     /// The total quote size of the transaction
-    pub(crate) quote_size: u64,
+    pub quote_size: u64,
     /// The order id of the maker order
-    pub(crate) maker_order_id: u128,
+    pub maker_order_id: u128,
     /// The total base size of the transaction
-    pub(crate) base_size: u64,
+    pub base_size: u64,
 }
 
 impl FillEvent {
+    /// Byte length of the FillEvent object
     pub const LEN: usize = std::mem::size_of::<Self>();
 }
 
 #[derive(Clone, Zeroable, Pod, Copy, Debug, PartialEq)]
 #[repr(C)]
+/// Represents an order being modified or yanked from the orderbook without being matched
 pub struct OutEvent {
-    pub(crate) tag: u8,
-    #[allow(missing_docs)]
-    pub(crate) side: u8,
+    /// The u8 representation for an [`AccountTag`] enum
+    pub tag: u8,
+    /// The u8 representation for a [`Side`] enum
+    pub side: u8,
     /// The total quote size of the transaction
-    pub(crate) delete: u8,
+    pub delete: u8,
     pub(crate) _padding: [u8; 13],
     /// The order id of the maker order
-    pub(crate) order_id: u128,
+    pub order_id: u128,
     /// The total base size of the transaction
-    pub(crate) base_size: u64,
+    pub base_size: u64,
 }
 
 #[derive(PartialEq, Debug)]
+/// An unmutable reference to an event in the EventQueue
 pub enum EventRef<'a, C> {
+    #[allow(missing_docs)]
     Fill(FillEventRef<'a, C>),
+    #[allow(missing_docs)]
     Out(OutEventRef<'a, C>),
 }
 
 #[derive(PartialEq, Debug)]
+/// An immutable reference to a Fill event in the EventQueue, as well as the associated callback information.
 pub struct FillEventRef<'a, C> {
+    #[allow(missing_docs)]
     pub event: &'a FillEvent,
+    #[allow(missing_docs)]
     pub maker_callback_info: &'a C,
+    #[allow(missing_docs)]
     pub taker_callback_info: &'a C,
 }
 
 #[derive(PartialEq, Debug)]
+/// An immutable reference to an Out event in the EventQueue, as well as the associated callback information.
 pub struct OutEventRef<'a, C> {
+    #[allow(missing_docs)]
     pub event: &'a OutEvent,
+    #[allow(missing_docs)]
     pub callback_info: &'a C,
 }
 
 #[derive(FromPrimitive, Clone, Copy, CheckedBitPattern, NoUninit)]
 #[repr(u8)]
-pub enum EventTag {
+pub(crate) enum EventTag {
     Fill,
     Out,
 }
 
-pub type GenericEvent = FillEvent;
+pub(crate) type GenericEvent = FillEvent;
 
-pub trait Event {
+pub(crate) trait Event {
     fn to_generic(&mut self) -> &GenericEvent;
 }
 
@@ -104,6 +125,7 @@ pub struct EventQueueHeader {
 }
 
 impl EventQueueHeader {
+    /// The byte size for the EventQueueHeader object
     pub const LEN: usize = std::mem::size_of::<Self>();
 }
 
@@ -118,6 +140,7 @@ pub struct EventQueue<'a, C> {
 }
 
 impl<'queue, C: Pod> EventQueue<'queue, C> {
+    /// Instantiates an event queue object from an account's buffer
     pub fn from_buffer(
         buf: &'queue mut [u8],
         expected_tag: AccountTag,
@@ -216,7 +239,7 @@ impl<'queue, C> EventQueue<'queue, C> {
         self.header.count as usize == self.events.len()
     }
 
-    /// Retrieves the event at position index in the queue.
+    /// Retrieves the event at position `index` in the queue.
     pub fn peek_at(&self, index: u64) -> Option<EventRef<'_, C>> {
         if self.header.count <= index {
             return None;
@@ -241,7 +264,6 @@ impl<'queue, C> EventQueue<'queue, C> {
         }
     }
 
-    #[doc(hidden)]
     /// Pop n entries from the event queue
     pub fn pop_n(&mut self, number_of_entries_to_pop: u64) {
         let capped_number_of_entries_to_pop =

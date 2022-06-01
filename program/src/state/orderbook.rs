@@ -1,3 +1,8 @@
+//! The orderbook object wraps an ask and a bid tree to handle functional primitives on both data structures
+//! such as order matching and order cancellation.
+//!
+//! It is recommended to go through each instruction's process instruction rather than to directly use the [`OrderBookState`]
+//! object, in order to benefit from the AOB's included security checks.
 use crate::{
     error::AoError,
     processor::new_order,
@@ -30,8 +35,13 @@ pub struct OrderSummary {
     pub total_base_qty_posted: u64,
 }
 
+/// This trait defines a subobject which can be used to compare two callback information object to determine
+/// if the two arise from the same user. This is useful to detect instances of self-trading.
 pub trait CallbackInfo: Pod + Copy {
+    /// The callback identity object used to detect self trading
     type CallbackId;
+
+    /// Retrives a reference to the callback identity object from the parent object
     fn as_callback_id(&self) -> &Self::CallbackId;
 }
 
