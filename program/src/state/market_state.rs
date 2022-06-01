@@ -1,3 +1,5 @@
+//! The market state struct tracks metadata and security information about the agnostic orderbook system and its
+//! relevant accounts
 use bytemuck::{Pod, Zeroable};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use std::mem::size_of;
