@@ -6,9 +6,9 @@ use solana_program::{
     program_error::PrintProgramError, pubkey::Pubkey,
 };
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(feature = "entrypoint")]
 use solana_program::entrypoint;
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(feature = "entrypoint")]
 entrypoint!(process_instruction);
 
 /// The entrypoint to the test AAOB program
