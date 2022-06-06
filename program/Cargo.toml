@@ -7,6 +7,7 @@ edition = "2018"
 
 [features]
 test-bpf = []
+entrypoint = []
 wasm = []
 debug-asserts = []
 quick-test = []
