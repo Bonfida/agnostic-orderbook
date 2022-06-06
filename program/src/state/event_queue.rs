@@ -281,6 +281,16 @@ impl<'queue, C> EventQueue<'queue, C> {
             remaining: self.header.count,
         }
     }
+
+    /// Checks whether the event queue is currently empty
+    pub fn is_empty(&self) -> bool {
+        self.header.count == 0
+    }
+
+    /// Returns the current length of the event queue
+    pub fn len(&self) -> u64 {
+        self.header.count
+    }
 }
 
 /// Utility struct for iterating over a queue
