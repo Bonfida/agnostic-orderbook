@@ -380,7 +380,7 @@ export class Slab {
     if (this.header.leafCount.eq(new BN(0))) {
       return [];
     }
-    let raw: number[] = [];
+    let raw: BN[] = [];
     let stack = [this.header.rootNode];
     while (true) {
       const current = stack.pop();
@@ -391,9 +391,9 @@ export class Slab {
       );
       if (node instanceof LeafNode) {
         const leafPrice = node.getPrice();
-        if (raw[raw.length - 1] === leafPrice.toNumber()) {
+        if (raw[raw.length - 1]?.eq(leafPrice)) {
           const idx = raw.length - 2;
-          raw[idx] += node.baseQuantity.toNumber();
+          raw[idx].iadd(node.baseQuantity);
         } else if (raw.length === 2 * depth) {
           // The price has changed and we have enough prices. Note that the
           // above branch will be hit even if we already have `depth` prices
@@ -402,8 +402,8 @@ export class Slab {
           // we will accumulate both orders.
           break;
         } else {
-          raw.push(node.baseQuantity.toNumber());
-          raw.push(leafPrice.toNumber());
+          raw.push(node.baseQuantity);
+          raw.push(leafPrice);
         }
       }
       if (node instanceof InnerNode) {
@@ -414,8 +414,8 @@ export class Slab {
     let result: Price[] = [];
     for (let i = 0; i < raw.length / 2; i++) {
       result.push({
-        size: Number(raw[2 * i]),
-        price: Number(raw[2 * i + 1]),
+        size: raw[2 * i],
+        price: raw[2 * i + 1],
       });
     }
     return result;
