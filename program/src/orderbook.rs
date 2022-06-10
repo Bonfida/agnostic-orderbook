@@ -255,7 +255,7 @@ impl<'ob> OrderBookState<'ob> {
         }
 
         let base_qty_to_post = std::cmp::min(
-            fp32_div(quote_qty_remaining, limit_price).ok_or(AoError::NumericalOverflow)?,
+            fp32_div(quote_qty_remaining, limit_price).unwrap_or(u64::MAX),
             base_qty_remaining,
         );
 

@@ -138,6 +138,11 @@ pub fn process<'a, 'b: 'a>(
         return Err(ProgramError::InvalidArgument);
     }
 
+    if params.post_allowed && params.limit_price == 0 {
+        msg!("Prices of zero are only allowed when not posting");
+        return Err(ProgramError::InvalidArgument);
+    }
+
     let header = {
         let mut event_queue_data: &[u8] =
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
