@@ -6,9 +6,9 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { EventQueue, EventQueueHeader } from "./event_queue";
+import { EventQueue } from "./event_queue";
 import { MarketState } from "./market_state";
-import { Slab, SlabHeader } from "./slab";
+import { Slab } from "./slab";
 import { createMarketInstruction } from "./raw_instructions";
 import { PrimedTransaction } from "./types";
 
@@ -34,14 +34,13 @@ export const AAOB_ID = new PublicKey(
 export const createMarket = async (
   connection: Connection,
   callerAuthority: PublicKey,
-  callbackInfoLen: BN,
+  callbackInfoLen: number,
   callbackIdLen: BN,
   eventCapacity: number,
   orderCapacity: number,
   minBaseOrderSize: BN,
   feePayer: PublicKey,
   tickSize: BN,
-  crankerReward: BN,
   programId?: PublicKey
 ): Promise<PrimedTransaction> => {
   if (programId === undefined) {
@@ -54,7 +53,7 @@ export const createMarket = async (
   const eventQueue = new Keypair();
   const eventQueueSize = EventQueue.computeAllocationSize(
     eventCapacity,
-    callbackInfoLen.toNumber()
+    callbackInfoLen
   );
   const createEventQueueAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
@@ -110,11 +109,11 @@ export const createMarket = async (
   // Create market
   const createMarket = new createMarketInstruction({
     callerAuthority: callerAuthority.toBuffer(),
-    callbackInfoLen,
+    callbackInfoLen: new BN(callbackInfoLen),
     callbackIdLen,
     minBaseOrderSize,
     tickSize,
-    crankerReward,
+    crankerReward: new BN(0),
   }).getInstruction(
     programId,
     market.publicKey,

@@ -28,19 +28,14 @@ export enum SelfTradeBehavior {
  */
 export class MarketState {
   tag: BN;
-  callerAuthority: PublicKey;
   eventQueue: PublicKey;
   bids: PublicKey;
   asks: PublicKey;
-  callBackIdLen: BN;
-  callBackInfoLen: BN;
-  feeBudget: BN;
-  initialLamports: BN;
-  minOrderSize: BN;
+  minBaseOrderSize: BN;
   tickSize: BN;
-  crankerReward: BN;
+  callbackInfoLen!: number;
 
-  static LEN: number = 192;
+  static LEN: number = 120;
 
   static schema: Schema = new Map([
     [
@@ -49,48 +44,30 @@ export class MarketState {
         kind: "struct",
         fields: [
           ["tag", "u64"],
-          ["callerAuthority", [32]],
           ["eventQueue", [32]],
           ["bids", [32]],
           ["asks", [32]],
-          ["callBackIdLen", "u64"],
-          ["callBackInfoLen", "u64"],
-          ["feeBudget", "u64"],
-          ["initialLamports", "u64"],
-          ["minOrderSize", "u64"],
+          ["minBaseOrderSize", "u64"],
           ["tickSize", "u64"],
-          ["crankerReward", "u64"],
         ],
       },
     ],
   ]);
 
   constructor(arg: {
-    tag: AccountTag;
-    callerAuthority: Uint8Array;
+    tag: BN;
     eventQueue: Uint8Array;
     bids: Uint8Array;
     asks: Uint8Array;
-    callBackInfoLen: BN;
-    callBackIdLen: BN;
-    feeBudget: BN;
-    initialLamports: BN;
-    minOrderSize: BN;
+    minBaseOrderSize: BN;
     tickSize: BN;
-    crankerReward: BN;
   }) {
     this.tag = new BN(arg.tag);
-    this.callerAuthority = new PublicKey(arg.callerAuthority);
     this.eventQueue = new PublicKey(arg.eventQueue);
     this.bids = new PublicKey(arg.bids);
     this.asks = new PublicKey(arg.asks);
-    this.callBackInfoLen = arg.callBackInfoLen;
-    this.callBackIdLen = arg.callBackIdLen;
-    this.feeBudget = arg.feeBudget;
-    this.initialLamports = arg.initialLamports;
-    this.minOrderSize = arg.minOrderSize;
+    this.minBaseOrderSize = arg.minBaseOrderSize;
     this.tickSize = arg.tickSize;
-    this.crankerReward = arg.crankerReward;
   }
 
   /**
@@ -102,17 +79,20 @@ export class MarketState {
   static async retrieve(
     connection: Connection,
     market: PublicKey,
+    callbackInfoLen: number,
     commitment?: Commitment
   ) {
     const accountInfo = await connection.getAccountInfo(market, commitment);
     if (!accountInfo?.data) {
       throw new Error("Invalid account provided");
     }
-    return deserializeUnchecked(
+    let res = deserializeUnchecked(
       this.schema,
       MarketState,
       accountInfo.data
     ) as MarketState;
+    res.callbackInfoLen = callbackInfoLen;
+    return res;
   }
 
   /**
@@ -125,7 +105,7 @@ export class MarketState {
     if (!bidsInfo?.data) {
       throw new Error("Invalid bids account");
     }
-    return Slab.deserialize(bidsInfo.data, this.callBackInfoLen);
+    return Slab.deserialize(bidsInfo.data, this.callbackInfoLen);
   }
 
   /**
@@ -138,6 +118,6 @@ export class MarketState {
     if (!asksInfo?.data) {
       throw new Error("Invalid asks account");
     }
-    return Slab.deserialize(asksInfo.data, this.callBackInfoLen);
+    return Slab.deserialize(asksInfo.data, this.callbackInfoLen);
   }
 }
