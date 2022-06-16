@@ -26,7 +26,7 @@ export const AAOB_ID = new PublicKey(
  * @param callbackInfoLen An example of this would be to store a public key to uniquely identify the owner of a particular order. This example would require a value of 32
  * @param callbackIdLen The prefix length of callback information which is used to identify self-trading in this example
  * @param eventCapacity The capacity of an event
- * @param nodesCapacity The capacity of a node
+ * @param orderCapacity The capacity of a node
  * @param feePayer The fee payer of the transaction
  * @param programId The agnostic orderbook program ID, or null to use the deployed program ID
  * @returns
@@ -37,7 +37,7 @@ export const createMarket = async (
   callbackInfoLen: BN,
   callbackIdLen: BN,
   eventCapacity: number,
-  nodesCapacity: number,
+  orderCapacity: number,
   minBaseOrderSize: BN,
   feePayer: PublicKey,
   tickSize: BN,
@@ -70,7 +70,7 @@ export const createMarket = async (
 
   // Bids account
   const bids = new Keypair();
-  const slabSize = SlabHeader.PADDED_LEN + Slab.SLOT_SIZE * nodesCapacity;
+  const slabSize = Slab.computeAllocationSize(orderCapacity, callbackInfoLen);
   const createBidsAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(slabSize),
