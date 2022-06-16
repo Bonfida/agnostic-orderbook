@@ -1,6 +1,6 @@
 {
   "name": "@bonfida/aaob",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "license": "MIT",
   "repository": {
     "type": "git"
@@ -23,8 +23,8 @@
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.1",
-    "@types/bs58": "^4.0.1",
     "@types/bn.js": "^5.1.0",
+    "@types/bs58": "^4.0.1",
     "@types/jest": "^27.0.2",
     "@types/node": "^14.14.20",
     "@types/tmp": "^0.2.2",
