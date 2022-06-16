@@ -22,11 +22,9 @@ export class EventQueueHeader {
   tag: AccountTag;
   head: BN;
   count: BN;
-  eventSize: BN;
   seqNum: BN;
 
-  static LEN: number = 33;
-  static REGISTER_SIZE: number = 42;
+  static LEN: number = 32;
 
   /**
    * @param callBackInfoLen number of bytes in the callback info
@@ -42,27 +40,19 @@ export class EventQueueHeader {
       {
         kind: "struct",
         fields: [
-          ["tag", "u8"],
+          ["tag", "u64"],
           ["head", "u64"],
           ["count", "u64"],
-          ["eventSize", "u64"],
           ["seqNum", "u64"],
         ],
       },
     ],
   ]);
 
-  constructor(arg: {
-    tag: number;
-    head: BN;
-    count: BN;
-    eventSize: BN;
-    seqNum: BN;
-  }) {
+  constructor(arg: { tag: number; head: BN; count: BN; seqNum: BN }) {
     this.tag = arg.tag as AccountTag;
     this.head = arg.head;
     this.count = arg.count;
-    this.eventSize = arg.eventSize;
     this.seqNum = arg.seqNum;
   }
 }
@@ -72,45 +62,42 @@ export class EventQueueHeader {
  */
 export class EventFill {
   takerSide: Side;
-  makerOrderId: BN;
   quoteSize: BN;
+  makerOrderId: BN;
   baseSize: BN;
-  makerCallbackInfo: number[];
-  takerCallbackInfo: number[];
+  makerCallbackInfo!: number[];
+  takerCallbackInfo!: number[];
+
+  static LEN: number = 40;
+
+  static schema: Schema = new Map([
+    [
+      EventFill,
+      {
+        kind: "struct",
+        fields: [
+          ["tag", "u8"],
+          ["takerSide", "u8"],
+          ["_padding", [6]],
+          ["quoteSize", "u64"],
+          ["makerOrderId", "u128"],
+          ["baseSize", "u64"],
+        ],
+      },
+    ],
+  ]);
 
   constructor(arg: {
-    takerSide: number;
-    makerOrderId: BN;
+    tag: number;
+    takerSide: Side;
     quoteSize: BN;
+    makerOrderId: BN;
     baseSize: BN;
-    makerCallbackInfo: number[];
-    takerCallbackInfo: number[];
   }) {
     this.takerSide = arg.takerSide as Side;
     this.makerOrderId = arg.makerOrderId;
     this.quoteSize = arg.quoteSize;
     this.baseSize = arg.baseSize;
-    this.makerCallbackInfo = arg.makerCallbackInfo;
-    this.takerCallbackInfo = arg.takerCallbackInfo;
-  }
-
-  /**
-   * Deserialize a buffer into an EventFill object
-   * @param callbackInfoLen Length of the callback information
-   * @param data Buffer to deserialize
-   * @returns Returns an EventFill object
-   */
-  static deserialize(callbackInfoLen: number, data: Buffer) {
-    return new EventFill({
-      takerSide: data[1],
-      makerOrderId: new BN(data.slice(2, 18), "le"),
-      quoteSize: new BN(data.slice(18, 26), "le"),
-      baseSize: new BN(data.slice(26, 34), "le"),
-      makerCallbackInfo: [...data.slice(34, 34 + callbackInfoLen)],
-      takerCallbackInfo: [
-        ...data.slice(34 + callbackInfoLen, 34 + 2 * callbackInfoLen),
-      ],
-    });
   }
 }
 
@@ -122,36 +109,35 @@ export class EventOut {
   orderId: BN;
   baseSize: BN;
   delete: boolean;
-  callBackInfo: number[];
+  callbackInfo!: number[];
+
+  static schema: Schema = new Map([
+    [
+      EventOut,
+      {
+        kind: "struct",
+        fields: [
+          ["tag", "u8"],
+          ["side", "u8"],
+          ["delete", "u8"],
+          ["_padding", [13]],
+          ["orderId", "u128"],
+          ["baseSize", "u64"],
+        ],
+      },
+    ],
+  ]);
 
   constructor(arg: {
     side: number;
     orderId: BN;
     baseSize: BN;
     delete: number;
-    callBackInfo: number[];
   }) {
     this.side = arg.side as Side;
     this.orderId = arg.orderId;
     this.baseSize = arg.baseSize;
     this.delete = arg.delete === 1;
-    this.callBackInfo = arg.callBackInfo;
-  }
-
-  /**
-   * Deserialize a buffer into an EventOut object
-   * @param callbackInfoLen Length of the callback information
-   * @param data Buffer to deserialize
-   * @returns Returns an EventOut object
-   */
-  static deserialize(callbackInfoLen: number, data: Buffer) {
-    return new EventOut({
-      side: data[1],
-      orderId: new BN(data.slice(2, 18), "le"),
-      baseSize: new BN(data.slice(18, 26), "le"),
-      delete: data[26],
-      callBackInfo: [...data.slice(27, 27 + callbackInfoLen)],
-    });
   }
 }
 
@@ -160,16 +146,19 @@ export class EventOut {
  */
 export class EventQueue {
   header: EventQueueHeader;
-  buffer: number[];
+  eventsBuffer: number[];
+  callbackInfosBuffer: number[];
   callBackInfoLen: number;
 
   constructor(arg: {
     header: EventQueueHeader;
-    buffer: number[];
+    eventsBuffer: number[];
+    callbackInfosBuffer: number[];
     callBackInfoLen: number;
   }) {
     this.header = arg.header;
-    this.buffer = arg.buffer;
+    this.eventsBuffer = arg.eventsBuffer;
+    this.callbackInfosBuffer = arg.callbackInfosBuffer;
     this.callBackInfoLen = arg.callBackInfoLen;
   }
 
@@ -180,13 +169,21 @@ export class EventQueue {
    * @returns Returns an EventQueue object
    */
   static parse(callBackInfoLen: number, data: Buffer) {
+    let header = deserializeUnchecked(
+      EventQueueHeader.schema,
+      EventQueueHeader,
+      data
+    ) as EventQueueHeader;
+    let capacity =
+      (data.length - EventQueueHeader.LEN) /
+      (EventFill.LEN + 2 * callBackInfoLen);
+    let callbackInfosOffset = capacity * EventFill.LEN;
+    let eventsBuffer = data.slice(EventQueueHeader.LEN, callbackInfosOffset);
+    let callbackInfosBuffer = data.slice(callbackInfosOffset);
     return new EventQueue({
-      header: deserializeUnchecked(
-        EventQueueHeader.schema,
-        EventQueueHeader,
-        data
-      ) as EventQueueHeader,
-      buffer: [...data],
+      header,
+      eventsBuffer: [...eventsBuffer],
+      callbackInfosBuffer: [...callbackInfosBuffer],
       callBackInfoLen,
     });
   }
@@ -216,19 +213,42 @@ export class EventQueue {
    * @returns Returns an Event object
    */
   parseEvent(idx: number) {
-    let header_offset = EventQueueHeader.LEN + EventQueueHeader.REGISTER_SIZE;
-    let offset =
-      header_offset +
-      ((idx * this.header.eventSize.toNumber() + this.header.head.toNumber()) %
-        (this.buffer.length - header_offset));
+    let eventsOffset = idx * EventFill.LEN;
     let data = Buffer.from(
-      this.buffer.slice(offset, offset + this.header.eventSize.toNumber())
+      this.eventsBuffer.slice(eventsOffset, eventsOffset + EventFill.LEN)
     );
     switch (data[0]) {
-      case EventType.Fill:
-        return EventFill.deserialize(this.callBackInfoLen, data) as EventFill;
-      case EventType.Out:
-        return EventOut.deserialize(this.callBackInfoLen, data) as EventOut;
+      case EventType.Fill: {
+        let event = deserializeUnchecked(
+          EventFill.schema,
+          EventFill,
+          data
+        ) as EventFill;
+        let makerOffset = 2 * idx * this.callBackInfoLen;
+        let takerOffset = (2 * idx + 1) * this.callBackInfoLen;
+        event.makerCallbackInfo = this.callbackInfosBuffer.slice(
+          makerOffset,
+          makerOffset + this.callBackInfoLen
+        );
+        event.takerCallbackInfo = this.callbackInfosBuffer.slice(
+          takerOffset,
+          takerOffset + this.callBackInfoLen
+        );
+        return event;
+      }
+      case EventType.Out: {
+        let event = deserializeUnchecked(
+          EventOut.schema,
+          EventOut,
+          data
+        ) as EventOut;
+        let offset = 2 * idx * this.callBackInfoLen;
+        event.callbackInfo = this.callbackInfosBuffer.slice(
+          offset,
+          offset + this.callBackInfoLen
+        );
+        return event;
+      }
       default:
         throw new Error("Invalid data provided");
     }
@@ -261,15 +281,13 @@ export class EventQueue {
     ) as EventQueueHeader;
   }
 
-  /**
-   * Extract the event queue registrar
-   * @param data Buffer to extract the registrar from
-   * @returns Returns the event queue registrar data as a buffer
-   */
-  extractRegister(data: Buffer) {
-    return data.slice(
-      EventQueueHeader.LEN,
-      EventQueueHeader.LEN + EventQueueHeader.REGISTER_SIZE
+  static computeAllocationSize(
+    desiredEventCapacity: number,
+    callbackInfoLen: number
+  ): number {
+    return (
+      desiredEventCapacity * (EventFill.LEN + 2 * callbackInfoLen) +
+      EventQueueHeader.LEN
     );
   }
 }

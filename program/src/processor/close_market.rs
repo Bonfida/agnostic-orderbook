@@ -84,11 +84,11 @@ where
 
     check_accounts(&accounts, market_state)?;
 
-    let mut bids_guard = accounts.bids.data.borrow_mut();
-    let mut asks_guard = accounts.asks.data.borrow_mut();
+    let mut bids_data = accounts.bids.data.borrow_mut();
+    let mut asks_data = accounts.asks.data.borrow_mut();
 
     // Check if there are still orders in the book
-    let orderbook_state = OrderBookState::<C>::new_safe(&mut bids_guard, &mut asks_guard).unwrap();
+    let orderbook_state = OrderBookState::<C>::new_safe(&mut bids_data, &mut asks_data).unwrap();
     if !orderbook_state.is_empty() {
         msg!("The orderbook must be empty");
         return Err(ProgramError::from(AoError::MarketStillActive));
@@ -104,12 +104,9 @@ where
     }
 
     *bytemuck::from_bytes_mut(&mut market_data[0..8]) = AccountTag::Disabled as u64;
-    *bytemuck::from_bytes_mut(&mut accounts.asks.data.borrow_mut()[0..8]) =
-        AccountTag::Disabled as u64;
-    *bytemuck::from_bytes_mut(&mut accounts.bids.data.borrow_mut()[0..8]) =
-        AccountTag::Disabled as u64;
-    *bytemuck::from_bytes_mut(&mut accounts.event_queue.data.borrow_mut()[0..8]) =
-        AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut asks_data[0..8]) = AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut bids_data[0..8]) = AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut event_queue_data[0..8]) = AccountTag::Disabled as u64;
 
     let mut market_lamports = accounts.market.lamports.borrow_mut();
     let mut bids_lamports = accounts.bids.lamports.borrow_mut();

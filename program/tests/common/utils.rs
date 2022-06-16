@@ -1,4 +1,5 @@
 use agnostic_orderbook::instruction::create_market;
+use agnostic_orderbook::state::critbit::Slab;
 use agnostic_orderbook::state::event_queue::EventQueue;
 use agnostic_orderbook::state::market_state::MarketState;
 use solana_program::instruction::Instruction;
@@ -54,11 +55,12 @@ pub async fn create_market_and_accounts(
 
     // Create bids account
     let bids_account = Keypair::new();
+    let slab_space = Slab::<[u8; 32]>::compute_allocation_size(1000);
     let create_bids_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &bids_account.pubkey(),
-        rent.minimum_balance(1_000_000),
-        1_000_000,
+        rent.minimum_balance(slab_space),
+        slab_space as u64,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
@@ -74,8 +76,8 @@ pub async fn create_market_and_accounts(
     let create_asks_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &asks_account.pubkey(),
-        rent.minimum_balance(1_000_000),
-        1_000_000,
+        rent.minimum_balance(slab_space),
+        slab_space as u64,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(
@@ -98,7 +100,6 @@ pub async fn create_market_and_accounts(
         create_market::Params {
             min_base_order_size: 10,
             tick_size: 1,
-            cranker_reward: 0,
         },
     );
     sign_send_instructions(prg_test_ctx, vec![create_market_instruction], vec![])
