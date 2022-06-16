@@ -101,7 +101,6 @@ pub fn process<'a, 'b: 'a, C: Pod>(
         event_queue: *accounts.event_queue.key,
         bids: *accounts.bids.key,
         asks: *accounts.asks.key,
-        initial_lamports: accounts.market.lamports(),
         min_base_order_size,
         tick_size,
     };

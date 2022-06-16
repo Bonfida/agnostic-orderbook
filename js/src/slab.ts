@@ -138,6 +138,11 @@ export class SlabHeader {
   }
 }
 
+export interface LeafNodeRef {
+  leafNode: LeafNode;
+  callbackInfo: Buffer;
+}
+
 export class Slab {
   header: SlabHeader;
   leafBuffer: Buffer;
@@ -286,7 +291,7 @@ export class Slab {
    * @param descending
    * @returns
    */
-  *items(descending = false): Generator<LeafNode> {
+  *items(descending = false): Generator<LeafNodeRef> {
     if (this.header.leafCount == 0) {
       return;
     }
@@ -295,7 +300,10 @@ export class Slab {
       const nodeHandle = stack.pop() as number;
       const node = this.getNode(nodeHandle);
       if (node instanceof LeafNode) {
-        yield node;
+        yield {
+          leafNode: node,
+          callbackInfo: this.getCallBackInfo(nodeHandle) as Buffer,
+        };
       } else if (node instanceof InnerNode) {
         if (descending) {
           stack.push(node.children[0], node.children[1]);
@@ -342,7 +350,7 @@ export class Slab {
    * @returns Returns an array of LeafNode object
    */
   getMinMaxNodes(maxNbOrders: number, max: boolean) {
-    const minMaxOrders: LeafNode[] = [];
+    const minMaxOrders: LeafNodeRef[] = [];
     for (const leafNode of this.items(max)) {
       if (minMaxOrders.length === maxNbOrders) {
         break;
