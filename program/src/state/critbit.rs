@@ -14,9 +14,6 @@ pub type IoError = std::io::Error;
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct SlabHeader {
-    callback_free_list_len: u64,
-    callback_free_list_head: u64,
-
     leaf_free_list_len: u32,
     leaf_free_list_head: u32,
     leaf_bump_index: u32,

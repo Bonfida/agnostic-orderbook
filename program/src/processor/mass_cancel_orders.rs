@@ -33,7 +33,6 @@ pub struct Params {
 #[derive(InstructionsAccount)]
 pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
-    #[cons(writable)]
     pub market: &'a T,
     #[allow(missing_docs)]
     #[cons(writable)]

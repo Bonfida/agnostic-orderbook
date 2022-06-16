@@ -6,7 +6,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import BN from "bn.js";
-import { EventQueueHeader } from "./event_queue";
+import { EventQueue, EventQueueHeader } from "./event_queue";
 import { MarketState } from "./market_state";
 import { Slab, SlabHeader } from "./slab";
 import { createMarketInstruction } from "./raw_instructions";
@@ -52,12 +52,10 @@ export const createMarket = async (
 
   // Event queue account
   const eventQueue = new Keypair();
-  const eventQueueSize =
-    EventQueueHeader.LEN +
-    EventQueueHeader.REGISTER_SIZE +
-    EventQueueHeader.computeSlotSize(callbackInfoLen)
-      .muln(eventCapacity)
-      .toNumber();
+  const eventQueueSize = EventQueue.computeAllocationSize(
+    eventCapacity,
+    callbackInfoLen.toNumber()
+  );
   const createEventQueueAccount = SystemProgram.createAccount({
     fromPubkey: feePayer,
     lamports: await connection.getMinimumBalanceForRentExemption(

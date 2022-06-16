@@ -140,8 +140,7 @@ export class SlabHeader {
   leafCount: BN;
   marketAddress: PublicKey;
 
-  static LEN: number = 97;
-  static PADDED_LEN: number = SlabHeader.LEN + 7;
+  static LEN: number = 96;
 
   static schema: Schema = new Map([
     [
@@ -149,16 +148,21 @@ export class SlabHeader {
       {
         kind: "struct",
         fields: [
-          ["accountTag", "u8"],
-          ["bumpIndex", "u64"],
-          ["freeListLen", "u64"],
-          ["freeListHead", "u32"],
-          ["callbackMemoryOffset", "u64"],
+          ["accountTag", "u64"],
           ["callbackFreeListLen", "u64"],
           ["callbackFreeListHead", "u64"],
-          ["callbackBumpIndex", "u64"],
+
+          ["leafFreeListLen", "u32"],
+          ["leafFreeListHead", "u32"],
+          ["leafBumpIndex", "u32"],
+
+          ["innerNodeFreeListLen", "u32"],
+          ["innerNodeFreeListHead", "u32"],
+          ["innerNodeBumpIndex", "u32"],
+
           ["rootNode", "u32"],
-          ["leafCount", "u64"],
+          ["leafCount", "u32"],
+          ["bumpIndex", "u64"],
           ["marketAddress", [32]],
         ],
       },
