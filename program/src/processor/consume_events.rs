@@ -31,7 +31,6 @@ pub struct Params {
 #[derive(InstructionsAccount)]
 pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
-    #[cons(writable)]
     pub market: &'a T,
     #[allow(missing_docs)]
     #[cons(writable)]
@@ -76,7 +75,7 @@ pub fn process<'a, 'b: 'a, C: CallbackInfo + Pod + PartialEq>(
 ) -> ProgramResult {
     accounts.perform_checks(program_id)?;
     let mut market_data = accounts.market.data.borrow_mut();
-    let mut market_state = MarketState::from_buffer(&mut market_data, AccountTag::Market)?;
+    let market_state = MarketState::from_buffer(&mut market_data, AccountTag::Market)?;
 
     check_accounts(&accounts, market_state)?;
     let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
@@ -88,14 +87,6 @@ pub fn process<'a, 'b: 'a, C: CallbackInfo + Pod + PartialEq>(
         event_queue.header.count,
         params.number_of_entries_to_consume,
     );
-    let reward = (market_state.fee_budget * capped_number_of_entries_consumed)
-        .checked_div(event_queue.header.count)
-        .ok_or(AoError::NoOperations)
-        .unwrap();
-    market_state.fee_budget -= reward;
-    **accounts.market.try_borrow_mut_lamports().unwrap() = accounts.market.lamports() - reward;
-    **accounts.reward_target.try_borrow_mut_lamports().unwrap() =
-        accounts.reward_target.lamports() + reward;
 
     // Pop Events
     event_queue.pop_n(params.number_of_entries_to_consume);

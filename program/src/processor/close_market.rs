@@ -103,7 +103,13 @@ where
         return Err(ProgramError::from(AoError::MarketStillActive));
     }
 
-    *bytemuck::from_bytes_mut(&mut market_data[0..8]) = AccountTag::Uninitialized as u64;
+    *bytemuck::from_bytes_mut(&mut market_data[0..8]) = AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut accounts.asks.data.borrow_mut()[0..8]) =
+        AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut accounts.bids.data.borrow_mut()[0..8]) =
+        AccountTag::Disabled as u64;
+    *bytemuck::from_bytes_mut(&mut accounts.event_queue.data.borrow_mut()[0..8]) =
+        AccountTag::Disabled as u64;
 
     let mut market_lamports = accounts.market.lamports.borrow_mut();
     let mut bids_lamports = accounts.bids.lamports.borrow_mut();

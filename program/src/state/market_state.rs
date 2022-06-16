@@ -20,19 +20,12 @@ pub struct MarketState {
     pub bids: Pubkey,
     /// The public key of the orderbook's asks account
     pub asks: Pubkey,
-    /// The current budget of fees that have been collected.
-    /// Cranker rewards are taken from this. This value allows
-    /// for a verification that the fee was payed in the caller program
-    /// runtime while not having to add a CPI call to the serum-core.
-    pub fee_budget: u64,
     /// The amount of lamports the market account was created with.
     pub initial_lamports: u64,
     /// The minimum order size that can be inserted into the orderbook after matching.
     pub min_base_order_size: u64,
     /// Tick size (FP32)
     pub tick_size: u64,
-    /// Cranker reward (in lamports)
-    pub cranker_reward: u64,
 }
 
 impl MarketState {

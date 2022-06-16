@@ -28,8 +28,6 @@ pub struct Params {
     pub min_base_order_size: u64,
     /// Enables the limiting of price precision on the orderbook (price ticks)
     pub tick_size: u64,
-    /// Fixed fee for every new order operation. A higher fee increases incentives for cranking.
-    pub cranker_reward: u64,
 }
 
 /// The required accounts for a create_market instruction.
@@ -83,14 +81,13 @@ pub fn process<'a, 'b: 'a, C: Pod>(
     let Params {
         min_base_order_size,
         tick_size,
-        cranker_reward,
     } = params;
 
     check_initialization(&accounts)?;
     check_rent(&accounts)?;
 
-    if min_base_order_size == 0 {
-        msg!("min_base_order_size must be > 0");
+    if min_base_order_size == 0 || tick_size == 0 {
+        msg!("min_base_order_size and tick_size must be > 0");
         return Err(ProgramError::InvalidArgument);
     }
 
@@ -104,11 +101,9 @@ pub fn process<'a, 'b: 'a, C: Pod>(
         event_queue: *accounts.event_queue.key,
         bids: *accounts.bids.key,
         asks: *accounts.asks.key,
-        fee_budget: 0,
         initial_lamports: accounts.market.lamports(),
         min_base_order_size,
         tick_size,
-        cranker_reward,
     };
 
     let mut event_queue_data = accounts.event_queue.data.borrow_mut();
