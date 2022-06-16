@@ -188,6 +188,7 @@ where
                     if self_trade_behavior == SelfTradeBehavior::AbortTransaction {
                         return Err(AoError::WouldSelfTrade);
                     }
+                    assert!(self_trade_behavior == SelfTradeBehavior::CancelProvide);
                     let provide_out_callback_info =
                         &opposite_slab.callback_infos[best_bo_h as usize];
                     let provide_out = OutEvent {
@@ -198,7 +199,6 @@ where
                         tag: EventTag::Out as u8,
                         _padding: [0; 13],
                     };
-                    println!("Hi");
                     event_queue
                         .push_back(provide_out, Some(provide_out_callback_info), None)
                         .map_err(|_| AoError::EventQueueFull)?;

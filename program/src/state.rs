@@ -23,6 +23,7 @@ pub enum AccountTag {
     EventQueue,
     Bids,
     Asks,
+    Disabled,
 }
 
 #[derive(
