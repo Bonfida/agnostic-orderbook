@@ -161,10 +161,9 @@ where
             }
 
             let offer_size = best_bo_ref.base_quantity;
-            let base_trade_qty = offer_size.min(base_qty_remaining).min(
-                fp32_div(quote_qty_remaining, best_bo_ref.price())
-                    .ok_or(AoError::NumericalOverflow)?,
-            );
+            let base_trade_qty = offer_size
+                .min(base_qty_remaining)
+                .min(fp32_div(quote_qty_remaining, best_bo_ref.price()).unwrap_or(u64::MAX));
 
             if base_trade_qty == 0 {
                 break;
