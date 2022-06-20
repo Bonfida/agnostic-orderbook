@@ -16,7 +16,7 @@ use solana_program::{
 use crate::{
     error::AoError,
     state::{critbit::Slab, event_queue::EventQueue, market_state::MarketState, AccountTag},
-    utils::{check_account_owner, check_unitialized},
+    utils::check_account_owner,
 };
 
 #[derive(BorshDeserialize, BorshSerialize, BorshSize)]
@@ -83,7 +83,6 @@ pub fn process<'a, 'b: 'a, C: Pod>(
         tick_size,
     } = params;
 
-    check_initialization(&accounts)?;
     check_rent(&accounts)?;
 
     if min_base_order_size == 0 || tick_size == 0 {
@@ -112,17 +111,7 @@ pub fn process<'a, 'b: 'a, C: Pod>(
     Slab::<C>::initialize(
         &mut accounts.asks.data.borrow_mut(),
         &mut accounts.bids.data.borrow_mut(),
-        *accounts.market.key,
     )?;
-
-    Ok(())
-}
-
-fn check_initialization(accounts: &Accounts<AccountInfo>) -> ProgramResult {
-    check_unitialized(accounts.event_queue)?;
-    check_unitialized(accounts.bids)?;
-    check_unitialized(accounts.asks)?;
-    check_unitialized(accounts.market)?;
 
     Ok(())
 }

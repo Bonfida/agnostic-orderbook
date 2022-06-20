@@ -4,7 +4,6 @@ use crate::state::AccountTag;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
 // A Slab contains the data for a slab header and two type-split arrays of inner nodes and leaves arranger in a critbit tree
 // whose leaves contain data referencing an order of the orderbook.
 
@@ -24,7 +23,6 @@ pub struct SlabHeader {
 
     root_node: u32,
     pub leaf_count: u32,
-    market_address: [u8; 32],
 }
 
 impl SlabHeader {
@@ -102,25 +100,14 @@ impl Node {
 }
 
 impl<'slab, C> Slab<'slab, C> {
-    pub fn initialize(
-        asks_data: &mut [u8],
-        bids_data: &mut [u8],
-        market_address: Pubkey,
-    ) -> Result<(), ProgramError> {
+    pub fn initialize(asks_data: &mut [u8], bids_data: &mut [u8]) -> Result<(), ProgramError> {
         if asks_data[0] != AccountTag::Uninitialized as u8
             || bids_data[0] != AccountTag::Uninitialized as u8
         {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
         asks_data[0] = AccountTag::Asks as u8;
-        let asks_header =
-            bytemuck::from_bytes_mut::<SlabHeader>(&mut asks_data[8..8 + SlabHeader::LEN]);
-        asks_header.market_address = market_address.to_bytes();
-
         bids_data[0] = AccountTag::Bids as u8;
-        let bids_header =
-            bytemuck::from_bytes_mut::<SlabHeader>(&mut bids_data[8..8 + SlabHeader::LEN]);
-        bids_header.market_address = market_address.to_bytes();
         Ok(())
     }
 
@@ -652,6 +639,7 @@ mod tests {
 
     use super::*;
     use rand::prelude::*;
+    use solana_program::pubkey::Pubkey;
 
     // #[test]
     // fn test_node_serialization() {
@@ -691,8 +679,6 @@ mod tests {
             let mut bytes = vec![0u8; Slab::<[u8; 32]>::compute_allocation_size(10_000)];
             bytes[0] = AccountTag::Asks as u8;
             let mut slab = Slab::from_buffer(&mut bytes, AccountTag::Asks).unwrap();
-
-            slab.header.market_address = Pubkey::new_unique().to_bytes();
 
             let mut model: BTreeMap<u128, (LeafNode, TestCallbackInfo)> = BTreeMap::new();
 
@@ -766,7 +752,6 @@ mod tests {
         bytes[0] = AccountTag::Asks as u8;
         let mut slab = Slab::from_buffer(&mut bytes, AccountTag::Asks).unwrap();
 
-        slab.header.market_address = Pubkey::new_unique().to_bytes();
         let mut model: BTreeMap<u128, (LeafNode, [u8; 32])> = BTreeMap::new();
 
         let mut all_keys = vec![];

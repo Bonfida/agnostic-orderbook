@@ -1,7 +1,4 @@
-use crate::{
-    error::{AoError, AoResult},
-    state::Side,
-};
+use crate::{error::AoError, state::Side};
 
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
@@ -34,13 +31,6 @@ pub(crate) fn check_account_owner(
 ) -> Result<(), AoError> {
     if account.owner.to_bytes() != owner {
         return Err(error);
-    }
-    Ok(())
-}
-
-pub(crate) fn check_unitialized(account: &AccountInfo) -> AoResult {
-    if account.data.borrow()[0] != 0 {
-        return Err(AoError::AlreadyInitialized);
     }
     Ok(())
 }
