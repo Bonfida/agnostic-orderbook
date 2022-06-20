@@ -193,11 +193,10 @@ where
                         &opposite_slab.callback_infos[best_bo_h as usize];
                     let provide_out = OutEvent {
                         side: side.opposite() as u8,
-                        delete: true as u8,
                         order_id: best_offer_id,
                         base_size: best_bo_ref.base_quantity,
                         tag: EventTag::Out as u8,
-                        _padding: [0; 13],
+                        _padding: [0; 14],
                     };
                     event_queue
                         .push_back(provide_out, Some(provide_out_callback_info), None)
@@ -238,9 +237,8 @@ where
                     side: cur_side as u8,
                     order_id: best_offer_id,
                     base_size: best_bo_ref.base_quantity,
-                    delete: true as u8,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                 };
 
                 let (_, out_event_callback_info) = self
@@ -293,11 +291,10 @@ where
                 let (order, callback_info_booted) = slab.remove_by_key(boot_candidate_key).unwrap();
                 let out = OutEvent {
                     side: side as u8,
-                    delete: true as u8,
                     order_id: order.order_id(),
                     base_size: order.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                 };
                 event_queue
                     .push_back(out, Some(callback_info_booted), None)
@@ -329,8 +326,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use solana_program::pubkey::Pubkey;
-
     use crate::state::event_queue::{EventRef, FillEventRef, OutEventRef};
 
     use super::*;
@@ -350,7 +345,7 @@ mod tests {
             let allocation_size = SlabTest::compute_allocation_size(order_capacity);
             let (mut asks_buffer, mut bids_buffer) =
                 (vec![0; allocation_size], vec![0; allocation_size]);
-            SlabTest::initialize(&mut asks_buffer, &mut bids_buffer, Pubkey::new_unique()).unwrap();
+            SlabTest::initialize(&mut asks_buffer, &mut bids_buffer).unwrap();
             Self {
                 asks_buffer,
                 bids_buffer,
@@ -536,9 +531,8 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                     base_size: 0,
-                    delete: true as u8,
                     order_id: bob_order_id_0.unwrap()
                 },
                 callback_info: &bob
@@ -610,9 +604,8 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                     base_size: 250_000,
-                    delete: true as u8,
                     order_id: alice_order_id_0.unwrap()
                 },
                 callback_info: &alice
@@ -742,9 +735,8 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                     base_size: 6_000_000,
-                    delete: true as u8,
                     order_id: order_id_to_be_booted.unwrap()
                 },
                 callback_info: &alice
@@ -940,9 +932,8 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 13],
+                    _padding: [0; 14],
                     base_size: 6_000_000,
-                    delete: true as u8,
                     order_id: order_id_to_be_booted.unwrap()
                 },
                 callback_info: &alice

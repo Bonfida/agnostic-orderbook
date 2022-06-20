@@ -94,14 +94,16 @@ where
 
     let mut order_book = OrderBookState::<C>::new_safe(&mut bids_guard, &mut asks_guard)?;
 
-    let mut total_base_qty = 0;
-    let mut total_quote_qty = 0;
+    let mut total_base_qty = 0u64;
+    let mut total_quote_qty = 0u64;
 
     for order_id in params.order_ids {
         let slab = order_book.get_tree(get_side_from_order_id(order_id));
         let (leaf_node, _) = slab.remove_by_key(order_id).ok_or(AoError::OrderNotFound)?;
-        total_base_qty += leaf_node.base_quantity;
-        total_quote_qty += fp32_mul(leaf_node.base_quantity, leaf_node.price()).unwrap();
+        total_base_qty = total_base_qty.checked_add(leaf_node.base_quantity).unwrap();
+        total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price())
+            .and_then(|n| n.checked_add(total_quote_qty))
+            .unwrap();
     }
 
     let order_summary = OrderSummary {

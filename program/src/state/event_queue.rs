@@ -45,9 +45,7 @@ pub struct OutEvent {
     pub tag: u8,
     /// The u8 representation for a [`Side`] enum
     pub side: u8,
-    /// The total quote size of the transaction
-    pub delete: u8,
-    pub(crate) _padding: [u8; 13],
+    pub(crate) _padding: [u8; 14],
     /// The order id of the maker order
     pub order_id: u128,
     /// The total base size of the transaction
@@ -359,9 +357,8 @@ mod tests {
                         OutEvent {
                             tag: EventTag::Out as u8,
                             side: Side::Ask as u8,
-                            _padding: [0; 13],
+                            _padding: [0; 14],
                             base_size: seq_gen.next().unwrap(),
-                            delete: true as u8,
                             order_id: seq_gen.next().unwrap() as u128,
                         },
                         Some(&[seq_gen.next().unwrap() as u8; 32]),
@@ -399,9 +396,8 @@ mod tests {
                             event: &OutEvent {
                                 tag: EventTag::Out as u8,
                                 side: Side::Ask as u8,
-                                _padding: [0; 13],
+                                _padding: [0; 14],
                                 base_size: seq_gen.next().unwrap(),
-                                delete: true as u8,
                                 order_id: seq_gen.next().unwrap() as u128,
                             },
                             callback_info: &[seq_gen.next().unwrap() as u8; 32]
