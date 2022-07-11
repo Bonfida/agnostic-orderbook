@@ -71,6 +71,21 @@ export class MarketState {
   }
 
   /**
+   * Deserialize a market account data into `MarketState`
+   * @param data Account data to deserialize
+   * @returns
+   */
+  static deserialize(data: Buffer, callbackInfoLen: number): MarketState {
+    const res = deserializeUnchecked(
+      this.schema,
+      MarketState,
+      data
+    ) as MarketState;
+    res.callbackInfoLen = callbackInfoLen;
+    return res;
+  }
+
+  /**
    * Loads a market from its address
    * @param connection The solana connection object to the RPC node
    * @param market The address of the market to load
@@ -86,12 +101,7 @@ export class MarketState {
     if (!accountInfo?.data) {
       throw new Error("Invalid account provided");
     }
-    let res = deserializeUnchecked(
-      this.schema,
-      MarketState,
-      accountInfo.data
-    ) as MarketState;
-    res.callbackInfoLen = callbackInfoLen;
+    const res = this.deserialize(accountInfo.data, callbackInfoLen);
     return res;
   }
 
