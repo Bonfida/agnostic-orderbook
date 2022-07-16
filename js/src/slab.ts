@@ -1,4 +1,3 @@
-import { PublicKey } from "@solana/web3.js";
 import { Schema, deserializeUnchecked } from "borsh";
 import BN from "bn.js";
 import { AccountTag } from "./market_state";
@@ -84,9 +83,8 @@ export class SlabHeader {
   innerNodeBumpIndex: number;
   rootNode: number;
   leafCount: number;
-  marketAddress: PublicKey;
 
-  static LEN: number = 72;
+  static LEN: number = 40;
 
   static schema: Schema = new Map([
     [
@@ -106,7 +104,6 @@ export class SlabHeader {
 
           ["rootNode", "u32"],
           ["leafCount", "u32"],
-          ["marketAddress", [32]],
         ],
       },
     ],
@@ -122,7 +119,6 @@ export class SlabHeader {
     innerNodeBumpIndex: number;
     rootNode: number;
     leafCount: number;
-    marketAddress: Uint8Array;
   }) {
     this.accountTag = arg.accountTag.toNumber() as AccountTag;
     this.rootNode = arg.rootNode;
@@ -134,7 +130,6 @@ export class SlabHeader {
     this.innerNodeFreeListLen = arg.innerNodeFreeListLen;
     this.innerNodeFreeListHead = arg.innerNodeFreeListHead;
     this.innerNodeBumpIndex = arg.innerNodeBumpIndex;
-    this.marketAddress = new PublicKey(arg.marketAddress);
   }
 }
 
