@@ -169,7 +169,7 @@ export class EventQueue {
     let capacity =
       (data.length - EventQueueHeader.LEN) /
       (EventFill.LEN + 2 * callBackInfoLen);
-    let callbackInfosOffset = capacity * EventFill.LEN;
+    let callbackInfosOffset = EventQueueHeader.LEN + capacity * EventFill.LEN;
     let eventsBuffer = data.slice(EventQueueHeader.LEN, callbackInfosOffset);
     let callbackInfosBuffer = data.slice(callbackInfosOffset);
     return new EventQueue({
