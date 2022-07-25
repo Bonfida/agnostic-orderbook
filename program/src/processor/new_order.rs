@@ -133,6 +133,13 @@ where
         return Err(AoError::InvalidLimitPrice.into());
     }
 
+    if params.post_allowed && params.limit_price < market_state.tick_size {
+        msg!(
+            "Can't attempt to post an order of price less than market tick size to the orderbook!"
+        );
+        return Err(AoError::InvalidLimitPrice.into());
+    }
+
     let mut bids_guard = accounts.bids.data.borrow_mut();
     let mut asks_guard = accounts.asks.data.borrow_mut();
 
