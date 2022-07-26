@@ -273,8 +273,7 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 [[package]]
 name = "bonfida-macros"
 version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5560c4eb64bcc9c0eb4ad3975155c30cb353a898299dcc47c5400bf7e21c60ff"
+source = "git+https://github.com/Bonfida/bonfida-utils.git?branch=add-rounding-direction#f24f508be40c541a463e308c4dbe05de13b97a5d"
 dependencies = [
  "proc-macro2 1.0.38",
  "quote 1.0.18",
@@ -284,18 +283,19 @@ dependencies = [
 
 [[package]]
 name = "bonfida-utils"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0de55392939054ec60454e98ad8befaadd58aea49027021c2f88ca5dd168695e"
+version = "0.3.0"
+source = "git+https://github.com/Bonfida/bonfida-utils.git?branch=add-rounding-direction#f24f508be40c541a463e308c4dbe05de13b97a5d"
 dependencies = [
  "bonfida-macros",
  "borsh",
+ "bytemuck",
  "lazy_static",
  "pyth-sdk-solana",
  "regex",
  "serde",
  "serde_json",
  "solana-program",
+ "spl-token",
 ]
 
 [[package]]
