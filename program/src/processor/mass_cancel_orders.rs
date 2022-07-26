@@ -1,6 +1,6 @@
 //! Cancel a series of existing orders in the orderbook.
 
-use bonfida_utils::{fp_math::fp32_mul, BorshSize, InstructionsAccount};
+use bonfida_utils::{fp_math::fp32_mul_floor, BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use solana_program::{
@@ -101,7 +101,7 @@ where
         let slab = order_book.get_tree(get_side_from_order_id(order_id));
         let (leaf_node, _) = slab.remove_by_key(order_id).ok_or(AoError::OrderNotFound)?;
         total_base_qty = total_base_qty.checked_add(leaf_node.base_quantity).unwrap();
-        total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price())
+        total_quote_qty = fp32_mul_floor(leaf_node.base_quantity, leaf_node.price())
             .and_then(|n| n.checked_add(total_quote_qty))
             .unwrap();
     }
