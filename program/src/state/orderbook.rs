@@ -12,7 +12,7 @@ use crate::{
         AccountTag, SelfTradeBehavior, Side,
     },
 };
-use bonfida_utils::fp_math::{fp32_div, fp32_mul};
+use bonfida_utils::fp_math::{fp32_div, fp32_mul_ceil, fp32_mul_floor};
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use solana_program::{msg, program_error::ProgramError};
@@ -169,8 +169,11 @@ where
                 break;
             }
 
-            let quote_maker_qty =
-                fp32_mul(base_trade_qty, trade_price).ok_or(AoError::NumericalOverflow)?;
+            let quote_maker_qty = match side {
+                Side::Bid => fp32_mul_ceil(base_trade_qty, trade_price),
+                Side::Ask => fp32_mul_floor(base_trade_qty, trade_price),
+            }
+            .ok_or(AoError::NumericalOverflow)?;
 
             if quote_maker_qty == 0 {
                 break;
@@ -312,8 +315,11 @@ where
         };
         *self.get_tree(side).get_callback_info_mut(k) = callback_info;
         base_qty_remaining -= base_qty_to_post;
-        quote_qty_remaining -=
-            fp32_mul(base_qty_to_post, limit_price).ok_or(AoError::NumericalOverflow)?;
+        quote_qty_remaining -= match side {
+            Side::Bid => fp32_mul_ceil(base_qty_to_post, limit_price),
+            Side::Ask => fp32_mul_floor(base_qty_to_post, limit_price),
+        }
+        .ok_or(AoError::NumericalOverflow)?;
         Ok(OrderSummary {
             posted_order_id: Some(new_leaf_order_id),
             total_base_qty: max_base_qty - base_qty_remaining,
