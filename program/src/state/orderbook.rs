@@ -173,6 +173,7 @@ where
                 Side::Bid => fp32_mul_ceil(base_trade_qty, trade_price),
                 Side::Ask => fp32_mul_floor(base_trade_qty, trade_price),
             }
+            .map(|q| std::cmp::min(q, quote_qty_remaining))
             .ok_or(AoError::NumericalOverflow)?;
 
             if quote_maker_qty == 0 {
