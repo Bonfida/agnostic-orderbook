@@ -97,13 +97,13 @@ pub fn process<'a, 'b: 'a, C: Pod>(
     MarketState::check_buffer_size(&market_data)?;
     let market_state = MarketState::from_buffer(&mut market_data, AccountTag::Uninitialized)?;
 
-    *market_state = MarketState {
-        event_queue: *accounts.event_queue.key,
-        bids: *accounts.bids.key,
-        asks: *accounts.asks.key,
+    *market_state = MarketState::init_new(
+        accounts.event_queue.key,
+        accounts.bids.key,
+        accounts.asks.key,
         min_base_order_size,
         tick_size,
-    };
+    );
 
     let mut event_queue_data = accounts.event_queue.data.borrow_mut();
 

@@ -328,6 +328,90 @@ where
             total_base_qty_posted: base_qty_to_post,
         })
     }
+
+    pub fn insert_without_matching(
+        &mut self,
+        params: new_order::Params<C>,
+        event_queue: &mut EventQueue<'a, C>,
+        min_base_order_size: u64,
+    ) -> Result<OrderSummary, AoError> {
+        let new_order::Params {
+            max_base_qty,
+            max_quote_qty,
+            side,
+            limit_price,
+            callback_info,
+            post_allowed,
+            ..
+        } = params;
+
+        let base_qty_to_post = std::cmp::min(
+            fp32_div(max_quote_qty, limit_price).unwrap_or(u64::MAX),
+            max_base_qty,
+        );
+
+        if base_qty_to_post < min_base_order_size || !post_allowed {
+            return Ok(OrderSummary {
+                posted_order_id: None,
+                total_base_qty: max_base_qty,
+                total_quote_qty: max_quote_qty,
+                total_base_qty_posted: base_qty_to_post,
+            });
+        }
+
+        let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
+        let new_leaf = LeafNode {
+            key: new_leaf_order_id,
+            base_quantity: base_qty_to_post,
+        };
+        let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
+        let k = if let Err(AoError::SlabOutOfSpace) = insert_result {
+            // Boot out the least aggressive orders
+            msg!("Orderbook is full! booting least aggressive orders...");
+            let slab = self.get_tree(side);
+            let boot_candidate = match side {
+                Side::Bid => slab.find_min().unwrap(),
+                Side::Ask => slab.find_max().unwrap(),
+            };
+            let boot_candidate_key = slab.leaf_nodes[boot_candidate as usize].key;
+            let boot_candidate_price = LeafNode::price_from_key(boot_candidate_key);
+            let should_boot = match side {
+                Side::Bid => boot_candidate_price < limit_price,
+                Side::Ask => boot_candidate_price > limit_price,
+            };
+            if should_boot {
+                let (order, callback_info_booted) = slab.remove_by_key(boot_candidate_key).unwrap();
+                let out = OutEvent {
+                    side: side as u8,
+                    order_id: order.order_id(),
+                    base_size: order.base_quantity,
+                    tag: EventTag::Out as u8,
+                    _padding: [0; 14],
+                };
+                event_queue
+                    .push_back(out, Some(callback_info_booted), None)
+                    .map_err(|_| AoError::EventQueueFull)?;
+                slab.insert_leaf(&new_leaf).unwrap().0
+            } else {
+                return Ok(OrderSummary {
+                    posted_order_id: None,
+                    total_base_qty: max_base_qty,
+                    total_quote_qty: max_quote_qty,
+                    total_base_qty_posted: 0,
+                });
+            }
+        } else {
+            insert_result.unwrap().0
+        };
+
+        *self.get_tree(side).get_callback_info_mut(k) = callback_info;
+        Ok(OrderSummary {
+            posted_order_id: Some(new_leaf_order_id),
+            total_base_qty: max_base_qty,
+            total_quote_qty: max_quote_qty,
+            total_base_qty_posted: base_qty_to_post,
+        })
+    }
 }
 
 #[cfg(test)]
