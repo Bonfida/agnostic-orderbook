@@ -56,6 +56,10 @@ impl CallbackInfo for [u8; 32] {
 /// The serialized size of an OrderSummary object.
 pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
+/// The maximum number of matches a single transaction can handle, based on compute limit
+/// TODO: Find this value empirically
+pub const MAX_MATCHES_PER_TRANSACTION: u32 = 5;
+
 #[doc(hidden)]
 pub struct OrderBookState<'a, C> {
     pub bids: Slab<'a, C>,
@@ -406,12 +410,47 @@ where
         })
     }
 
+    /// Attempts to match all spread-crossing orders currently on the book. Limed by `MAX_MATCHES_PER_TRANSACTION`.
+    ///
+    /// Returns the number of successful matches.
     pub fn match_existing_orders(
         &mut self,
         event_queue: &mut EventQueue<'a, C>,
         min_base_order_size: u64,
-    ) -> Result<u32, AoError> {
-        Ok(0)
+    ) -> Result<bool, AoError> {
+        for _ in 0..MAX_MATCHES_PER_TRANSACTION {
+            let order_params = match self.asks.find_min() {
+                Some(h) => {
+                    // pop the order off the tree
+                    let (order, callback_info) = self
+                        .asks
+                        .remove_by_key(self.asks.leaf_nodes[h as usize].key)
+                        .unwrap();
+
+                    let limit_price = order.price();
+                    let max_quote_qty = fp32_div(limit_price, order.base_quantity)
+                        .ok_or(AoError::NumericalOverflow)?;
+
+                    new_order::Params {
+                        max_base_qty: order.base_quantity,
+                        max_quote_qty,
+                        limit_price,
+                        side: Side::Ask,
+                        match_limit: u64::MAX,
+                        callback_info: *callback_info,
+                        post_only: false,
+                        post_allowed: true,
+                        self_trade_behavior: SelfTradeBehavior::CancelProvide,
+                    }
+                }
+                None => {
+                    // no orders to match
+                    return Ok(true);
+                }
+            };
+            self.new_order(order_params, event_queue, min_base_order_size)?;
+        }
+        Ok(false)
     }
 }
 

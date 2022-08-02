@@ -6,6 +6,7 @@ use bytemuck::Pod;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -97,8 +98,14 @@ where
         EventQueue::<C>::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
 
     match order_book.match_existing_orders(&mut event_queue, market_state.min_base_order_size) {
-        Ok(_) => {
-            market_state.pause_matching = 1;
+        Ok(completed) => {
+            if completed {
+                msg!("All sitting orders have been filled. Regular mathcing behavior resumed.");
+                market_state.pause_matching = 1;
+            } else {
+                msg!("Unmatched orders remain. Please run this instruction again to clear them before resuming regular behavior.");
+            }
+
             Ok(())
         }
         Err(e) => Err(e.into()),
