@@ -412,6 +412,14 @@ where
             total_base_qty_posted: base_qty_to_post,
         })
     }
+
+    pub fn match_existing_orders(
+        &mut self,
+        event_queue: &mut EventQueue<'a, C>,
+        min_base_order_size: u64,
+    ) -> Result<u32, AoError> {
+        Ok(0)
+    }
 }
 
 #[cfg(test)]
