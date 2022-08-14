@@ -142,6 +142,25 @@ impl<'a, C: Pod> Slab<'a, C> {
             callback_infos: bytemuck::cast_slice_mut::<_, C>(callback_infos),
         })
     }
+
+    pub fn from_buffer_unchecked(buf: &'a mut [u8]) -> Result<Self, ProgramError> {
+        let callback_info_len = std::mem::size_of::<C>();
+        let leaf_size = LeafNode::LEN + callback_info_len;
+        let capacity = (buf.len() - SlabHeader::LEN - 8 - leaf_size) / (leaf_size + InnerNode::LEN);
+
+        let (_, rem) = buf.split_at_mut(8);
+        let (header, rem) = rem.split_at_mut(SlabHeader::LEN);
+        let (leaves, rem) = rem.split_at_mut((capacity + 1) * LeafNode::LEN);
+        let (inner_nodes, callback_infos) = rem.split_at_mut(capacity * InnerNode::LEN);
+        let header = bytemuck::from_bytes_mut::<SlabHeader>(header);
+
+        Ok(Self {
+            header,
+            leaf_nodes: bytemuck::cast_slice_mut::<_, LeafNode>(leaves),
+            inner_nodes: bytemuck::cast_slice_mut::<_, InnerNode>(inner_nodes),
+            callback_infos: bytemuck::cast_slice_mut::<_, C>(callback_infos),
+        })
+    }
 }
 
 impl<'a, C> Slab<'a, C> {
