@@ -35,9 +35,6 @@ pub struct Accounts<'a, T> {
     #[allow(missing_docs)]
     #[cons(writable)]
     pub event_queue: &'a T,
-    #[allow(missing_docs)]
-    #[cons(writable)]
-    pub reward_target: &'a T,
 }
 
 impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
@@ -47,7 +44,6 @@ impl<'a, 'b: 'a> Accounts<'a, AccountInfo<'b>> {
         let a = Self {
             market: next_account_info(accounts_iter)?,
             event_queue: next_account_info(accounts_iter)?,
-            reward_target: next_account_info(accounts_iter)?,
         };
         Ok(a)
     }
