@@ -232,7 +232,6 @@ async fn test_agnostic_orderbook() {
         consume_events::Accounts {
             market: &market_account,
             event_queue: &market_state.event_queue,
-            reward_target: &reward_target.pubkey(),
         },
         register_account,
         consume_events::Params {
