@@ -1,7 +1,7 @@
 //! The market state struct tracks metadata and security information about the agnostic orderbook system and its
 //! relevant accounts
 use bytemuck::{Pod, Zeroable};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 use std::mem::size_of;
 
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
@@ -43,6 +43,15 @@ impl MarketState {
         let (_, data) = account_data.split_at_mut(8);
 
         Ok(bytemuck::from_bytes_mut(data))
+    }
+
+    #[allow(missing_docs)]
+    pub fn check_buffer_size(account_data: &[u8]) -> ProgramResult {
+        if account_data.len() != 8 + MarketState::LEN {
+            msg!("Invalid market size!");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(())
     }
 }
 
