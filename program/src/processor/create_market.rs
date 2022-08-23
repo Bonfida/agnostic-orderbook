@@ -94,6 +94,7 @@ pub fn process<'a, 'b: 'a, C: Pod>(
 
     let mut market_data = accounts.market.data.borrow_mut();
 
+    MarketState::check_buffer_size(&market_data)?;
     let market_state = MarketState::from_buffer(&mut market_data, AccountTag::Uninitialized)?;
 
     *market_state = MarketState::init_new(

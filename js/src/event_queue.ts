@@ -247,6 +247,16 @@ export class EventQueue {
   }
 
   /**
+   * Retrieves the event at position `idx` in the queue.
+   * @param idx Index of the event to peek and parse
+   * @returns Returns an Event object
+   */
+  peekAt(idx: number) {
+    const len = this.eventsBuffer.length / EventFill.LEN;
+    return this.parseEvent((idx + this.header.head.toNumber()) % len);
+  }
+
+  /**
    * Returns fill events from the event queue
    * @param limit Optional limit parameter
    * @returns An array of EventFill
