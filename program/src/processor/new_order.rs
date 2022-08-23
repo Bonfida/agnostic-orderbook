@@ -133,6 +133,13 @@ where
         return Err(AoError::InvalidLimitPrice.into());
     }
 
+    if params.post_allowed && params.limit_price < market_state.tick_size {
+        msg!(
+            "Can't attempt to post an order of price less than market tick size to the orderbook!"
+        );
+        return Err(AoError::InvalidLimitPrice.into());
+    }
+
     let mut bids_guard = accounts.bids.data.borrow_mut();
     let mut asks_guard = accounts.asks.data.borrow_mut();
 
@@ -141,14 +148,13 @@ where
     let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
     let mut event_queue = EventQueue::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
 
-    let order_summary = match market_state.pause_matching {
-        0 => order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?,
-        1 => order_book.insert_without_matching(
+    let order_summary = match market_state.pause_matching == 0 {
+        true => order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?,
+        false => order_book.insert_without_matching(
             params,
             &mut event_queue,
             market_state.min_base_order_size,
         )?,
-        _ => panic!("unreachable"),
     };
     msg!("Order summary : {:?}", order_summary);
 

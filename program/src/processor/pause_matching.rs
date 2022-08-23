@@ -61,7 +61,7 @@ where
     let market_state = MarketState::from_buffer(&mut market_data, AccountTag::Market)?;
 
     // bytemuck does not like boolean values
-    market_state.pause_matching = 1;
+    market_state.pause_matching = true as u8;
 
     Ok(())
 }
