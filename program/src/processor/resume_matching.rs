@@ -101,7 +101,7 @@ where
         Ok(completed) => {
             if completed {
                 msg!("All sitting orders have been filled. Regular mathcing behavior resumed.");
-                market_state.pause_matching = 1;
+                market_state.pause_matching = false as u8;
             } else {
                 msg!("Unmatched orders remain. Please run this instruction again to clear them before resuming regular behavior.");
             }
