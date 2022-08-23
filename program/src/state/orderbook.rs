@@ -33,6 +33,8 @@ pub struct OrderSummary {
     pub total_quote_qty: u64,
     #[allow(missing_docs)]
     pub total_base_qty_posted: u64,
+    #[allow(missing_docs)]
+    pub price: u64,
 }
 
 /// This trait defines a subobject which can be used to compare two callback information object to determine
@@ -267,6 +269,7 @@ where
                 total_base_qty: max_base_qty - base_qty_remaining,
                 total_quote_qty: max_quote_qty - quote_qty_remaining,
                 total_base_qty_posted: 0,
+                price: trade_price,
             });
         }
 
@@ -309,6 +312,7 @@ where
                     total_base_qty: max_base_qty - base_qty_remaining,
                     total_quote_qty: max_quote_qty - quote_qty_remaining,
                     total_base_qty_posted: 0,
+                    price: trade_price,
                 });
             }
         } else {
@@ -323,6 +327,7 @@ where
             total_base_qty: max_base_qty - base_qty_remaining,
             total_quote_qty: max_quote_qty - quote_qty_remaining,
             total_base_qty_posted: base_qty_to_post,
+            price: trade_price,
         })
     }
 
@@ -353,6 +358,7 @@ where
                 total_base_qty: max_base_qty,
                 total_quote_qty: max_quote_qty,
                 total_base_qty_posted: base_qty_to_post,
+                price: limit_price,
             });
         }
 
@@ -395,6 +401,7 @@ where
                     total_base_qty: max_base_qty,
                     total_quote_qty: max_quote_qty,
                     total_base_qty_posted: 0,
+                    price: limit_price,
                 });
             }
         } else {
@@ -407,6 +414,7 @@ where
             total_base_qty: max_base_qty,
             total_quote_qty: max_quote_qty,
             total_base_qty_posted: base_qty_to_post,
+            price: limit_price,
         })
     }
 
@@ -529,6 +537,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -557,6 +566,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -585,6 +595,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -614,6 +625,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -704,6 +716,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -778,6 +791,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -807,6 +821,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -836,6 +851,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -881,6 +897,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -918,6 +935,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -975,6 +993,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -1004,6 +1023,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -1033,6 +1053,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
@@ -1078,6 +1099,7 @@ mod tests {
             total_base_qty,
             total_quote_qty,
             total_base_qty_posted,
+            price,
         } = orderbook
             .new_order(
                 new_order::Params {
