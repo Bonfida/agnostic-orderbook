@@ -9,6 +9,7 @@ use bonfida_utils::{BorshSize, InstructionsAccount};
 
 pub use crate::processor::{
     cancel_order, close_market, consume_events, create_market, mass_cancel_orders, new_order,
+    pause_matching, resume_matching,
 };
 #[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
@@ -88,6 +89,28 @@ pub enum AgnosticOrderbookInstruction {
     /// | 3     | ✅       | ❌     | The asks account        |
     /// | 4     | ❌       | ✅     | The caller authority    |
     MassCancelOrders,
+    /// Pause the matching engine.
+    ///
+    /// Required accounts
+    ///
+    /// | index | writable | signer   | description                 |
+    /// |-------|----------|----------|-----------------------------|
+    /// | 0     | ✅        | ❌      | The market account          |
+    PauseMatching,
+    /// Resume matching on the order book
+    ///
+    /// The instruction will proceed to match all crossing orders currently extant on the book
+    ///
+    /// Required accounts
+    ///
+    ///
+    /// | index | writable | signer | description             |
+    /// |-------|----------|--------|-------------------------|
+    /// | 0     | ✅       | ❌     | The market account      |
+    /// | 1     | ✅       | ❌     | The event queue account |
+    /// | 2     | ✅       | ❌     | The bids account        |
+    /// | 3     | ✅       | ❌     | The asks account        |
+    ResumeMatching,
 }
 
 /**
@@ -218,6 +241,45 @@ pub fn mass_cancel_orders(
         AgnosticOrderbookInstruction::CloseMarket as u8,
         params,
     );
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
+}
+
+/// Pause the matching engine.
+pub fn pause_matching(
+    accounts: pause_matching::Accounts<Pubkey>,
+    register_account: Pubkey,
+    params: pause_matching::Params,
+) -> Instruction {
+    let mut i = accounts.get_instruction(
+        crate::id(),
+        AgnosticOrderbookInstruction::PauseMatching as u8,
+        params,
+    );
+
+    i.accounts.push(AccountMeta {
+        pubkey: register_account,
+        is_signer: false,
+        is_writable: true,
+    });
+    i
+}
+/// Pause the matching engine.
+pub fn resume_matching(
+    accounts: resume_matching::Accounts<Pubkey>,
+    register_account: Pubkey,
+    params: resume_matching::Params,
+) -> Instruction {
+    let mut i = accounts.get_instruction(
+        crate::id(),
+        AgnosticOrderbookInstruction::ResumeMatching as u8,
+        params,
+    );
+
     i.accounts.push(AccountMeta {
         pubkey: register_account,
         is_signer: false,

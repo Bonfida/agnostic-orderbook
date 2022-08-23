@@ -148,8 +148,14 @@ where
     let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
     let mut event_queue = EventQueue::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
 
-    let order_summary =
-        order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?;
+    let order_summary = match market_state.pause_matching == 0 {
+        true => order_book.new_order(params, &mut event_queue, market_state.min_base_order_size)?,
+        false => order_book.insert_without_matching(
+            params,
+            &mut event_queue,
+            market_state.min_base_order_size,
+        )?,
+    };
     msg!("Order summary : {:?}", order_summary);
 
     Ok(order_summary)
