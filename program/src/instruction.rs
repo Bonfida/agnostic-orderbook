@@ -9,8 +9,8 @@ use bonfida_utils::{BorshSize, InstructionsAccount};
 
 pub use crate::processor::{
     cancel_order, close_market, consume_events, create_market, mass_cancel_orders, new_order,
+    pause_matching, resume_matching,
 };
-use crate::processor::{pause_matching, resume_matching};
 #[derive(BorshDeserialize, BorshSerialize, FromPrimitive)]
 /// Describes all possible instructions and their required accounts
 pub enum AgnosticOrderbookInstruction {
