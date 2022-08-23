@@ -426,35 +426,40 @@ where
         min_base_order_size: u64,
     ) -> Result<bool, AoError> {
         for _ in 0..MAX_MATCHES_PER_TRANSACTION {
-            let order_params = match self.asks.find_min() {
-                Some(h) => {
-                    // pop the order off the tree
-                    let (order, callback_info) = self
-                        .asks
-                        .remove_by_key(self.asks.leaf_nodes[h as usize].key)
-                        .unwrap();
+            let (best_bid, best_ask) = self.get_spread();
+            if let None = best_bid {
+                // no bids to match, orderbook caught up
+                return Ok(true);
+            }
+            if let None = best_ask {
+                // no asks to match, orderbook caught up
+                return Ok(true);
+            }
 
-                    let limit_price = order.price();
-                    let max_quote_qty = fp32_div(limit_price, order.base_quantity)
-                        .ok_or(AoError::NumericalOverflow)?;
+            let handle = self.asks.find_min().unwrap();
 
-                    new_order::Params {
-                        max_base_qty: order.base_quantity,
-                        max_quote_qty,
-                        limit_price,
-                        side: Side::Ask,
-                        match_limit: u64::MAX,
-                        callback_info: *callback_info,
-                        post_only: false,
-                        post_allowed: true,
-                        self_trade_behavior: SelfTradeBehavior::CancelProvide,
-                    }
-                }
-                None => {
-                    // no orders to match
-                    return Ok(true);
-                }
+            // pop the order off the tree
+            let (order, callback_info) = self
+                .asks
+                .remove_by_key(self.asks.leaf_nodes[handle as usize].key)
+                .unwrap();
+
+            let limit_price = order.price();
+            let max_quote_qty =
+                fp32_div(limit_price, order.base_quantity).ok_or(AoError::NumericalOverflow)?;
+
+            let order_params = new_order::Params {
+                max_base_qty: order.base_quantity,
+                max_quote_qty,
+                limit_price,
+                side: Side::Ask,
+                match_limit: u64::MAX,
+                callback_info: *callback_info,
+                post_only: false,
+                post_allowed: true,
+                self_trade_behavior: SelfTradeBehavior::CancelProvide,
             };
+
             self.new_order(order_params, event_queue, min_base_order_size)?;
         }
         Ok(false)
