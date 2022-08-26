@@ -15,6 +15,7 @@ pub mod consume_events;
 pub mod create_market;
 pub mod mass_cancel_orders;
 pub mod new_order;
+pub mod prune_orders;
 
 pub fn process_instruction<C: Pod + BorshDeserialize + CallbackInfo + PartialEq>(
     program_id: &Pubkey,

@@ -9,6 +9,7 @@ use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError};
+use std::convert::TryFrom;
 
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
 pub use crate::utils::get_spread;
@@ -195,6 +196,14 @@ impl<'queue, C: Clone> EventQueue<'queue, C> {
 }
 
 impl<'queue, C> EventQueue<'queue, C> {
+    /// Compute the number of events that the event queue can hold based on the account's data_len
+    pub fn capacity(&self, data_len: usize) -> u64 {
+        let callback_info_len = std::mem::size_of::<C>();
+        let capacity =
+            (data_len - 8 - EventQueueHeader::LEN) / (FillEvent::LEN + 2 * callback_info_len);
+        u64::try_from(capacity).unwrap()
+    }
+
     /// Compute the allocation size for an event queue of a desired capacity
     pub fn compute_allocation_size(desired_event_capacity: usize) -> usize {
         desired_event_capacity * (FillEvent::LEN + 2 * std::mem::size_of::<C>())
