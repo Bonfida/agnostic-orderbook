@@ -72,6 +72,13 @@ where
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             return mass_cancel_orders::process::<C>(program_id, accounts, params).map(Some);
         }
+        AgnosticOrderbookInstruction::PruneOrders => {
+            msg!("Instruction: Prune Orders");
+            let accounts = prune_orders::Accounts::parse(accounts)?;
+            let params = prune_orders::Params::try_from_slice(instruction_data)
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            prune_orders::process::<C>(program_id, accounts, params)?;
+        }
     }
     Ok(None)
 }
