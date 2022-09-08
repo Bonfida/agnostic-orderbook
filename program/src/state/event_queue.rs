@@ -89,9 +89,11 @@ pub(crate) enum EventTag {
     Out,
 }
 
-pub(crate) type GenericEvent = FillEvent;
+#[allow(missing_docs)]
+pub type GenericEvent = FillEvent;
 
-pub(crate) trait Event {
+#[allow(missing_docs)]
+pub trait Event {
     fn to_generic(&mut self) -> &GenericEvent;
 }
 
@@ -167,6 +169,7 @@ impl<'queue, C: Pod> EventQueue<'queue, C> {
 }
 
 impl<'queue, C: Clone> EventQueue<'queue, C> {
+    #[allow(missing_docs)]
     pub fn push_back<Ev: Event>(
         &mut self,
         mut event: Ev,

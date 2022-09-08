@@ -83,5 +83,5 @@ fn market_cast() {
     let mut buffer = [0u8; MarketState::LEN + 8];
     let r = MarketState::from_buffer(&mut buffer, AccountTag::Market);
     assert!(r.is_err());
-    assert_eq!(r.unwrap_err(), ProgramError::InvalidAccountData)
+    assert_eq!(r.unwrap_err(), AoError::AccountTagMismatch.into());
 }
