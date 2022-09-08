@@ -166,7 +166,7 @@ impl<'queue, C: Pod> EventQueue<'queue, C> {
 }
 
 impl<'queue, C: Clone> EventQueue<'queue, C> {
-    pub(crate) fn push_back<Ev: Event>(
+    pub fn push_back<Ev: Event>(
         &mut self,
         mut event: Ev,
         maker_callback_info: Option<&C>,
