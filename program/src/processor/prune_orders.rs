@@ -96,25 +96,16 @@ where
 
     let mut event_queue_guard = accounts.event_queue.data.borrow_mut();
     let mut event_queue = EventQueue::from_buffer(&mut event_queue_guard, AccountTag::EventQueue)?;
-    let capacity = event_queue.capacity(accounts.event_queue.data_len());
-    let max_num_events = capacity.checked_sub(event_queue.header.count).unwrap();
-
     let num_bids = u64::from(order_book.get_tree(Side::Bid).header.leaf_count);
-    let num_bids_to_prune = cmp::min(
-        cmp::min(num_bids, params.num_orders_to_prune),
-        max_num_events,
-    );
+    // Number of bids/asks to prune is bounded by: number of bids, param with max number of orders to prune
+    let num_bids_to_prune = cmp::min(num_bids, params.num_orders_to_prune);
     order_book.prune_orders(num_bids_to_prune, Side::Bid, &mut event_queue)?;
     let remaining_num_orders = params
         .num_orders_to_prune
         .checked_sub(num_bids_to_prune)
         .unwrap();
-    let remaining_max_num_events = max_num_events.checked_sub(num_bids_to_prune).unwrap();
     let num_asks = u64::from(order_book.get_tree(Side::Ask).header.leaf_count);
-    let num_asks_to_prune = cmp::min(
-        cmp::min(num_asks, remaining_num_orders),
-        remaining_max_num_events,
-    );
+    let num_asks_to_prune = cmp::min(num_asks, remaining_num_orders);
     order_book.prune_orders(num_asks_to_prune, Side::Ask, &mut event_queue)?;
 
     msg!(
