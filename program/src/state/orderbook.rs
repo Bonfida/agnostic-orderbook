@@ -69,7 +69,7 @@ pub struct OrderBookState<'a, C> {
 // pub type OrderBookStateRef<'slab, C> = OrderBookState<Slab<'slab, C>>;
 
 impl<'slab, C: Pod + Copy> OrderBookState<'slab, C> {
-    pub(crate) fn new_safe(
+    pub fn new_safe(
         bids_account: &'slab mut [u8],
         asks_account: &'slab mut [u8],
     ) -> Result<Self, ProgramError> {
