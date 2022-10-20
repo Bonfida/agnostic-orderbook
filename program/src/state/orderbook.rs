@@ -353,12 +353,17 @@ where
             fp32_div(max_quote_qty, limit_price).unwrap_or(u64::MAX),
             max_base_qty,
         );
+        let quote_qty_to_post = match side {
+            Side::Bid => fp32_mul_ceil(base_qty_to_post, limit_price),
+            Side::Ask => fp32_mul_floor(base_qty_to_post, limit_price),
+        }
+        .ok_or(AoError::NumericalOverflow)?;
 
         if base_qty_to_post < min_base_order_size || !post_allowed {
             return Ok(OrderSummary {
                 posted_order_id: None,
-                total_base_qty: max_base_qty,
-                total_quote_qty: max_quote_qty,
+                total_base_qty: base_qty_to_post,
+                total_quote_qty: quote_qty_to_post,
                 total_base_qty_posted: base_qty_to_post,
             });
         }
@@ -399,8 +404,8 @@ where
             } else {
                 return Ok(OrderSummary {
                     posted_order_id: None,
-                    total_base_qty: max_base_qty,
-                    total_quote_qty: max_quote_qty,
+                    total_base_qty: base_qty_to_post,
+                    total_quote_qty: quote_qty_to_post,
                     total_base_qty_posted: 0,
                 });
             }
@@ -411,8 +416,8 @@ where
         *self.get_tree(side).get_callback_info_mut(k) = callback_info;
         Ok(OrderSummary {
             posted_order_id: Some(new_leaf_order_id),
-            total_base_qty: max_base_qty,
-            total_quote_qty: max_quote_qty,
+            total_base_qty: base_qty_to_post,
+            total_quote_qty: quote_qty_to_post,
             total_base_qty_posted: base_qty_to_post,
         })
     }
