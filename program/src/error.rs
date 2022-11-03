@@ -56,6 +56,8 @@ pub enum AoError {
     NumericalOverflow,
     #[error("Invalid callback info")]
     InvalidCallbackInfo,
+    #[error("Account tag mismatch")]
+    AccountTagMismatch,
 }
 
 impl From<AoError> for ProgramError {
