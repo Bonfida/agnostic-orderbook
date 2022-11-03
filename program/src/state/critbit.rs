@@ -127,7 +127,7 @@ impl<'a, C: Pod> Slab<'a, C> {
         let capacity = (buf.len() - SlabHeader::LEN - 8 - leaf_size) / (leaf_size + InnerNode::LEN);
 
         if buf[0] != expected_tag as u8 {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(AoError::AccountTagMismatch.into());
         }
         let (_, rem) = buf.split_at_mut(8);
         let (header, rem) = rem.split_at_mut(SlabHeader::LEN);
