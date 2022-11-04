@@ -111,6 +111,31 @@ impl<'a, C: CallbackInfo> OrderBookState<'a, C>
 where
     <C as CallbackInfo>::CallbackId: PartialEq,
 {
+    pub(crate) fn prune_orders(
+        &mut self,
+        num_orders_to_prune: u64,
+        side: Side,
+        event_queue: &mut EventQueue<'a, C>,
+    ) -> Result<(), AoError> {
+        let slab = self.get_tree(side);
+        for _ in 0..num_orders_to_prune {
+            let boot_candidate = slab.find_min().expect("Should be a bid/ask there");
+            let boot_candidate_key = slab.leaf_nodes[boot_candidate as usize].key;
+            let (order, callback_info_booted) = slab.remove_by_key(boot_candidate_key).unwrap();
+            let out = OutEvent {
+                side: side as u8,
+                order_id: order.order_id(),
+                base_size: order.base_quantity,
+                tag: EventTag::Out as u8,
+                _padding: [0; 14],
+            };
+            event_queue
+                .push_back(out, Some(callback_info_booted), None)
+                .map_err(|_| AoError::EventQueueFull)?;
+        }
+        Ok(())
+    }
+
     pub fn new_order(
         &mut self,
         params: new_order::Params<C>,

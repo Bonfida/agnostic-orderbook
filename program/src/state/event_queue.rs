@@ -9,6 +9,7 @@ use bytemuck::{CheckedBitPattern, NoUninit, Pod, Zeroable};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError};
+use std::convert::TryFrom;
 
 use crate::error::AoError;
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
