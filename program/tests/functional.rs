@@ -1,6 +1,8 @@
-use agnostic_orderbook::instruction::{cancel_order, close_market, consume_events, new_order};
-use agnostic_orderbook::state::{market_state::MarketState, OrderSummary};
-use agnostic_orderbook::state::{AccountTag, SelfTradeBehavior, Side};
+use asset_agnostic_orderbook::instruction::{
+    cancel_order, close_market, consume_events, new_order,
+};
+use asset_agnostic_orderbook::state::{market_state::MarketState, OrderSummary};
+use asset_agnostic_orderbook::state::{AccountTag, SelfTradeBehavior, Side};
 use bonfida_utils::BorshSize;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_option::COption;
@@ -30,8 +32,8 @@ async fn test_agnostic_orderbook() {
 
     let mut program_test = ProgramTest::new(
         "agnostic_orderbook",
-        agnostic_orderbook::ID,
-        processor!(agnostic_orderbook::entrypoint::process_instruction),
+        asset_agnostic_orderbook::ID,
+        processor!(asset_agnostic_orderbook::entrypoint::process_instruction),
     );
 
     let cranker_reward = 1_000;
@@ -55,7 +57,7 @@ async fn test_agnostic_orderbook() {
         Account {
             lamports: 1_000_000,
             data: vec![0; 42],
-            owner: agnostic_orderbook::ID,
+            owner: asset_agnostic_orderbook::ID,
             ..Account::default()
         },
     );
@@ -71,7 +73,7 @@ async fn test_agnostic_orderbook() {
         &market_account.pubkey(),
         rent.minimum_balance(1_000_000),
         1_000_000,
-        &agnostic_orderbook::ID,
+        &asset_agnostic_orderbook::ID,
     );
     sign_send_instructions(
         &mut prg_test_ctx,
@@ -80,9 +82,12 @@ async fn test_agnostic_orderbook() {
     )
     .await
     .unwrap();
-    let market_account =
-        create_market_and_accounts(&mut prg_test_ctx, register_account, agnostic_orderbook::ID)
-            .await;
+    let market_account = create_market_and_accounts(
+        &mut prg_test_ctx,
+        register_account,
+        asset_agnostic_orderbook::ID,
+    )
+    .await;
 
     let mut market_state_data = prg_test_ctx
         .banks_client
