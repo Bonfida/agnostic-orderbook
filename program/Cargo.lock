@@ -55,33 +55,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "agnostic-orderbook"
-version = "1.0.0-alpha.0"
-dependencies = [
- "arrayref",
- "bonfida-utils",
- "borsh",
- "bytemuck",
- "enumflags2",
- "gnuplot",
- "hexdump",
- "lazy_static",
- "num-derive",
- "num-traits",
- "num_enum",
- "rand 0.8.5",
- "regex",
- "serde",
- "serde_json",
- "solana-program",
- "solana-program-test",
- "solana-sdk",
- "spl-token",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -151,6 +124,33 @@ name = "assert_matches"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
+
+[[package]]
+name = "asset-agnostic-orderbook"
+version = "1.0.0-alpha.0"
+dependencies = [
+ "arrayref",
+ "bonfida-utils",
+ "borsh",
+ "bytemuck",
+ "enumflags2",
+ "gnuplot",
+ "hexdump",
+ "lazy_static",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "rand 0.8.5",
+ "regex",
+ "serde",
+ "serde_json",
+ "solana-program",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "async-mutex"
