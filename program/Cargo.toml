@@ -2,6 +2,8 @@
 name = "agnostic-orderbook"
 version = "1.0.0"
 edition = "2018"
+description = "Solana library enabling generic on-chain orderbooks"
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
