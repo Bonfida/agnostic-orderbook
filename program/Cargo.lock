@@ -272,19 +272,22 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bonfida-macros"
-version = "0.2.3"
-source = "git+https://github.com/Bonfida/bonfida-utils.git?branch=add-rounding-direction#f24f508be40c541a463e308c4dbe05de13b97a5d"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e738a4d372a24c4194250859a310db4a2c019d5da1a29445291bb4a40085c40c"
 dependencies = [
  "proc-macro2 1.0.38",
  "quote 1.0.18",
  "solana-program",
+ "spl-name-service",
  "syn 1.0.93",
 ]
 
 [[package]]
 name = "bonfida-utils"
-version = "0.3.0"
-source = "git+https://github.com/Bonfida/bonfida-utils.git?branch=add-rounding-direction#f24f508be40c541a463e308c4dbe05de13b97a5d"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31b64d60281fe4c19dfe91fa1783b4bdf9101d8303f354aec07ba738dee5450d"
 dependencies = [
  "bonfida-macros",
  "borsh",
@@ -3678,6 +3681,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0dc6f70db6bacea7ff25870b016a65ba1d1b6013536f08e4fd79a8f9005325"
 dependencies = [
  "solana-program",
+]
+
+[[package]]
+name = "spl-name-service"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c2920a0762e3fdbd02a24469787d9217f658776502265a9b99903557be28adf"
+dependencies = [
+ "borsh",
+ "num-derive",
+ "num-traits",
+ "solana-program",
+ "thiserror",
 ]
 
 [[package]]
