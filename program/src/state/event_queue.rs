@@ -24,7 +24,8 @@ pub struct FillEvent {
     pub tag: u8,
     /// The u8 representation for a [`Side`] enum
     pub taker_side: u8,
-    pub(crate) _padding: [u8; 6],
+    /// zero padding for alignment
+    pub _padding: [u8; 6],
     /// The total quote size of the transaction
     pub quote_size: u64,
     /// The order id of the maker order
@@ -46,7 +47,8 @@ pub struct OutEvent {
     pub tag: u8,
     /// The u8 representation for a [`Side`] enum
     pub side: u8,
-    pub(crate) _padding: [u8; 14],
+    /// zero padding for alignment
+    pub _padding: [u8; 14],
     /// The order id of the maker order
     pub order_id: u128,
     /// The total base size of the transaction

@@ -92,7 +92,8 @@ where
 
     let mut order_book = OrderBookState::<C>::new_safe(&mut bids_guard, &mut asks_guard)?;
 
-    let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
+    let side = get_side_from_order_id(params.order_id);
+    let slab = order_book.get_tree(side);
     let (leaf_node, _) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
