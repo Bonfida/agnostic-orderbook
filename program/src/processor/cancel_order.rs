@@ -10,6 +10,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::state::event_queue::{EventQueue, EventTag, OutEvent};
 use crate::state::orderbook::{CallbackInfo, OrderBookState, OrderSummary};
 use crate::state::AccountTag;
 use crate::{
@@ -77,7 +78,7 @@ pub fn process<'a, 'b: 'a, C: CallbackInfo + Pod + PartialEq>(
     program_id: &Pubkey,
     accounts: Accounts<'a, AccountInfo<'b>>,
     params: Params,
-) -> Result<OrderSummary, ProgramError>
+) -> Result<(OrderSummary, C), ProgramError>
 where
     <C as CallbackInfo>::CallbackId: PartialEq,
 {
@@ -92,8 +93,9 @@ where
 
     let mut order_book = OrderBookState::<C>::new_safe(&mut bids_guard, &mut asks_guard)?;
 
-    let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
-    let (leaf_node, _) = slab
+    let side = get_side_from_order_id(params.order_id);
+    let slab = order_book.get_tree(side);
+    let (leaf_node, callback_info) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
     let total_base_qty = leaf_node.base_quantity;
@@ -107,7 +109,21 @@ where
         total_base_qty_posted: 0,
     };
 
-    Ok(order_summary)
+    let eq_guard = accounts.event_queue.data.borrow_mut();
+    let mut eq = EventQueue::<C>::from_buffer(*eq_guard, AccountTag::EventQueue)?;
+    eq.push_back(
+        OutEvent {
+            tag: EventTag::Out as u8,
+            side: side as u8,
+            _padding: [0; 14],
+            order_id: params.order_id,
+            base_size: order_summary.total_base_qty,
+        },
+        Some(callback_info),
+        None,
+    );
+
+    Ok((order_summary, *callback_info))
 }
 
 fn check_accounts<'a, 'b: 'a>(
