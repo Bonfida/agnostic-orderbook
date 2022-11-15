@@ -4,6 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 use std::mem::size_of;
 
+use crate::error::AoError;
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
 #[cfg(feature = "no-entrypoint")]
 pub use crate::utils::get_spread;
@@ -58,7 +59,7 @@ impl MarketState {
     ) -> Result<&mut Self, ProgramError> {
         let tag = bytemuck::from_bytes_mut::<u64>(&mut account_data[0..8]);
         if tag != &(expected_tag as u64) {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(AoError::AccountTagMismatch.into());
         };
         *tag = AccountTag::Market as u64;
 
@@ -82,5 +83,5 @@ fn market_cast() {
     let mut buffer = [0u8; MarketState::LEN + 8];
     let r = MarketState::from_buffer(&mut buffer, AccountTag::Market);
     assert!(r.is_err());
-    assert_eq!(r.unwrap_err(), ProgramError::InvalidAccountData)
+    assert_eq!(r.unwrap_err(), AoError::AccountTagMismatch.into());
 }

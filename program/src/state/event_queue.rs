@@ -10,6 +10,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use solana_program::{entrypoint::ProgramResult, msg, program_error::ProgramError};
 
+use crate::error::AoError;
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
 pub use crate::utils::get_spread;
 
@@ -152,7 +153,7 @@ impl<'queue, C: Pod> EventQueue<'queue, C> {
         let account_tag: &mut u64 = bytemuck::from_bytes_mut(&mut buf[0..8]);
 
         if *account_tag != expected_tag as u64 {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(AoError::AccountTagMismatch.into());
         }
         *account_tag = AccountTag::EventQueue as u64;
 
