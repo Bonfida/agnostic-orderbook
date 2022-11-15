@@ -39,8 +39,8 @@ pub async fn create_market_and_accounts(
     let create_event_queue_account_instruction = create_account(
         &prg_test_ctx.payer.pubkey(),
         &event_queue_account.pubkey(),
-        1_000_000,
-        (79 + (Event::compute_slot_size(32) * 10000)) as u64,
+        rent.minimum_balance(space),
+        space as u64,
         &agnostic_orderbook_program_id,
     );
     sign_send_instructions(

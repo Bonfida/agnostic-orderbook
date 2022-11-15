@@ -2,12 +2,7 @@
 
 use bonfida_utils::{BorshSize, InstructionsAccount};
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint::ProgramResult,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::{account_info::{next_account_info, AccountInfo}, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
     error::AoError,
@@ -17,6 +12,8 @@ use crate::{
     },
     utils::{check_account_key, check_account_owner, check_signer, fp32_mul},
 };
+use crate::state::Event;
+
 #[derive(BorshDeserialize, BorshSerialize, Clone, BorshSize)]
 /**
 The required arguments for a cancel_order instruction.
@@ -106,15 +103,28 @@ pub fn process<'a, 'b: 'a>(
             &accounts.event_queue.data.borrow()[0..EVENT_QUEUE_HEADER_LEN];
         EventQueueHeader::deserialize(&mut event_queue_data).unwrap()
     };
-    let event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
+    let mut event_queue = EventQueue::new_safe(header, accounts.event_queue, callback_info_len)?;
 
-    let slab = order_book.get_tree(get_side_from_order_id(params.order_id));
-    let (node, _) = slab
+    let side = get_side_from_order_id(params.order_id);
+    let slab = order_book.get_tree(side);
+    let (node, callback_info) = slab
         .remove_by_key(params.order_id)
         .ok_or(AoError::OrderNotFound)?;
     let leaf_node = node.as_leaf().unwrap();
     let total_base_qty = leaf_node.base_quantity;
     let total_quote_qty = fp32_mul(leaf_node.base_quantity, leaf_node.price());
+
+    let out_event = Event::Out {
+        side,
+        order_id: params.order_id,
+        base_size: total_base_qty,
+        callback_info,
+        delete: true,
+    };
+
+    event_queue
+        .push_back(out_event)
+        .map_err(|_| AoError::EventQueueFull)?;
 
     let order_summary = OrderSummary {
         posted_order_id: None,
@@ -125,6 +135,11 @@ pub fn process<'a, 'b: 'a>(
 
     event_queue.write_to_register(order_summary);
 
+    let mut event_queue_header_data: &mut [u8] = &mut accounts.event_queue.data.borrow_mut();
+    event_queue
+        .header
+        .serialize(&mut event_queue_header_data)
+        .unwrap();
     order_book.commit_changes();
 
     Ok(())
