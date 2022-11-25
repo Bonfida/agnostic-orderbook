@@ -27,7 +27,10 @@ pub struct FillEvent {
     /// The total quote size of the transaction
     pub quote_size: u64,
     /// The order id of the maker order
+    #[cfg(not(target_arch = "aarch64"))]
     pub maker_order_id: u128,
+    #[cfg(target_arch = "aarch64")]
+    pub maker_order_id: [u64; 2],
     /// The total base size of the transaction
     pub base_size: u64,
 }
@@ -47,7 +50,10 @@ pub struct OutEvent {
     pub side: u8,
     pub(crate) _padding: [u8; 14],
     /// The order id of the maker order
+    #[cfg(not(target_arch = "aarch64"))]
     pub order_id: u128,
+    #[cfg(target_arch = "aarch64")]
+    pub order_id: [u64; 2],
     /// The total base size of the transaction
     pub base_size: u64,
 }
@@ -337,6 +343,7 @@ mod tests {
 
         for _ in 0..100 {
             if parity_gen.next().unwrap() % 7 != 3 {
+                #[allow(clippy::let_and_return)]
                 event_queue
                     .push_back(
                         FillEvent {
@@ -344,7 +351,12 @@ mod tests {
                             taker_side: Side::Ask as u8,
                             _padding: [0; 6],
                             quote_size: seq_gen.next().unwrap(),
-                            maker_order_id: seq_gen.next().unwrap() as u128,
+                            maker_order_id: {
+                                let s = seq_gen.next().unwrap() as u128;
+                                #[cfg(target_arch = "aarch64")]
+                                let s = [s as u64, 0];
+                                s
+                            },
                             base_size: seq_gen.next().unwrap(),
                         },
                         Some(&[seq_gen.next().unwrap() as u8; 32]),
@@ -352,6 +364,7 @@ mod tests {
                     )
                     .unwrap();
             } else {
+                #[allow(clippy::let_and_return)]
                 event_queue
                     .push_back(
                         OutEvent {
@@ -359,7 +372,12 @@ mod tests {
                             side: Side::Ask as u8,
                             _padding: [0; 14],
                             base_size: seq_gen.next().unwrap(),
-                            order_id: seq_gen.next().unwrap() as u128,
+                            order_id: {
+                                let s = seq_gen.next().unwrap() as u128;
+                                #[cfg(target_arch = "aarch64")]
+                                let s = [s as u64, 0];
+                                s
+                            },
                         },
                         Some(&[seq_gen.next().unwrap() as u8; 32]),
                         None,
@@ -367,12 +385,18 @@ mod tests {
                     .unwrap();
             }
         }
+        #[allow(clippy::let_and_return)]
         let extra_event = FillEvent {
             tag: EventTag::Fill as u8,
             taker_side: Side::Ask as u8,
             _padding: [0; 6],
             quote_size: seq_gen.next().unwrap(),
-            maker_order_id: seq_gen.next().unwrap() as u128,
+            maker_order_id: {
+                let s = seq_gen.next().unwrap() as u128;
+                #[cfg(target_arch = "aarch64")]
+                let s = [s as u64, 0];
+                s
+            },
             base_size: seq_gen.next().unwrap(),
         };
         assert_eq!(
@@ -390,37 +414,53 @@ mod tests {
             match e {
                 EventRef::Out(o) => {
                     assert!(!is_fill);
-                    assert_eq!(
-                        o,
-                        OutEventRef {
-                            event: &OutEvent {
-                                tag: EventTag::Out as u8,
-                                side: Side::Ask as u8,
-                                _padding: [0; 14],
-                                base_size: seq_gen.next().unwrap(),
-                                order_id: seq_gen.next().unwrap() as u128,
-                            },
-                            callback_info: &[seq_gen.next().unwrap() as u8; 32]
-                        }
-                    );
+                    #[allow(clippy::let_and_return)]
+                    {
+                        assert_eq!(
+                            o,
+                            OutEventRef {
+                                event: &OutEvent {
+                                    tag: EventTag::Out as u8,
+                                    side: Side::Ask as u8,
+                                    _padding: [0; 14],
+                                    base_size: seq_gen.next().unwrap(),
+                                    order_id: {
+                                        let s = seq_gen.next().unwrap() as u128;
+                                        #[cfg(target_arch = "aarch64")]
+                                        let s = [s as u64, 0];
+                                        s
+                                    },
+                                },
+                                callback_info: &[seq_gen.next().unwrap() as u8; 32]
+                            }
+                        );
+                    }
                 }
                 EventRef::Fill(e) => {
                     assert!(is_fill);
-                    assert_eq!(
-                        e,
-                        FillEventRef {
-                            event: &FillEvent {
-                                tag: EventTag::Fill as u8,
-                                taker_side: Side::Ask as u8,
-                                _padding: [0; 6],
-                                quote_size: seq_gen.next().unwrap(),
-                                maker_order_id: seq_gen.next().unwrap() as u128,
-                                base_size: seq_gen.next().unwrap(),
-                            },
-                            maker_callback_info: &[seq_gen.next().unwrap() as u8; 32],
-                            taker_callback_info: &[seq_gen.next().unwrap() as u8; 32]
-                        }
-                    );
+                    #[allow(clippy::let_and_return)]
+                    {
+                        assert_eq!(
+                            e,
+                            FillEventRef {
+                                event: &FillEvent {
+                                    tag: EventTag::Fill as u8,
+                                    taker_side: Side::Ask as u8,
+                                    _padding: [0; 6],
+                                    quote_size: seq_gen.next().unwrap(),
+                                    maker_order_id: {
+                                        let s = seq_gen.next().unwrap() as u128;
+                                        #[cfg(target_arch = "aarch64")]
+                                        let s = [s as u64, 0];
+                                        s
+                                    },
+                                    base_size: seq_gen.next().unwrap(),
+                                },
+                                maker_callback_info: &[seq_gen.next().unwrap() as u8; 32],
+                                taker_callback_info: &[seq_gen.next().unwrap() as u8; 32]
+                            }
+                        );
+                    }
                     assert_eq!(EventRef::Fill(e), event_queue.peek_at(i as u64).unwrap());
                 }
             }
