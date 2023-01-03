@@ -13,7 +13,7 @@ use std::{
     mem::size_of,
     rc::Rc,
 };
-
+extern crate base64;
 use crate::critbit::IoError;
 
 pub use crate::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
@@ -368,6 +368,47 @@ impl<'a> EventQueue<'a> {
         let mut queue_event_data =
             &mut self.buffer.borrow_mut()[offset..offset + (self.header.event_size as usize)];
         event.serialize(&mut queue_event_data).unwrap();
+
+        match event {
+            Event::Fill {
+                taker_side,
+                maker_order_id,
+                quote_size,
+                base_size,
+                maker_callback_info,
+                taker_callback_info,
+            } => {
+                let maker_callback_info_b64 = base64::encode(&maker_callback_info);
+                let taker_callback_info_b64 = base64::encode(&taker_callback_info);
+                msg!(
+                    "Wrote Fill Event [taker_side: {} maker_order_id: {} quote_size: {} \
+                        base_size: {} maker_callback_info: {} taker_callback_info: {}]",
+                    if taker_side == Side::Bid { "bid" } else { "ask" },
+                    maker_order_id,
+                    quote_size,
+                    base_size,
+                    maker_callback_info_b64,
+                    taker_callback_info_b64,
+                );
+            }
+            Event::Out {
+                side,
+                order_id,
+                base_size,
+                callback_info,
+                delete,
+            } => {
+                let callback_info_b64 = base64::encode(&callback_info);
+                msg!(
+                    "Wrote Out Event [side: {} order_id: {} base_size: {} delete: {} callback_info: {}]",
+                    if side == Side::Bid { "bid" } else { "ask" },
+                    order_id,
+                    base_size,
+                    delete,
+                    callback_info_b64,
+                );
+            }
+        }
 
         self.header.count += 1;
         self.header.seq_num += 1;
