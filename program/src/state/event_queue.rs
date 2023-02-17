@@ -26,8 +26,8 @@ pub struct FillEvent {
     pub taker_side: u8,
     /// zero padding for alignment
     pub _padding: [u8; 6],
-    /// The total quote size of the transaction
-    pub quote_size: u64,
+    /// The trade price of the order fill
+    pub trade_price: u64,
     /// The order id of the maker order
     pub maker_order_id: u128,
     /// The total base size of the transaction
@@ -349,7 +349,7 @@ mod tests {
                             tag: EventTag::Fill as u8,
                             taker_side: Side::Ask as u8,
                             _padding: [0; 6],
-                            quote_size: seq_gen.next().unwrap(),
+                            trade_price: seq_gen.next().unwrap(),
                             maker_order_id: seq_gen.next().unwrap() as u128,
                             base_size: seq_gen.next().unwrap(),
                         },
@@ -377,7 +377,7 @@ mod tests {
             tag: EventTag::Fill as u8,
             taker_side: Side::Ask as u8,
             _padding: [0; 6],
-            quote_size: seq_gen.next().unwrap(),
+            trade_price: seq_gen.next().unwrap(),
             maker_order_id: seq_gen.next().unwrap() as u128,
             base_size: seq_gen.next().unwrap(),
         };
@@ -419,7 +419,7 @@ mod tests {
                                 tag: EventTag::Fill as u8,
                                 taker_side: Side::Ask as u8,
                                 _padding: [0; 6],
-                                quote_size: seq_gen.next().unwrap(),
+                                trade_price: seq_gen.next().unwrap(),
                                 maker_order_id: seq_gen.next().unwrap() as u128,
                                 base_size: seq_gen.next().unwrap(),
                             },

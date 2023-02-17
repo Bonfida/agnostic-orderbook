@@ -224,7 +224,7 @@ where
             let maker_fill = FillEvent {
                 taker_side: side as u8,
                 maker_order_id: best_bo_ref.order_id(),
-                quote_size: quote_maker_qty,
+                trade_price,
                 base_size: base_trade_qty,
                 tag: EventTag::Fill as u8,
                 _padding: [0; 6],
@@ -663,7 +663,7 @@ mod tests {
                     tag: EventTag::Fill as u8,
                     taker_side: Side::Ask as u8,
                     _padding: [0; 6],
-                    quote_size: 500_000 * 15,
+                    trade_price: 15 << 32,
                     maker_order_id: bob_order_id_0.unwrap(),
                     base_size: 500_000
                 },
