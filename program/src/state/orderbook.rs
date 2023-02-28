@@ -190,9 +190,9 @@ where
                     assert!(self_trade_behavior == SelfTradeBehavior::CancelProvide);
                     let provide_out_callback_info =
                         &opposite_slab.callback_infos[best_bo_h as usize];
-                    #[cfg(not(target_arch = "aarch64"))]
+                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64")))]
                     let order_id = best_offer_id;
-                    #[cfg(target_arch = "aarch64")]
+                    #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                     let order_id = [best_offer_id as u64, (best_offer_id >> 64) as u64];
                     let provide_out = OutEvent {
                         side: side.opposite() as u8,
@@ -217,9 +217,9 @@ where
 
             let maker_callback_info = &opposite_slab.callback_infos[best_bo_h as usize];
 
-            #[cfg(not(target_arch = "aarch64"))]
+            #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64")))]
             let maker_order_id = best_bo_ref.order_id();
-            #[cfg(target_arch = "aarch64")]
+            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
             let maker_order_id = {
                 let o = best_bo_ref.order_id();
                 [o as u64, (o >> 64) as u64]
@@ -244,9 +244,9 @@ where
             if best_bo_ref.base_quantity < min_base_order_size {
                 let best_offer_id = best_bo_ref.order_id();
                 let cur_side = side.opposite();
-                #[cfg(not(target_arch = "aarch64"))]
+                #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64")))]
                 let order_id = best_offer_id;
-                #[cfg(target_arch = "aarch64")]
+                #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                 let order_id = [best_offer_id as u64, (best_offer_id >> 64) as u64];
                 let out_event = OutEvent {
                     side: cur_side as u8,
@@ -285,9 +285,9 @@ where
         let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
         let new_leaf = LeafNode {
             key: {
-                #[cfg(not(target_arch = "aarch64"))]
+                #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64")))]
                 let k = new_leaf_order_id;
-                #[cfg(target_arch = "aarch64")]
+                #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                 let k = [new_leaf_order_id as u64, (new_leaf_order_id >> 64) as u64];
                 k
             },
@@ -316,7 +316,7 @@ where
                     side: side as u8,
                     order_id: {
                         let o = order.order_id();
-                        #[cfg(target_arch = "aarch64")]
+                        #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                         let o = [o as u64, (o >> 64) as u64];
                         o
                     },
@@ -549,7 +549,7 @@ mod tests {
                         quote_size: 500_000 * 15,
                         maker_order_id: {
                             let o = bob_order_id_0.unwrap();
-                            #[cfg(target_arch = "aarch64")]
+                            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                             let o = [o as u64, (o >> 64) as u64];
                             o
                         },
@@ -570,7 +570,7 @@ mod tests {
                         base_size: 0,
                         order_id: {
                             let o = bob_order_id_0.unwrap();
-                            #[cfg(target_arch = "aarch64")]
+                            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                             let o = [o as u64, (o >> 64) as u64];
                             o
                         }
@@ -651,7 +651,7 @@ mod tests {
                         base_size: 250_000,
                         order_id: {
                             let o = alice_order_id_0.unwrap();
-                            #[cfg(target_arch = "aarch64")]
+                            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                             let o = [o as u64, (o >> 64) as u64];
                             o
                         }
@@ -790,7 +790,7 @@ mod tests {
                         base_size: 6_000_000,
                         order_id: {
                             let o = order_id_to_be_booted.unwrap();
-                            #[cfg(target_arch = "aarch64")]
+                            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                             let o = [o as u64, (o >> 64) as u64];
                             o
                         }
@@ -995,7 +995,7 @@ mod tests {
                         base_size: 6_000_000,
                         order_id: {
                             let o = order_id_to_be_booted.unwrap();
-                            #[cfg(target_arch = "aarch64")]
+                            #[cfg(any(target_arch = "aarch64", feature = "aarch64"))]
                             let o = [o as u64, (o >> 64) as u64];
                             o
                         }
