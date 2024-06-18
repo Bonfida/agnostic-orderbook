@@ -203,7 +203,7 @@ where
                         order_id: best_offer_id,
                         base_size: best_bo_ref.base_quantity,
                         tag: EventTag::Out as u8,
-                        _padding: [0; 14],
+                        _padding: [0; 6],
                     };
                     event_queue
                         .push_back(provide_out, Some(provide_out_callback_info), None)
@@ -227,7 +227,7 @@ where
                 trade_price,
                 base_size: base_trade_qty,
                 tag: EventTag::Fill as u8,
-                _padding: [0; 6],
+                _padding: [0; 14],
             };
             event_queue
                 .push_back(maker_fill, Some(maker_callback_info), Some(&callback_info))
@@ -245,7 +245,7 @@ where
                     order_id: best_offer_id,
                     base_size: best_bo_ref.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                 };
 
                 let (_, out_event_callback_info) = self
@@ -278,6 +278,7 @@ where
         let new_leaf = LeafNode {
             key: new_leaf_order_id,
             base_quantity: base_qty_to_post,
+            padding_or_other_field: 0,
         };
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         let k = if let Err(AoError::SlabOutOfSpace) = insert_result {
@@ -301,7 +302,7 @@ where
                     order_id: order.order_id(),
                     base_size: order.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                 };
                 event_queue
                     .push_back(out, Some(callback_info_booted), None)
@@ -372,6 +373,7 @@ where
         let new_leaf = LeafNode {
             key: new_leaf_order_id,
             base_quantity: base_qty_to_post,
+            padding_or_other_field: 0,
         };
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         let k = if let Err(AoError::SlabOutOfSpace) = insert_result {
@@ -395,7 +397,7 @@ where
                     order_id: order.order_id(),
                     base_size: order.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                 };
                 event_queue
                     .push_back(out, Some(callback_info_booted), None)
@@ -662,7 +664,7 @@ mod tests {
                 event: &FillEvent {
                     tag: EventTag::Fill as u8,
                     taker_side: Side::Ask as u8,
-                    _padding: [0; 6],
+                    _padding: [0; 14],
                     trade_price: 15 << 32,
                     maker_order_id: bob_order_id_0.unwrap(),
                     base_size: 500_000
@@ -678,7 +680,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 0,
                     order_id: bob_order_id_0.unwrap()
                 },
@@ -751,7 +753,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 250_000,
                     order_id: alice_order_id_0.unwrap()
                 },
@@ -882,7 +884,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 6_000_000,
                     order_id: order_id_to_be_booted.unwrap()
                 },
@@ -1079,7 +1081,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 6_000_000,
                     order_id: order_id_to_be_booted.unwrap()
                 },
