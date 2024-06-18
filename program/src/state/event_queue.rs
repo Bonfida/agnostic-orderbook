@@ -20,18 +20,17 @@ use super::{AccountTag, Side};
 #[repr(C)]
 /// Represents an order being filled, a match between two parties.
 pub struct FillEvent {
-    /// The u8 representation for an [`AccountTag`] enum
-    pub tag: u8,
-    /// The u8 representation for a [`Side`] enum
-    pub taker_side: u8,
-    /// zero padding for alignment
-    pub _padding: [u8; 6],
-    /// The trade price of the order fill
-    pub trade_price: u64,
     /// The order id of the maker order
     pub maker_order_id: u128,
     /// The total base size of the transaction
     pub base_size: u64,
+    /// The trade price of the order fill
+    pub trade_price: u64,
+    /// The u8 representation for an [`AccountTag`] enum
+    pub tag: u8,
+    /// The u8 representation for a [`Side`] enum
+    pub taker_side: u8,
+    pub _padding: [u8; 14],
 }
 
 impl FillEvent {
@@ -43,16 +42,16 @@ impl FillEvent {
 #[repr(C)]
 /// Represents an order being modified or yanked from the orderbook without being matched
 pub struct OutEvent {
+    /// The order id of the maker order
+    pub order_id: u128,
+    /// The total base size of the transaction
+    pub base_size: u64,
     /// The u8 representation for an [`AccountTag`] enum
     pub tag: u8,
     /// The u8 representation for a [`Side`] enum
     pub side: u8,
     /// zero padding for alignment
-    pub _padding: [u8; 14],
-    /// The order id of the maker order
-    pub order_id: u128,
-    /// The total base size of the transaction
-    pub base_size: u64,
+    pub _padding: [u8; 6],
 }
 
 #[derive(PartialEq, Debug)]

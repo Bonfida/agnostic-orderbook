@@ -40,6 +40,8 @@ pub struct Slab<'a, C> {
 pub struct LeafNode {
     /// The key is the associated order id
     pub key: u128,
+    /// Explicit padding or another field (64 bits)
+    pub padding_or_other_field: u64,
     /// The quantity of base asset associated with the underlying order
     pub base_quantity: u64,
 }
