@@ -13,9 +13,9 @@ use crate::{
     },
 };
 use bonfida_utils::fp_math::{fp32_div, fp32_mul_ceil, fp32_mul_floor};
-use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::Pod;
 use solana_program::{msg, program_error::ProgramError};
+use anchor_lang::{AnchorSerialize, AnchorDeserialize};
 
 /// This struct is written back into the event queue's register after new_order or cancel_order.
 ///
@@ -23,7 +23,7 @@ use solana_program::{msg, program_error::ProgramError};
 /// were either matched against other orders or written into the orderbook.
 ///
 /// In the case of an order cancellation, the quantities describe what was left of the order in the orderbook.
-#[derive(Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct OrderSummary {
     /// When applicable, the order id of the newly created order.
     pub posted_order_id: Option<u128>,
@@ -56,6 +56,10 @@ impl CallbackInfo for [u8; 32] {
 /// The serialized size of an OrderSummary object.
 pub const ORDER_SUMMARY_SIZE: u32 = 41;
 
+/// The maximum number of matches a single transaction can handle, based on compute limit
+/// TODO: Find this value empirically
+pub const MAX_MATCHES_PER_TRANSACTION: u32 = 5;
+
 #[doc(hidden)]
 pub struct OrderBookState<'a, C> {
     pub bids: Slab<'a, C>,
@@ -65,7 +69,7 @@ pub struct OrderBookState<'a, C> {
 // pub type OrderBookStateRef<'slab, C> = OrderBookState<Slab<'slab, C>>;
 
 impl<'slab, C: Pod + Copy> OrderBookState<'slab, C> {
-    pub(crate) fn new_safe(
+    pub fn new_safe(
         bids_account: &'slab mut [u8],
         asks_account: &'slab mut [u8],
     ) -> Result<Self, ProgramError> {
@@ -199,7 +203,7 @@ where
                         order_id: best_offer_id,
                         base_size: best_bo_ref.base_quantity,
                         tag: EventTag::Out as u8,
-                        _padding: [0; 14],
+                        _padding: [0; 6],
                     };
                     event_queue
                         .push_back(provide_out, Some(provide_out_callback_info), None)
@@ -220,10 +224,10 @@ where
             let maker_fill = FillEvent {
                 taker_side: side as u8,
                 maker_order_id: best_bo_ref.order_id(),
-                quote_size: quote_maker_qty,
+                trade_price,
                 base_size: base_trade_qty,
                 tag: EventTag::Fill as u8,
-                _padding: [0; 6],
+                _padding: [0; 14],
             };
             event_queue
                 .push_back(maker_fill, Some(maker_callback_info), Some(&callback_info))
@@ -241,7 +245,7 @@ where
                     order_id: best_offer_id,
                     base_size: best_bo_ref.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                 };
 
                 let (_, out_event_callback_info) = self
@@ -274,6 +278,7 @@ where
         let new_leaf = LeafNode {
             key: new_leaf_order_id,
             base_quantity: base_qty_to_post,
+            padding_or_other_field: 0,
         };
         let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
         let k = if let Err(AoError::SlabOutOfSpace) = insert_result {
@@ -297,7 +302,7 @@ where
                     order_id: order.order_id(),
                     base_size: order.base_quantity,
                     tag: EventTag::Out as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                 };
                 event_queue
                     .push_back(out, Some(callback_info_booted), None)
@@ -327,6 +332,144 @@ where
             total_quote_qty: max_quote_qty - quote_qty_remaining,
             total_base_qty_posted: base_qty_to_post,
         })
+    }
+
+    pub fn insert_without_matching(
+        &mut self,
+        params: new_order::Params<C>,
+        event_queue: &mut EventQueue<'a, C>,
+        min_base_order_size: u64,
+    ) -> Result<OrderSummary, AoError> {
+        let new_order::Params {
+            max_base_qty,
+            max_quote_qty,
+            side,
+            limit_price,
+            callback_info,
+            post_allowed,
+            ..
+        } = params;
+
+        let base_qty_to_post = std::cmp::min(
+            fp32_div(max_quote_qty, limit_price).unwrap_or(u64::MAX),
+            max_base_qty,
+        );
+        let quote_qty_to_post = match side {
+            Side::Bid => fp32_mul_ceil(base_qty_to_post, limit_price),
+            Side::Ask => fp32_mul_floor(base_qty_to_post, limit_price),
+        }
+        .ok_or(AoError::NumericalOverflow)?;
+
+        if base_qty_to_post < min_base_order_size || !post_allowed {
+            return Ok(OrderSummary {
+                posted_order_id: None,
+                total_base_qty: base_qty_to_post,
+                total_quote_qty: quote_qty_to_post,
+                total_base_qty_posted: base_qty_to_post,
+            });
+        }
+
+        let new_leaf_order_id = event_queue.gen_order_id(limit_price, side);
+        let new_leaf = LeafNode {
+            key: new_leaf_order_id,
+            base_quantity: base_qty_to_post,
+            padding_or_other_field: 0,
+        };
+        let insert_result = self.get_tree(side).insert_leaf(&new_leaf);
+        let k = if let Err(AoError::SlabOutOfSpace) = insert_result {
+            // Boot out the least aggressive orders
+            msg!("Orderbook is full! booting least aggressive orders...");
+            let slab = self.get_tree(side);
+            let boot_candidate = match side {
+                Side::Bid => slab.find_min().unwrap(),
+                Side::Ask => slab.find_max().unwrap(),
+            };
+            let boot_candidate_key = slab.leaf_nodes[boot_candidate as usize].key;
+            let boot_candidate_price = LeafNode::price_from_key(boot_candidate_key);
+            let should_boot = match side {
+                Side::Bid => boot_candidate_price < limit_price,
+                Side::Ask => boot_candidate_price > limit_price,
+            };
+            if should_boot {
+                let (order, callback_info_booted) = slab.remove_by_key(boot_candidate_key).unwrap();
+                let out = OutEvent {
+                    side: side as u8,
+                    order_id: order.order_id(),
+                    base_size: order.base_quantity,
+                    tag: EventTag::Out as u8,
+                    _padding: [0; 6],
+                };
+                event_queue
+                    .push_back(out, Some(callback_info_booted), None)
+                    .map_err(|_| AoError::EventQueueFull)?;
+                slab.insert_leaf(&new_leaf).unwrap().0
+            } else {
+                return Ok(OrderSummary {
+                    posted_order_id: None,
+                    total_base_qty: base_qty_to_post,
+                    total_quote_qty: quote_qty_to_post,
+                    total_base_qty_posted: 0,
+                });
+            }
+        } else {
+            insert_result.unwrap().0
+        };
+
+        *self.get_tree(side).get_callback_info_mut(k) = callback_info;
+        Ok(OrderSummary {
+            posted_order_id: Some(new_leaf_order_id),
+            total_base_qty: base_qty_to_post,
+            total_quote_qty: quote_qty_to_post,
+            total_base_qty_posted: base_qty_to_post,
+        })
+    }
+
+    /// Attempts to match all spread-crossing orders currently on the book. Limed by `MAX_MATCHES_PER_TRANSACTION`.
+    ///
+    /// Returns the number of successful matches.
+    pub fn match_existing_orders(
+        &mut self,
+        event_queue: &mut EventQueue<'a, C>,
+        min_base_order_size: u64,
+    ) -> Result<bool, AoError> {
+        for _ in 0..MAX_MATCHES_PER_TRANSACTION {
+            let (best_bid, best_ask) = self.get_spread();
+            if let None = best_bid {
+                // no bids to match, orderbook caught up
+                return Ok(true);
+            }
+            if let None = best_ask {
+                // no asks to match, orderbook caught up
+                return Ok(true);
+            }
+
+            let handle = self.asks.find_min().unwrap();
+
+            // pop the order off the tree
+            let (order, callback_info) = self
+                .asks
+                .remove_by_key(self.asks.leaf_nodes[handle as usize].key)
+                .unwrap();
+
+            let limit_price = order.price();
+            let max_quote_qty =
+                fp32_div(limit_price, order.base_quantity).ok_or(AoError::NumericalOverflow)?;
+
+            let order_params = new_order::Params {
+                max_base_qty: order.base_quantity,
+                max_quote_qty,
+                limit_price,
+                side: Side::Ask,
+                match_limit: u64::MAX,
+                callback_info: *callback_info,
+                post_only: false,
+                post_allowed: true,
+                self_trade_behavior: SelfTradeBehavior::CancelProvide,
+            };
+
+            self.new_order(order_params, event_queue, min_base_order_size)?;
+        }
+        Ok(false)
     }
 }
 
@@ -521,8 +664,8 @@ mod tests {
                 event: &FillEvent {
                     tag: EventTag::Fill as u8,
                     taker_side: Side::Ask as u8,
-                    _padding: [0; 6],
-                    quote_size: 500_000 * 15,
+                    _padding: [0; 14],
+                    trade_price: 15 << 32,
                     maker_order_id: bob_order_id_0.unwrap(),
                     base_size: 500_000
                 },
@@ -537,7 +680,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 0,
                     order_id: bob_order_id_0.unwrap()
                 },
@@ -610,7 +753,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 250_000,
                     order_id: alice_order_id_0.unwrap()
                 },
@@ -741,7 +884,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Ask as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 6_000_000,
                     order_id: order_id_to_be_booted.unwrap()
                 },
@@ -938,7 +1081,7 @@ mod tests {
                 event: &OutEvent {
                     tag: EventTag::Out as u8,
                     side: Side::Bid as u8,
-                    _padding: [0; 14],
+                    _padding: [0; 6],
                     base_size: 6_000_000,
                     order_id: order_id_to_be_booted.unwrap()
                 },

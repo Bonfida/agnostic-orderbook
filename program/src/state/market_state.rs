@@ -25,11 +25,33 @@ pub struct MarketState {
     pub min_base_order_size: u64,
     /// Tick size (FP32)
     pub tick_size: u64,
+    /// When set to '1' orders will remain on their respective slabs without matching
+    pub pause_matching: u8,
+    _padding: [u8; 7],
 }
 
 impl MarketState {
     /// Expected size in bytes of MarketState
     pub const LEN: usize = size_of::<Self>();
+    #[allow(missing_docs)]
+    pub fn init_new(
+        event_queue: &Pubkey,
+        bids: &Pubkey,
+        asks: &Pubkey,
+        min_base_order_size: u64,
+        tick_size: u64,
+    ) -> Self {
+        Self {
+            event_queue: *event_queue,
+            bids: *bids,
+            asks: *asks,
+            min_base_order_size,
+            tick_size,
+            pause_matching: 0,
+            _padding: [0u8; 7],
+        }
+    }
+
     #[allow(missing_docs)]
     pub fn from_buffer(
         account_data: &mut [u8],
@@ -61,5 +83,5 @@ fn market_cast() {
     let mut buffer = [0u8; MarketState::LEN + 8];
     let r = MarketState::from_buffer(&mut buffer, AccountTag::Market);
     assert!(r.is_err());
-    assert_eq!(r.unwrap_err(), ProgramError::InvalidAccountData)
+    assert_eq!(r.unwrap_err(), AoError::AccountTagMismatch.into());
 }

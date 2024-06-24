@@ -20,17 +20,17 @@ use super::{AccountTag, Side};
 #[repr(C)]
 /// Represents an order being filled, a match between two parties.
 pub struct FillEvent {
-    /// The u8 representation for an [`AccountTag`] enum
-    pub tag: u8,
-    /// The u8 representation for a [`Side`] enum
-    pub taker_side: u8,
-    pub(crate) _padding: [u8; 6],
-    /// The total quote size of the transaction
-    pub quote_size: u64,
     /// The order id of the maker order
     pub maker_order_id: u128,
     /// The total base size of the transaction
     pub base_size: u64,
+    /// The trade price of the order fill
+    pub trade_price: u64,
+    /// The u8 representation for an [`AccountTag`] enum
+    pub tag: u8,
+    /// The u8 representation for a [`Side`] enum
+    pub taker_side: u8,
+    pub _padding: [u8; 14],
 }
 
 impl FillEvent {
@@ -42,15 +42,16 @@ impl FillEvent {
 #[repr(C)]
 /// Represents an order being modified or yanked from the orderbook without being matched
 pub struct OutEvent {
-    /// The u8 representation for an [`AccountTag`] enum
-    pub tag: u8,
-    /// The u8 representation for a [`Side`] enum
-    pub side: u8,
-    pub(crate) _padding: [u8; 14],
     /// The order id of the maker order
     pub order_id: u128,
     /// The total base size of the transaction
     pub base_size: u64,
+    /// The u8 representation for an [`AccountTag`] enum
+    pub tag: u8,
+    /// The u8 representation for a [`Side`] enum
+    pub side: u8,
+    /// zero padding for alignment
+    pub _padding: [u8; 6],
 }
 
 #[derive(PartialEq, Debug)]
@@ -89,9 +90,11 @@ pub(crate) enum EventTag {
     Out,
 }
 
-pub(crate) type GenericEvent = FillEvent;
+#[allow(missing_docs)]
+pub type GenericEvent = FillEvent;
 
-pub(crate) trait Event {
+#[allow(missing_docs)]
+pub trait Event {
     fn to_generic(&mut self) -> &GenericEvent;
 }
 
@@ -167,7 +170,8 @@ impl<'queue, C: Pod> EventQueue<'queue, C> {
 }
 
 impl<'queue, C: Clone> EventQueue<'queue, C> {
-    pub(crate) fn push_back<Ev: Event>(
+    #[allow(missing_docs)]
+    pub fn push_back<Ev: Event>(
         &mut self,
         mut event: Ev,
         maker_callback_info: Option<&C>,
@@ -344,7 +348,7 @@ mod tests {
                             tag: EventTag::Fill as u8,
                             taker_side: Side::Ask as u8,
                             _padding: [0; 6],
-                            quote_size: seq_gen.next().unwrap(),
+                            trade_price: seq_gen.next().unwrap(),
                             maker_order_id: seq_gen.next().unwrap() as u128,
                             base_size: seq_gen.next().unwrap(),
                         },
@@ -372,7 +376,7 @@ mod tests {
             tag: EventTag::Fill as u8,
             taker_side: Side::Ask as u8,
             _padding: [0; 6],
-            quote_size: seq_gen.next().unwrap(),
+            trade_price: seq_gen.next().unwrap(),
             maker_order_id: seq_gen.next().unwrap() as u128,
             base_size: seq_gen.next().unwrap(),
         };
@@ -414,7 +418,7 @@ mod tests {
                                 tag: EventTag::Fill as u8,
                                 taker_side: Side::Ask as u8,
                                 _padding: [0; 6],
-                                quote_size: seq_gen.next().unwrap(),
+                                trade_price: seq_gen.next().unwrap(),
                                 maker_order_id: seq_gen.next().unwrap() as u128,
                                 base_size: seq_gen.next().unwrap(),
                             },

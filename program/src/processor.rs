@@ -15,6 +15,8 @@ pub mod consume_events;
 pub mod create_market;
 pub mod mass_cancel_orders;
 pub mod new_order;
+pub mod pause_matching;
+pub mod resume_matching;
 
 pub fn process_instruction<C: Pod + BorshDeserialize + CallbackInfo + PartialEq>(
     program_id: &Pubkey,
@@ -70,6 +72,16 @@ where
             let params = mass_cancel_orders::Params::try_from_slice(instruction_data)
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             return mass_cancel_orders::process::<C>(program_id, accounts, params).map(Some);
+        }
+        AgnosticOrderbookInstruction::PauseMatching => {
+            msg!("Instruction: Pause Matching");
+            let accounts = pause_matching::Accounts::parse(accounts)?;
+            pause_matching::process::<C>(program_id, accounts, pause_matching::Params {})?;
+        }
+        AgnosticOrderbookInstruction::ResumeMatching => {
+            msg!("Instruction: Resume Matching");
+            let accounts = resume_matching::Accounts::parse(accounts)?;
+            resume_matching::process::<C>(program_id, accounts, resume_matching::Params {})?;
         }
     }
     Ok(None)
