@@ -6,7 +6,7 @@ use std::mem::size_of;
 
 use crate::error::AoError;
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
-#[cfg(feature = "no-entrypoint")]
+#[cfg(not(feature = "entrypoint"))]
 pub use crate::utils::get_spread;
 
 use super::AccountTag;

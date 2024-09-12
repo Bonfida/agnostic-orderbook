@@ -39,9 +39,9 @@ pub struct Slab<'a, C> {
 #[repr(C)]
 pub struct LeafNode {
     /// The key is the associated order id
-    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+    #[cfg(target_os = "solana")]
     pub key: u128,
-    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+    #[cfg(not(target_os = "solana"))]
     pub key: [u64; 2],
     /// The quantity of base asset associated with the underlying order
     pub base_quantity: u64,
@@ -52,20 +52,20 @@ impl LeafNode {
 
     /// Parse a leaf node's price
     pub fn price(&self) -> u64 {
-        #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+        #[cfg(target_os = "solana")]
         let res = Self::price_from_key(self.key);
-        #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+        #[cfg(not(target_os = "solana"))]
         let res = Self::price_from_key(self.order_id());
         res
     }
 
     /// Get the associated order id
     pub fn order_id(&self) -> u128 {
-        #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+        #[cfg(target_os = "solana")]
         {
             self.key
         }
-        #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+        #[cfg(not(target_os = "solana"))]
         {
             (self.key[0] as u128) + ((self.key[1] as u128) << 64)
         }
@@ -244,17 +244,17 @@ impl<'a, C> Slab<'a, C> {
             let shared_prefix_len = match Node::from_handle(root) {
                 Node::Inner => {
                     let root_node = &self.inner_nodes[(!root) as usize];
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     let shared_prefix_len: u32 = (root_node.key ^ new_leaf.key).leading_zeros();
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     let shared_prefix_len: u32 =
                         (root_node.key ^ new_leaf.order_id()).leading_zeros();
                     let keep_old_root = shared_prefix_len >= root_node.prefix_len as u32;
                     if keep_old_root {
                         parent_node = Some(root);
-                        #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                        #[cfg(target_os = "solana")]
                         let r = root_node.walk_down(new_leaf.key);
-                        #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                        #[cfg(not(target_os = "solana"))]
                         let r = root_node.walk_down(new_leaf.order_id());
                         root = r.0;
                         previous_critbit = Some(r.1);
@@ -271,9 +271,9 @@ impl<'a, C> Slab<'a, C> {
                         *root_node = *new_leaf;
                         return Ok((root, Some(leaf_copy)));
                     }
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     let shared_prefix_len: u32 = (root_node.key ^ new_leaf.key).leading_zeros();
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     let shared_prefix_len: u32 =
                         (root_node.order_id() ^ new_leaf.order_id()).leading_zeros();
 
@@ -283,9 +283,9 @@ impl<'a, C> Slab<'a, C> {
 
             // change the root in place to represent the LCA of [new_leaf] and [root]
             let crit_bit_mask: u128 = (1u128 << 127) >> shared_prefix_len;
-            #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+            #[cfg(target_os = "solana")]
             let new_leaf_crit_bit = (crit_bit_mask & new_leaf.key) != 0;
-            #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+            #[cfg(not(target_os = "solana"))]
             let new_leaf_crit_bit = (crit_bit_mask & new_leaf.order_id()) != 0;
             let old_root_crit_bit = !new_leaf_crit_bit;
 
@@ -295,11 +295,11 @@ impl<'a, C> Slab<'a, C> {
             let new_root_node_handle = self.allocate_inner_node().unwrap();
             let new_root_node = &mut self.inner_nodes[(!new_root_node_handle) as usize];
             new_root_node.prefix_len = shared_prefix_len as u64;
-            #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+            #[cfg(target_os = "solana")]
             {
                 new_root_node.key = new_leaf.key;
             }
-            #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+            #[cfg(not(target_os = "solana"))]
             {
                 new_root_node.key = new_leaf.order_id();
             }
@@ -343,11 +343,11 @@ impl<'a, C> Slab<'a, C> {
             match Node::from_handle(parent_h) {
                 Node::Leaf => {
                     let leaf = &self.leaf_nodes[parent_h as usize];
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     if leaf.key == search_key {
                         remove_root = Some(*leaf);
                     }
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     if leaf.order_id() == search_key {
                         remove_root = Some(*leaf);
                     }
@@ -382,11 +382,11 @@ impl<'a, C> Slab<'a, C> {
                 }
                 Node::Leaf => {
                     let leaf = &self.leaf_nodes[child_h as usize];
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     if leaf.key != search_key {
                         return None;
                     }
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     if leaf.order_id() != search_key {
                         return None;
                     }
@@ -497,8 +497,8 @@ impl<'a, C> Slab<'a, C> {
         // first check the live tree contents
         let mut leaf_count = 0;
         let mut inner_node_count = 0;
-        fn check_rec<'a, C>(
-            slab: &Slab<'a, C>,
+        fn check_rec<C>(
+            slab: &Slab<C>,
             h: NodeHandle,
             last_prefix_len: u64,
             last_prefix: u128,
@@ -510,14 +510,14 @@ impl<'a, C> Slab<'a, C> {
                 Node::Leaf => {
                     *leaf_count += 1;
                     let node = &slab.leaf_nodes[h as usize];
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     {
                         assert_eq!(
                             last_critbit,
                             (node.key & ((1u128 << 127) >> last_prefix_len)) != 0
                         );
                     }
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     {
                         assert_eq!(
                             last_critbit,
@@ -609,13 +609,13 @@ impl<'a, C> Slab<'a, C> {
             match Node::from_handle(node_handle) {
                 Node::Leaf => {
                     let n = self.leaf_nodes[node_handle as usize];
-                    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                    #[cfg(target_os = "solana")]
                     if search_key == n.key {
                         return Some(node_handle);
                     } else {
                         return None;
                     }
-                    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                    #[cfg(not(target_os = "solana"))]
                     if search_key == n.order_id() {
                         return Some(node_handle);
                     } else {
@@ -623,7 +623,7 @@ impl<'a, C> Slab<'a, C> {
                     }
                 }
                 Node::Inner => {
-                    let n = self.inner_nodes[(!node_handle as usize)];
+                    let n = self.inner_nodes[!node_handle as usize];
                     let common_prefix_len = (search_key ^ n.key).leading_zeros();
                     if common_prefix_len < n.prefix_len as u32 {
                         return None;
@@ -638,11 +638,7 @@ impl<'a, C> Slab<'a, C> {
 impl<'queue, C: Clone> Slab<'queue, C> {
     #[cfg(test)]
     fn traverse(&self) -> Vec<(LeafNode, C)> {
-        fn walk_rec<'a, C: Clone>(
-            slab: &Slab<'a, C>,
-            sub_root: NodeHandle,
-            buf: &mut Vec<(LeafNode, C)>,
-        ) {
+        fn walk_rec<C: Clone>(slab: &Slab<C>, sub_root: NodeHandle, buf: &mut Vec<(LeafNode, C)>) {
             match Node::from_handle(sub_root) {
                 Node::Leaf => {
                     let callback_info = slab.get_callback_info(sub_root);
@@ -760,9 +756,9 @@ mod tests {
                     key,
                     base_quantity: qty,
                 };
-                #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                #[cfg(target_os = "solana")]
                 println!("key : {:x}", key);
-                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                #[cfg(not(target_os = "solana"))]
                 println!("key : {:x}", leaf.order_id());
                 println!("owner : {:?}", &owner.to_bytes());
                 println!("{}", i);
@@ -771,7 +767,7 @@ mod tests {
                     key: owner.to_bytes(),
                 };
                 *slab.get_callback_info_mut(h) = callback_info;
-                #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+                #[cfg(target_os = "solana")]
                 {
                     model
                         .insert(key, (leaf, callback_info))
@@ -779,7 +775,7 @@ mod tests {
                         .unwrap_err();
                     all_keys.push(key);
                 }
-                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                #[cfg(not(target_os = "solana"))]
                 {
                     model
                         .insert(leaf.order_id(), (leaf, callback_info))
@@ -882,12 +878,9 @@ mod tests {
                         let qty = rng.gen();
                         let leaf = LeafNode {
                             key: {
-                                #[cfg(all(
-                                    not(target_arch = "aarch64"),
-                                    not(feature = "aarch64-test")
-                                ))]
+                                #[cfg(target_os = "solana")]
                                 let k = key;
-                                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                                #[cfg(not(target_os = "solana"))]
                                 let k = [key as u64, (key >> 64) as u64];
                                 k
                             },

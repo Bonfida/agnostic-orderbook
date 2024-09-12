@@ -98,12 +98,12 @@ The event_queue, bids, and asks accounts should be freshly allocated or zeroed o
 * The market account will only contain a [`MarketState`](`crate::state::MarketState`) object and should be sized appropriately.
 
 * The event queue will contain an [`EventQueueHeader`](`crate::state::EventQueueHeader`) object followed by a return register sized for a [`OrderSummary`](`crate::orderbook::OrderSummary`)
-(size of [`ORDER_SUMMARY_SIZE`](`crate::orderbook::ORDER_SUMMARY_SIZE`)) and then a series of events [`Event`](`crate::state::Event`). The serialized size of an [`Event`](`crate::state::Event`) object
-is given by [`compute_slot_size`](`crate::state::Event::compute_slot_size`) The size of the queue should be determined
-accordingly.
+    (size of [`ORDER_SUMMARY_SIZE`](`crate::orderbook::ORDER_SUMMARY_SIZE`)) and then a series of events [`Event`](`crate::state::Event`). The serialized size of an [`Event`](`crate::state::Event`) object
+    is given by [`compute_slot_size`](`crate::state::Event::compute_slot_size`) The size of the queue should be determined
+    accordingly.
 
 * The asks and bids accounts will contain a header of size [`SLAB_HEADER_LEN`][`crate::critbit::SLAB_HEADER_LEN`] followed by a series of slots of size
-[`compute_slot_size(callback_info_len)`][`crate::critbit::Slab::compute_slot_size`].
+    [`compute_slot_size(callback_info_len)`][`crate::critbit::Slab::compute_slot_size`].
 */
 pub fn create_market(
     accounts: create_market::Accounts<Pubkey>,
