@@ -4,7 +4,7 @@ use bytemuck::{CheckedBitPattern, NoUninit};
 use num_derive::{FromPrimitive, ToPrimitive};
 
 pub use crate::state::orderbook::{OrderSummary, ORDER_SUMMARY_SIZE};
-#[cfg(feature = "no-entrypoint")]
+#[cfg(not(feature = "entrypoint"))]
 pub use crate::utils::get_spread;
 
 /// Describes the orderbook's underlying data structure, the [`Slab`].

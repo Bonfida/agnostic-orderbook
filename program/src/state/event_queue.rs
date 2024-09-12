@@ -28,9 +28,10 @@ pub struct FillEvent {
     /// The total quote size of the transaction
     pub quote_size: u64,
     /// The order id of the maker order
-    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+    #[cfg(target_os = "solana")]
     pub maker_order_id: u128,
-    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+    #[cfg(not(target_os = "solana"))]
+    /// The order id of the maker order
     pub maker_order_id: [u64; 2],
     /// The total base size of the transaction
     pub base_size: u64,
@@ -51,9 +52,10 @@ pub struct OutEvent {
     pub side: u8,
     pub(crate) _padding: [u8; 14],
     /// The order id of the maker order
-    #[cfg(all(not(target_arch = "aarch64"), not(feature = "aarch64-test")))]
+    #[cfg(target_os = "solana")]
     pub order_id: u128,
-    #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+    #[cfg(not(target_os = "solana"))]
+    /// The order id of the maker order
     pub order_id: [u64; 2],
     /// The total base size of the transaction
     pub base_size: u64,
@@ -354,7 +356,7 @@ mod tests {
                             quote_size: seq_gen.next().unwrap(),
                             maker_order_id: {
                                 let s = seq_gen.next().unwrap() as u128;
-                                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                                #[cfg(not(target_os = "solana"))]
                                 let s = [s as u64, 0];
                                 s
                             },
@@ -375,7 +377,7 @@ mod tests {
                             base_size: seq_gen.next().unwrap(),
                             order_id: {
                                 let s = seq_gen.next().unwrap() as u128;
-                                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                                #[cfg(not(target_os = "solana"))]
                                 let s = [s as u64, 0];
                                 s
                             },
@@ -394,7 +396,7 @@ mod tests {
             quote_size: seq_gen.next().unwrap(),
             maker_order_id: {
                 let s = seq_gen.next().unwrap() as u128;
-                #[cfg(any(target_arch = "aarch64", feature = "aarch64-test"))]
+                #[cfg(not(target_os = "solana"))]
                 let s = [s as u64, 0];
                 s
             },
@@ -427,10 +429,7 @@ mod tests {
                                     base_size: seq_gen.next().unwrap(),
                                     order_id: {
                                         let s = seq_gen.next().unwrap() as u128;
-                                        #[cfg(any(
-                                            target_arch = "aarch64",
-                                            feature = "aarch64-test"
-                                        ))]
+                                        #[cfg(not(target_os = "solana"))]
                                         let s = [s as u64, 0];
                                         s
                                     },
@@ -454,10 +453,7 @@ mod tests {
                                     quote_size: seq_gen.next().unwrap(),
                                     maker_order_id: {
                                         let s = seq_gen.next().unwrap() as u128;
-                                        #[cfg(any(
-                                            target_arch = "aarch64",
-                                            feature = "aarch64-test"
-                                        ))]
+                                        #[cfg(not(target_os = "solana"))]
                                         let s = [s as u64, 0];
                                         s
                                     },

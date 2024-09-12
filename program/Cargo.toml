@@ -16,7 +16,6 @@ quick-test = []
 lib = []
 utils = []
 benchmarking = ["bonfida-utils/benchmarking"]
-aarch64-test = []
 
 [dependencies]
 solana-program = "1.18.23"
@@ -51,3 +50,6 @@ crate-type = ["cdylib", "lib"]
 [[bench]]
 name = "deep_ob"
 harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
