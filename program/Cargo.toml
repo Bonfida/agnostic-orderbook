@@ -1,6 +1,6 @@
 [package]
 name = "asset-agnostic-orderbook"
-version = "1.0.1-alpha.2"
+version = "1.0.1-alpha.3"
 edition = "2018"
 description = "Solana library enabling generic on-chain orderbooks"
 license = "Apache-2.0"
