@@ -4,6 +4,9 @@ version = "1.0.1-alpha.3"
 edition = "2018"
 description = "Solana library enabling generic on-chain orderbooks"
 license = "Apache-2.0"
+documentation = "https://docs.rs/asset-agnostic-orderbook/latest/asset_agnostic_orderbook/"
+homepage = "https://www.sns.id/"
+repository = "https://github.com/bonfida/agnostic-orderbook"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
